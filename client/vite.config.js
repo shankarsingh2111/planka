@@ -56,6 +56,7 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
+    allowedHosts: true,
     proxy: {
       '/api': PROXY_TARGET,
       '/socket.io': { target: PROXY_TARGET, ws: true },

@@ -20,6 +20,7 @@ export default class extends BaseModel {
     name: attr(),
     description: attr(),
     dueDate: attr(),
+    startDate: attr(),
     isDueCompleted: attr(),
     stopwatch: attr(),
     isClosed: attr(),

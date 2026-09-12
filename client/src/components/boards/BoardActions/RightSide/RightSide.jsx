@@ -30,7 +30,7 @@ const RightSide = React.memo(() => {
 
   const ActionsPopup = usePopup(ActionsStep);
 
-  const views = [BoardViews.GRID, BoardViews.LIST];
+  const views = [BoardViews.GRID, BoardViews.LIST, BoardViews.TIMELINE];
   if (board.context === BoardContexts.BOARD) {
     views.unshift(BoardViews.KANBAN);
   }

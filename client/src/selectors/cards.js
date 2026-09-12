@@ -462,6 +462,37 @@ export const selectIsCurrentUserInCurrentCard = createSelector(
   },
 );
 
+export const selectAllCardsForCurrentUser = createSelector(
+  orm,
+  (state) => selectCurrentUserId(state),
+  ({ User }, id) => {
+    if (!id) {
+      return [];
+    }
+
+    const userModel = User.withId(id);
+
+    if (!userModel) {
+      return [];
+    }
+
+    const cards = [];
+    userModel.getProjectsModelArray().forEach((projectModel) => {
+      projectModel
+        .getBoardsModelArrayAvailableForUser(userModel)
+        .forEach((boardModel) => {
+          boardModel.cards
+            .toRefArray()
+            .forEach((card) => {
+              cards.push(card);
+            });
+        });
+    });
+
+    return cards;
+  },
+);
+
 export default {
   makeSelectCardById,
   selectCardById,
@@ -495,4 +526,6 @@ export default {
   selectCommentIdsForCurrentCard,
   selectActivityIdsForCurrentCard,
   selectIsCurrentUserInCurrentCard,
+  selectAllCardsForCurrentUser,
 };
+

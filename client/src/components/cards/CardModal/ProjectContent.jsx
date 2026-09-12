@@ -25,8 +25,10 @@ import Communication from './Communication';
 import CreationDetailsStep from './CreationDetailsStep';
 import MoreActionsStep from './MoreActionsStep';
 import DueDateChip from '../DueDateChip';
+import StartDateChip from '../StartDateChip';
 import StopwatchChip from '../StopwatchChip';
 import EditDueDateStep from '../EditDueDateStep';
+import EditStartDateStep from '../EditStartDateStep';
 import EditStopwatchStep from '../EditStopwatchStep';
 import ExpandableMarkdown from '../../common/ExpandableMarkdown';
 import EditMarkdown from '../../common/EditMarkdown';
@@ -100,6 +102,7 @@ const ProjectContent = React.memo(() => {
         canEditType: false,
         canEditName: false,
         canEditDescription: false,
+        canEditStartDate: false,
         canEditDueDate: false,
         canEditStopwatch: false,
         canSubscribe: isMember,
@@ -122,6 +125,7 @@ const ProjectContent = React.memo(() => {
       canEditType: isEditor,
       canEditName: isEditor,
       canEditDescription: isEditor,
+      canEditStartDate: isEditor,
       canEditDueDate: isEditor,
       canEditStopwatch: isEditor,
       canSubscribe: isMember,
@@ -287,6 +291,7 @@ const ProjectContent = React.memo(() => {
   const BoardMembershipsPopup = usePopupInClosableContext(BoardMembershipsStep);
   const LabelsPopup = usePopupInClosableContext(LabelsStep);
   const ListsPopup = usePopupInClosableContext(ListsStep);
+  const EditStartDatePopup = usePopupInClosableContext(EditStartDateStep);
   const EditDueDatePopup = usePopupInClosableContext(EditDueDateStep);
   const EditStopwatchPopup = usePopupInClosableContext(EditStopwatchStep);
   const AddTaskListPopup = usePopupInClosableContext(AddTaskListStep);
@@ -409,6 +414,24 @@ const ProjectContent = React.memo(() => {
                       </button>
                     </LabelsPopup>
                   )}
+                </div>
+              )}
+              {card.startDate && (
+                <div className={styles.attachments}>
+                  <div className={styles.text}>
+                    {t('common.startDate', {
+                      context: 'title',
+                    })}
+                  </div>
+                  <span className={classNames(styles.attachment, styles.attachmentDueDate)}>
+                    {canEditStartDate ? (
+                      <EditStartDatePopup cardId={card.id}>
+                        <StartDateChip value={card.startDate} />
+                      </EditStartDatePopup>
+                    ) : (
+                      <StartDateChip value={card.startDate} />
+                    )}
+                  </span>
                 </div>
               )}
               {card.dueDate && (
@@ -604,6 +627,16 @@ const ProjectContent = React.memo(() => {
                       {t('common.labels')}
                     </Button>
                   </LabelsPopup>
+                )}
+                {canEditStartDate && (
+                  <EditStartDatePopup cardId={card.id}>
+                    <Button fluid className={classNames(styles.actionButton, styles.hidable)}>
+                      <Icon name="calendar outline" className={styles.actionIcon} />
+                      {t('common.startDate', {
+                        context: 'title',
+                      })}
+                    </Button>
+                  </EditStartDatePopup>
                 )}
                 {canEditDueDate && (
                   <EditDueDatePopup cardId={card.id}>

@@ -19,6 +19,7 @@ import {
 export const HomeViewIcons = {
   [HomeViews.GRID_PROJECTS]: 'th',
   [HomeViews.GROUPED_PROJECTS]: 'th list',
+  [HomeViews.TEAM_DASHBOARD]: 'dashboard',
 };
 
 export const UserRoleIcons = {
@@ -49,6 +50,7 @@ export const BoardViewIcons = {
   [BoardViews.KANBAN]: 'columns',
   [BoardViews.GRID]: 'th',
   [BoardViews.LIST]: 'unordered list',
+  [BoardViews.TIMELINE]: 'calendar alternate outline',
 };
 
 export const BoardContextIcons = {

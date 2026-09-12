@@ -12,13 +12,13 @@ services:
     ports:
       - 1337:1337
     environment:
-      - BASE_URL=http://localhost:1337
+      - BASE_URL=https://auto-node-test.jugnoo.in
       - DATABASE_URL=postgresql://postgres@postgres/planka
       - SECRET_KEY=notsecretkey
 
       # - LOG_LEVEL=warn
 
-      # - TRUST_PROXY=true
+      - TRUST_PROXY=true
       # - MAX_UPLOAD_FILE_SIZE=
       # - TOKEN_EXPIRES_IN=365 # In days
 
@@ -38,10 +38,10 @@ services:
       # - DEFAULT_LANGUAGE=en-US
 
       # Do not comment out DEFAULT_ADMIN_EMAIL if you want to prevent this user from being edited/deleted
-      # - DEFAULT_ADMIN_EMAIL=demo@demo.demo
-      # - DEFAULT_ADMIN_PASSWORD=demo
-      # - DEFAULT_ADMIN_NAME=Demo Demo
-      # - DEFAULT_ADMIN_USERNAME=demo
+      - DEFAULT_ADMIN_EMAIL=demo@demo.demo
+      - DEFAULT_ADMIN_PASSWORD=demo
+      - DEFAULT_ADMIN_NAME=Demo Demo
+      - DEFAULT_ADMIN_USERNAME=demo
 
       # Set to true to show more detailed authentication error messages.
       # It should not be enabled without a rate limiter for security reasons.
@@ -111,7 +111,7 @@ services:
     volumes:
       - ./client:/app
     ports:
-      - 3000:3000
+      - 6161:3000
     environment:
       - PROXY_TARGET=http://planka-server:1337
 

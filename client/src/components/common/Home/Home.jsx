@@ -10,6 +10,7 @@ import selectors from '../../../selectors';
 import { HomeViews } from '../../../constants/Enums';
 import GridProjectsView from './GridProjectsView';
 import GroupedProjectsView from './GroupedProjectsView';
+import TeamDashboardView from './TeamDashboardView';
 
 import styles from './Home.module.scss';
 
@@ -24,6 +25,10 @@ const Home = React.memo(() => {
       break;
     case HomeViews.GROUPED_PROJECTS:
       View = GroupedProjectsView;
+
+      break;
+    case HomeViews.TEAM_DASHBOARD:
+      View = TeamDashboardView;
 
       break;
     default:

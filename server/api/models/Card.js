@@ -175,6 +175,10 @@ module.exports = {
       type: 'ref',
       columnName: 'due_date',
     },
+    startDate: {
+      type: 'ref',
+      columnName: 'start_date',
+    },
     isDueCompleted: {
       type: 'boolean',
       allowNull: true,

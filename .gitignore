@@ -13,3 +13,7 @@ yarn.lock
 
 # Chart dependencies
 **/charts/*.tgz
+.gitnexus
+AGENTS.md
+CLAUDE.md
+.claude
