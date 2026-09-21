@@ -5,70 +5,56 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
+import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
 import { Icon } from 'semantic-ui-react';
 
+import { SummaryKeys } from './build-dashboard-model';
+
 import styles from './TeamDashboardView.module.scss';
 
-const SummaryCards = React.memo(
-  ({ overdueCount, dueThisWeekCount, activeCount, doneCount, totalCount }) => {
-    const [t] = useTranslation();
+const SUMMARIES = [
+  { key: SummaryKeys.OVERDUE, icon: 'exclamation triangle', className: 'summaryDanger' },
+  { key: SummaryKeys.DUE_THIS_WEEK, icon: 'clock outline', className: 'summaryWarning' },
+  { key: SummaryKeys.IN_PROGRESS, icon: 'sync alternate', className: 'summaryInfo' },
+  { key: SummaryKeys.COMPLETED_THIS_WEEK, icon: 'check circle', className: 'summarySuccess' },
+  { key: SummaryKeys.UNASSIGNED, icon: 'user outline', className: 'summaryNeutral' },
+];
 
-    const cards = [
-      {
-        key: 'overdue',
-        icon: 'exclamation triangle',
-        label: t('common.overdue'),
-        count: overdueCount,
-        className: styles.summaryCardDanger,
-      },
-      {
-        key: 'dueThisWeek',
-        icon: 'clock outline',
-        label: t('common.dueThisWeek'),
-        count: dueThisWeekCount,
-        className: styles.summaryCardWarning,
-      },
-      {
-        key: 'active',
-        icon: 'spinner',
-        label: t('common.inProgress'),
-        count: activeCount,
-        className: styles.summaryCardInfo,
-      },
-      {
-        key: 'done',
-        icon: 'check circle',
-        label: t('common.completed'),
-        count: doneCount,
-        className: styles.summaryCardSuccess,
-      },
-    ];
+const SummaryCards = React.memo(({ counts, activeKey, onSelect }) => {
+  const [t] = useTranslation();
 
-    return (
-      <div className={styles.summaryRow}>
-        {cards.map((card) => (
-          <div key={card.key} className={`${styles.summaryCard} ${card.className}`}>
-            <div className={styles.summaryCardIcon}>
-              <Icon name={card.icon} />
-            </div>
-            <div className={styles.summaryCardContent}>
-              <div className={styles.summaryCardCount}>{card.count}</div>
-              <div className={styles.summaryCardLabel}>{card.label}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  },
-);
+  return (
+    <div className={styles.summaryRow}>
+      {SUMMARIES.map((summary) => (
+        <button
+          key={summary.key}
+          type="button"
+          aria-pressed={activeKey === summary.key}
+          className={classNames(styles.summaryCard, styles[summary.className], {
+            [styles.summaryCardActive]: activeKey === summary.key,
+          })}
+          onClick={() => onSelect(activeKey === summary.key ? null : summary.key)}
+        >
+          <Icon name={summary.icon} className={styles.summaryIcon} />
+          <span className={styles.summaryContent}>
+            <span className={styles.summaryCount}>{counts[summary.key] || 0}</span>
+            <span className={styles.summaryLabel}>{t(`common.${summary.key}`)}</span>
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+});
 
 SummaryCards.propTypes = {
-  overdueCount: PropTypes.number.isRequired,
-  dueThisWeekCount: PropTypes.number.isRequired,
-  activeCount: PropTypes.number.isRequired,
-  doneCount: PropTypes.number.isRequired,
-  totalCount: PropTypes.number.isRequired,
+  counts: PropTypes.objectOf(PropTypes.number).isRequired,
+  activeKey: PropTypes.string,
+  onSelect: PropTypes.func.isRequired,
+};
+
+SummaryCards.defaultProps = {
+  activeKey: null,
 };
 
 export default SummaryCards;

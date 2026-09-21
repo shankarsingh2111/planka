@@ -3,4 +3,6 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-export { default } from './TeamDashboardView';
+import TeamDashboardView from './TeamDashboardView';
+
+export default TeamDashboardView;

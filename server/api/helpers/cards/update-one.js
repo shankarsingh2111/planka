@@ -187,6 +187,18 @@ module.exports = {
           cardId: inputs.record.id,
         });
 
+        // Dependencies are board-scoped, so they don't survive a move to another board
+        await CardDependency.qm.delete({
+          or: [
+            {
+              predecessorCardId: inputs.record.id,
+            },
+            {
+              successorCardId: inputs.record.id,
+            },
+          ],
+        });
+
         const taskLists = await TaskList.qm.getByCardId(inputs.record.id);
         const taskListIds = sails.helpers.utils.mapRecords(taskLists);
 

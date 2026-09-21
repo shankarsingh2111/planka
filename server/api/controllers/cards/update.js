@@ -145,6 +145,9 @@ const Errors = {
   POSITION_MUST_BE_PRESENT: {
     positionMustBePresent: 'Position must be present',
   },
+  START_DATE_MUST_BE_BEFORE_DUE_DATE: {
+    startDateMustBeBeforeDueDate: 'Start date must be before due date',
+  },
 };
 
 module.exports = {
@@ -227,6 +230,9 @@ module.exports = {
     positionMustBePresent: {
       responseType: 'unprocessableEntity',
     },
+    startDateMustBeBeforeDueDate: {
+      responseType: 'unprocessableEntity',
+    },
   },
 
   async fn(inputs) {
@@ -267,6 +273,13 @@ module.exports = {
 
     if (_.difference(Object.keys(inputs), availableInputKeys).length > 0) {
       throw Errors.NOT_ENOUGH_RIGHTS;
+    }
+
+    const nextStartDate = _.isUndefined(inputs.startDate) ? card.startDate : inputs.startDate;
+    const nextDueDate = _.isUndefined(inputs.dueDate) ? card.dueDate : inputs.dueDate;
+
+    if (nextStartDate && nextDueDate && new Date(nextStartDate) > new Date(nextDueDate)) {
+      throw Errors.START_DATE_MUST_BE_BEFORE_DUE_DATE;
     }
 
     let nextProject;

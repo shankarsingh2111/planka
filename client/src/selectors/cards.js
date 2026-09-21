@@ -462,34 +462,43 @@ export const selectIsCurrentUserInCurrentCard = createSelector(
   },
 );
 
-export const selectAllCardsForCurrentUser = createSelector(
+export const selectTimelineCardsByIds = createSelector(
   orm,
-  (state) => selectCurrentUserId(state),
-  ({ User }, id) => {
-    if (!id) {
+  (_, ids) => ids,
+  ({ Card }, ids) => {
+    if (!ids) {
       return [];
     }
 
-    const userModel = User.withId(id);
+    return ids.flatMap((id) => {
+      const cardModel = Card.withId(id);
 
-    if (!userModel) {
-      return [];
-    }
+      if (!cardModel) {
+        return [];
+      }
 
-    const cards = [];
-    userModel.getProjectsModelArray().forEach((projectModel) => {
-      projectModel
-        .getBoardsModelArrayAvailableForUser(userModel)
-        .forEach((boardModel) => {
-          boardModel.cards
-            .toRefArray()
-            .forEach((card) => {
-              cards.push(card);
-            });
+      let tasksTotal = 0;
+      let tasksCompleted = 0;
+
+      cardModel.taskLists.toModelArray().forEach((taskListModel) => {
+        taskListModel.tasks.toRefArray().forEach((task) => {
+          tasksTotal += 1;
+
+          if (task.isCompleted) {
+            tasksCompleted += 1;
+          }
         });
-    });
+      });
 
-    return cards;
+      return {
+        ...cardModel.ref,
+        userIds: cardModel.users.toRefArray().map((user) => user.id),
+        labelIds: cardModel.labels.toRefArray().map((label) => label.id),
+        list: cardModel.list && cardModel.list.ref,
+        tasksTotal,
+        tasksCompleted,
+      };
+    });
   },
 );
 
@@ -526,6 +535,5 @@ export default {
   selectCommentIdsForCurrentCard,
   selectActivityIdsForCurrentCard,
   selectIsCurrentUserInCurrentCard,
-  selectAllCardsForCurrentUser,
+  selectTimelineCardsByIds,
 };
-

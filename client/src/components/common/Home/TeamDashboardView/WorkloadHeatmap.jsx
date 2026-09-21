@@ -5,125 +5,174 @@
 
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { useSelector } from 'react-redux';
+import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
-
-import selectors from '../../../../selectors';
 
 import styles from './TeamDashboardView.module.scss';
 
-const WorkloadHeatmap = React.memo(({ cards }) => {
+const WEEKS_BEFORE = 1;
+const WEEKS_AFTER = 8;
+const OPEN_ENDED_DAYS = 7;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const UNASSIGNED_KEY = '__unassigned__';
+
+const getLevel = (count) => {
+  if (count === 0) return 0;
+  if (count <= 2) return 1;
+  if (count <= 4) return 2;
+  return 3;
+};
+
+const getWorkRange = ({ startDate, dueDate }) => {
+  if (startDate && dueDate) {
+    return { start: startDate, end: dueDate };
+  }
+
+  if (dueDate) {
+    return { start: dueDate, end: dueDate };
+  }
+
+  if (startDate) {
+    return { start: startDate, end: new Date(startDate.getTime() + OPEN_ENDED_DAYS * MS_PER_DAY) };
+  }
+
+  return null;
+};
+
+const WorkloadHeatmap = React.memo(({ entries, userById }) => {
   const [t] = useTranslation();
 
-  // Get unique users from card memberships
-  // For now, group by board as a proxy until we have full membership data
-  const heatmapData = useMemo(() => {
-    const now = new Date();
-    const weeks = [];
-    for (let i = -1; i < 5; i += 1) {
-      const weekStart = new Date(now);
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1 + i * 7);
-      weekStart.setHours(0, 0, 0, 0);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
-      weekEnd.setHours(23, 59, 59, 999);
-      weeks.push({ start: weekStart, end: weekEnd });
+  const weeks = useMemo(() => {
+    const today = new Date();
+    const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+
+    const result = [];
+    for (let i = -WEEKS_BEFORE; i < WEEKS_AFTER; i += 1) {
+      const start = new Date(monday);
+      start.setDate(monday.getDate() + i * 7);
+
+      const end = new Date(start);
+      end.setDate(start.getDate() + 7);
+
+      result.push({ start, end, isCurrent: i === 0 });
     }
 
-    // Group cards by board
-    const boardGroups = {};
-    cards.forEach((card) => {
-      if (!boardGroups[card.boardId]) {
-        boardGroups[card.boardId] = { boardId: card.boardId, cards: [] };
+    return result;
+  }, []);
+
+  const rows = useMemo(() => {
+    const rowByKey = {};
+
+    const getRow = (key, label) => {
+      if (!rowByKey[key]) {
+        rowByKey[key] = {
+          key,
+          label,
+          cells: weeks.map(() => []),
+        };
       }
-      boardGroups[card.boardId].cards.push(card);
-    });
 
-    // Build heatmap: boards × weeks
-    const rows = Object.values(boardGroups).map((group) => {
-      const weekCounts = weeks.map((week) => {
-        const count = group.cards.filter((card) => {
-          const dueDate = card.dueDate ? new Date(card.dueDate) : null;
-          const startDate = card.startDate ? new Date(card.startDate) : null;
+      return rowByKey[key];
+    };
 
-          // Card is "in" this week if its date range overlaps
-          if (startDate && dueDate) {
-            return startDate <= week.end && dueDate >= week.start;
-          }
-          if (dueDate) {
-            return dueDate >= week.start && dueDate <= week.end;
-          }
-          return false;
-        }).length;
-        return count;
+    entries.forEach((entry) => {
+      if (entry.isDone) {
+        return;
+      }
+
+      const range = getWorkRange(entry.card);
+
+      if (!range) {
+        return;
+      }
+
+      const rowTargets =
+        entry.userIds.length > 0
+          ? entry.userIds.flatMap((userId) =>
+              userById[userId] ? getRow(userId, userById[userId].name) : [],
+            )
+          : [getRow(UNASSIGNED_KEY, t('common.unassigned_title'))];
+
+      weeks.forEach((week, weekIndex) => {
+        if (range.start < week.end && range.end >= week.start) {
+          rowTargets.forEach((row) => {
+            row.cells[weekIndex].push(entry.card.name);
+          });
+        }
       });
-
-      return {
-        label: `Board ${group.boardId.slice(-4)}`,
-        weekCounts,
-      };
     });
 
-    return { weeks, rows };
-  }, [cards]);
+    return Object.values(rowByKey).sort((a, b) => {
+      if (a.key === UNASSIGNED_KEY) return 1;
+      if (b.key === UNASSIGNED_KEY) return -1;
+      return a.label.localeCompare(b.label);
+    });
+  }, [entries, weeks, userById, t]);
 
-  const getIntensityClass = (count) => {
-    if (count === 0) return styles.heatmapCellEmpty;
-    if (count <= 2) return styles.heatmapCellLow;
-    if (count <= 4) return styles.heatmapCellMedium;
-    return styles.heatmapCellHigh;
-  };
-
-  const formatWeekLabel = (week) => {
-    const month = week.start.toLocaleDateString('en-US', { month: 'short' });
-    return `${month} ${week.start.getDate()}`;
-  };
+  if (rows.length === 0) {
+    return <div className={styles.emptyPanel}>{t('common.noCardsWithDates')}</div>;
+  }
 
   return (
-    <div className={styles.heatmapWrapper}>
-      <div className={styles.heatmapTable}>
-        {/* Header */}
-        <div className={styles.heatmapRow}>
-          <div className={styles.heatmapLabel} />
-          {heatmapData.weeks.map((week, i) => (
-            <div key={`header-${i}`} className={styles.heatmapColumnHeader}>
-              {formatWeekLabel(week)}
-            </div>
-          ))}
-        </div>
-        {/* Rows */}
-        {heatmapData.rows.map((row) => (
-          <div key={row.label} className={styles.heatmapRow}>
-            <div className={styles.heatmapLabel}>{row.label}</div>
-            {row.weekCounts.map((count, i) => (
-              <div
-                key={`${row.label}-${i}`}
-                className={`${styles.heatmapCell} ${getIntensityClass(count)}`}
-                title={`${count} cards`}
-              >
-                {count > 0 && count}
-              </div>
+    <div className={styles.heatmapPanel}>
+      <div className={styles.heatmapScroll}>
+        <table className={styles.heatmap}>
+          <thead>
+            <tr>
+              <th className={styles.heatmapCorner}>{t('common.members')}</th>
+              {weeks.map((week) => (
+                <th
+                  key={week.start.getTime()}
+                  className={classNames(styles.heatmapWeek, {
+                    [styles.heatmapWeekCurrent]: week.isCurrent,
+                  })}
+                >
+                  {t('format:longDate', { value: week.start, postProcess: 'formatDate' })}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.key}>
+                <th className={styles.heatmapMember}>{row.label}</th>
+                {row.cells.map((cardNames, index) => (
+                  <td
+                    key={weeks[index].start.getTime()}
+                    className={classNames(
+                      styles.heatmapCell,
+                      styles[`heatmapLevel${getLevel(cardNames.length)}`],
+                    )}
+                    title={cardNames.join('\n')}
+                  >
+                    {cardNames.length > 0 ? cardNames.length : ''}
+                  </td>
+                ))}
+              </tr>
             ))}
-          </div>
-        ))}
-        {heatmapData.rows.length === 0 && (
-          <div className={styles.heatmapEmpty}>{t('common.noData')}</div>
-        )}
+          </tbody>
+        </table>
       </div>
       <div className={styles.heatmapLegend}>
-        <span className={styles.heatmapLegendLabel}>{t('common.less')}</span>
-        <div className={`${styles.heatmapCell} ${styles.heatmapCellEmpty}`} />
-        <div className={`${styles.heatmapCell} ${styles.heatmapCellLow}`} />
-        <div className={`${styles.heatmapCell} ${styles.heatmapCellMedium}`} />
-        <div className={`${styles.heatmapCell} ${styles.heatmapCellHigh}`} />
-        <span className={styles.heatmapLegendLabel}>{t('common.more')}</span>
+        <span>{t('common.less')}</span>
+        {[0, 1, 2, 3].map((level) => (
+          <span
+            key={level}
+            className={classNames(styles.heatmapLegendSwatch, styles[`heatmapLevel${level}`])}
+          />
+        ))}
+        <span>{t('common.more')}</span>
+        <span className={styles.heatmapLegendHint}>{t('common.workloadLegendHint')}</span>
       </div>
     </div>
   );
 });
 
 WorkloadHeatmap.propTypes = {
-  cards: PropTypes.array.isRequired, // eslint-disable-line react/forbid-prop-types
+  entries: PropTypes.array.isRequired, // eslint-disable-line react/forbid-prop-types
+  userById: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
 };
 
 export default WorkloadHeatmap;

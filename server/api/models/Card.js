@@ -88,6 +88,12 @@
  *           nullable: true
  *           description: Due date for the card
  *           example: 2024-01-01T00:00:00.000Z
+ *         startDate:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *           description: Start date for the card (used by timeline views)
+ *           example: 2023-12-25T00:00:00.000Z
  *         isDueCompleted:
  *           type: boolean
  *           nullable: true

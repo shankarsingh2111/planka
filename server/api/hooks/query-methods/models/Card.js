@@ -155,13 +155,19 @@ const getByEndlessListId = async (listId, { before, search, userIds, labelIds })
   });
 };
 
-const getByListIds = async (listIds, { sort = ['position', 'id'] } = {}) =>
-  defaultFind(
-    {
-      listId: listIds,
-    },
-    { sort },
-  );
+const getByListIds = async (listIds, { listChangedAfter, sort = ['position', 'id'] } = {}) => {
+  const criteria = {
+    listId: listIds,
+  };
+
+  if (listChangedAfter) {
+    criteria.listChangedAt = {
+      '>=': listChangedAfter,
+    };
+  }
+
+  return defaultFind(criteria, { sort });
+};
 
 const getOneById = (id, { listId } = {}) => {
   const criteria = {

@@ -1,0 +1,442 @@
+/*!
+ * Copyright (c) 2024 PLANKA Software GmbH
+ * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
+ */
+
+:global(#app) {
+  .wrapper {
+    background: rgba(244, 245, 247, 0.96);
+    border-radius: 3px;
+    color: #172b4d;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* Toolbar */
+
+  .toolbar {
+    align-items: center;
+    border-bottom: 1px solid rgba(9, 30, 66, 0.13);
+    display: flex;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: space-between;
+    padding: 8px 12px;
+  }
+
+  .toolbarGroup {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .unscheduledBadge {
+    background: rgba(9, 30, 66, 0.08);
+    border-radius: 10px;
+    color: #5e6c84;
+    font-size: 12px;
+    padding: 3px 10px;
+  }
+
+  .hint {
+    color: #5e6c84;
+    font-size: 11px;
+    padding: 4px 12px 0;
+  }
+
+  /* Scroll area */
+
+  .scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    position: relative;
+
+    @supports (-moz-appearance: none) {
+      scrollbar-color: rgba(0, 0, 0, 0.32) rgba(0, 0, 0, 0.08);
+    }
+  }
+
+  .inner {
+    min-height: 100%;
+    position: relative;
+  }
+
+  /* Header */
+
+  .header {
+    background: #fff;
+    border-bottom: 1px solid rgba(9, 30, 66, 0.13);
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 6;
+  }
+
+  .corner {
+    background: #fff;
+    border-right: 1px solid rgba(9, 30, 66, 0.13);
+    flex-shrink: 0;
+    left: 0;
+    position: sticky;
+    z-index: 7;
+  }
+
+  .headerScale {
+    flex-shrink: 0;
+  }
+
+  .headerRow {
+    height: 24px;
+    position: relative;
+  }
+
+  .headerCell {
+    border-left: 1px solid rgba(9, 30, 66, 0.08);
+    color: #172b4d;
+    font-size: 12px;
+    font-weight: 600;
+    height: 100%;
+    line-height: 24px;
+    overflow: hidden;
+    position: absolute;
+    top: 0;
+    white-space: nowrap;
+  }
+
+  .headerCellLabelSticky {
+    left: calc(220px + 8px);
+    padding: 0 8px;
+    position: sticky;
+  }
+
+  .headerCellMinor {
+    color: #5e6c84;
+    font-size: 11px;
+    font-weight: normal;
+    text-align: center;
+  }
+
+  .headerCellWeekend {
+    background: rgba(9, 30, 66, 0.04);
+  }
+
+  .headerCellCurrent {
+    background: rgba(33, 133, 208, 0.14);
+    color: #1d6fa5;
+    font-weight: 700;
+  }
+
+  /* Body */
+
+  .body {
+    display: flex;
+  }
+
+  .laneHeaders {
+    background: #fff;
+    border-right: 1px solid rgba(9, 30, 66, 0.13);
+    flex-shrink: 0;
+    left: 0;
+    position: sticky;
+    z-index: 5;
+  }
+
+  .laneHeader {
+    align-items: flex-start;
+    border-bottom: 1px solid rgba(9, 30, 66, 0.08);
+    display: flex;
+    gap: 6px;
+    padding: 10px 10px 0 12px;
+  }
+
+  .laneLabel {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .laneCount {
+    background: rgba(9, 30, 66, 0.08);
+    border-radius: 10px;
+    color: #5e6c84;
+    flex-shrink: 0;
+    font-size: 11px;
+    padding: 0 7px;
+  }
+
+  .canvas {
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .gridLine {
+    border-left: 1px solid rgba(9, 30, 66, 0.06);
+    bottom: 0;
+    position: absolute;
+    top: 0;
+  }
+
+  .laneBackground {
+    border-bottom: 1px solid rgba(9, 30, 66, 0.08);
+    left: 0;
+    position: absolute;
+    right: 0;
+  }
+
+  .todayMarker {
+    background: #db2828;
+    bottom: 0;
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    width: 2px;
+    z-index: 3;
+  }
+
+  .empty {
+    color: #5e6c84;
+    left: 0;
+    padding: 48px 20px;
+    position: sticky;
+    text-align: center;
+    width: min(100%, 100vw);
+  }
+
+  /* Bars */
+
+  .bar {
+    align-items: center;
+    background: #4a90d9;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(9, 30, 66, 0.3);
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    font-size: 12px;
+    overflow: visible;
+    position: absolute;
+    touch-action: none;
+    user-select: none;
+    z-index: 2;
+
+    &:hover,
+    &:focus-visible {
+      box-shadow: 0 2px 6px rgba(9, 30, 66, 0.45);
+      outline: none;
+      z-index: 4;
+
+      .linkDot,
+      .barHandle {
+        opacity: 1;
+      }
+    }
+  }
+
+  .barEditable {
+    cursor: grab;
+  }
+
+  .barDragging {
+    cursor: grabbing;
+    opacity: 0.85;
+    z-index: 5;
+  }
+
+  .barLabel {
+    overflow: hidden;
+    padding: 0 8px;
+    position: relative;
+    text-overflow: ellipsis;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+    white-space: nowrap;
+  }
+
+  .barProgress {
+    background: rgba(0, 0, 0, 0.18);
+    border-radius: 4px 0 0 4px;
+    bottom: 0;
+    left: 0;
+    position: absolute;
+    top: 0;
+  }
+
+  .barPoint {
+    border-radius: 2px;
+    transform: scale(0.75) rotate(45deg);
+  }
+
+  .barOpenEnded {
+    mask-image: linear-gradient(90deg, #000 70%, rgba(0, 0, 0, 0.35));
+  }
+
+  .barCompleted {
+    filter: saturate(0.35);
+    opacity: 0.6;
+  }
+
+  .barOverdue {
+    box-shadow: 0 0 0 2px #db2828;
+  }
+
+  .barCritical {
+    box-shadow: 0 0 0 2px #f2711c;
+  }
+
+  .barHandle {
+    bottom: 0;
+    cursor: ew-resize;
+    opacity: 0;
+    position: absolute;
+    top: 0;
+    width: 8px;
+
+    &::after {
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 1px;
+      bottom: 7px;
+      content: '';
+      position: absolute;
+      top: 7px;
+      width: 2px;
+    }
+  }
+
+  .barHandleStart {
+    left: 0;
+
+    &::after {
+      left: 3px;
+    }
+  }
+
+  .barHandleEnd {
+    right: 0;
+
+    &::after {
+      right: 3px;
+    }
+  }
+
+  .linkDot {
+    background: #fff;
+    border: 2px solid #2185d0;
+    border-radius: 50%;
+    cursor: crosshair;
+    height: 12px;
+    opacity: 0;
+    position: absolute;
+    right: -16px;
+    top: calc(50% - 6px);
+    width: 12px;
+  }
+
+  /* Dependency arrows */
+
+  .arrows {
+    left: 0;
+    overflow: visible;
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    z-index: 3;
+  }
+
+  .arrow {
+    fill: none;
+    stroke-width: 1.5;
+  }
+
+  .arrowdefault {
+    stroke: #6b778c;
+  }
+
+  .arrowconflict {
+    stroke: #db2828;
+    stroke-dasharray: 4 3;
+  }
+
+  .arrowcritical {
+    stroke: #f2711c;
+    stroke-width: 2.5;
+  }
+
+  .arrowLinking {
+    stroke: #2185d0;
+    stroke-dasharray: 5 4;
+  }
+
+  .arrowHeaddefault {
+    fill: #6b778c;
+  }
+
+  .arrowHeadconflict {
+    fill: #db2828;
+  }
+
+  .arrowHeadcritical {
+    fill: #f2711c;
+  }
+
+  .arrowHitArea {
+    fill: none;
+    pointer-events: stroke;
+    stroke: transparent;
+    stroke-width: 12;
+  }
+
+  .arrowDelete {
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: all;
+
+    circle {
+      fill: #fff;
+      stroke: #db2828;
+    }
+
+    path {
+      stroke: #db2828;
+      stroke-width: 1.5;
+    }
+  }
+
+  .arrowGroup:hover .arrowDelete,
+  .arrowDelete:focus {
+    opacity: 1;
+  }
+
+  /* Tooltip */
+
+  .tooltip {
+    background: #172b4d;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(9, 30, 66, 0.35);
+    color: #fff;
+    font-size: 12px;
+    max-width: 260px;
+    padding: 8px 10px;
+    pointer-events: none;
+    position: absolute;
+    z-index: 8;
+  }
+
+  .tooltipTitle {
+    font-weight: 700;
+    margin-bottom: 4px;
+    word-break: break-word;
+  }
+
+  .tooltipLine {
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.5;
+  }
+}

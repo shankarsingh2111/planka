@@ -116,6 +116,9 @@ const Errors = {
   POSITION_MUST_BE_PRESENT: {
     positionMustBePresent: 'Position must be present',
   },
+  START_DATE_MUST_BE_BEFORE_DUE_DATE: {
+    startDateMustBeBeforeDueDate: 'Start date must be before due date',
+  },
 };
 
 module.exports = {
@@ -173,6 +176,9 @@ module.exports = {
     positionMustBePresent: {
       responseType: 'unprocessableEntity',
     },
+    startDateMustBeBeforeDueDate: {
+      responseType: 'unprocessableEntity',
+    },
   },
 
   async fn(inputs) {
@@ -193,6 +199,14 @@ module.exports = {
 
     if (boardMembership.role !== BoardMembership.Roles.EDITOR) {
       throw Errors.NOT_ENOUGH_RIGHTS;
+    }
+
+    if (
+      inputs.startDate &&
+      inputs.dueDate &&
+      new Date(inputs.startDate) > new Date(inputs.dueDate)
+    ) {
+      throw Errors.START_DATE_MUST_BE_BEFORE_DUE_DATE;
     }
 
     const values = _.pick(inputs, [

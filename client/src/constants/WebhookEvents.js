@@ -32,6 +32,9 @@ export default [
   'cardLabelCreate',
   'cardLabelDelete',
 
+  'cardDependencyCreate',
+  'cardDependencyDelete',
+
   'cardMembershipCreate',
   'cardMembershipDelete',
 

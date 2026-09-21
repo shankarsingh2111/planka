@@ -183,6 +183,12 @@ module.exports.routes = {
   'POST /api/cards/:cardId/card-labels': 'card-labels/create',
   'DELETE /api/cards/:cardId/card-labels/labelId::labelId': 'card-labels/delete',
 
+  'GET /api/boards/:boardId/card-dependencies': 'card-dependencies/index',
+  'POST /api/cards/:cardId/card-dependencies': 'card-dependencies/create',
+  'DELETE /api/card-dependencies/:id': 'card-dependencies/delete',
+
+  'GET /api/dashboard': 'dashboard/show',
+
   'POST /api/cards/:cardId/task-lists': 'task-lists/create',
   'GET /api/task-lists/:id': 'task-lists/show',
   'PATCH /api/task-lists/:id': 'task-lists/update',

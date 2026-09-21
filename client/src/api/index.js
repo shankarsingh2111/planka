@@ -22,6 +22,8 @@ import lists from './lists';
 import cards from './cards';
 import cardMemberships from './card-memberships';
 import cardLabels from './card-labels';
+import cardDependencies from './card-dependencies';
+import dashboard from './dashboard';
 import taskLists from './task-lists';
 import tasks from './tasks';
 import attachments from './attachments';
@@ -53,6 +55,8 @@ export default {
   ...cards,
   ...cardMemberships,
   ...cardLabels,
+  ...cardDependencies,
+  ...dashboard,
   ...taskLists,
   ...tasks,
   ...attachments,
