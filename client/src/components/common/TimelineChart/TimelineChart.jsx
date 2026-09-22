@@ -17,9 +17,6 @@ import {
   BAR_HEIGHT,
   LANE_PADDING,
   MIN_LANE_HEIGHT,
-  WORK_DAY_START_HOUR,
-  WORK_DAY_END_HOUR,
-  HOURS_PER_DAY,
   addDays,
   diffInDays,
   startOfDay,
@@ -488,8 +485,7 @@ const TimelineChart = React.memo(
       text: t(`common.${value}`),
     }));
 
-    // Weekend columns, and (at day zoom) the hours outside the working day, are shaded with
-    // repeating gradients rather than extra elements
+    // Weekend columns are shaded with a repeating gradient rather than extra elements
     const backgroundLayers = [];
 
     if (zoomLevel === ZoomLevels.DAY || zoomLevel === ZoomLevels.WEEK) {
@@ -499,16 +495,6 @@ const TimelineChart = React.memo(
         }px, rgba(9, 30, 66, 0.04) ${5 * pixelsPerDay}px, rgba(9, 30, 66, 0.04) ${
           7 * pixelsPerDay
         }px)`,
-      );
-    }
-
-    if (zoomLevel === ZoomLevels.DAY) {
-      const hourWidth = pixelsPerDay / HOURS_PER_DAY;
-      const workStart = WORK_DAY_START_HOUR * hourWidth;
-      const workEnd = WORK_DAY_END_HOUR * hourWidth;
-
-      backgroundLayers.push(
-        `repeating-linear-gradient(90deg, rgba(9, 30, 66, 0.05) 0, rgba(9, 30, 66, 0.05) ${workStart}px, transparent ${workStart}px, transparent ${workEnd}px, rgba(9, 30, 66, 0.05) ${workEnd}px, rgba(9, 30, 66, 0.05) ${pixelsPerDay}px)`,
       );
     }
 

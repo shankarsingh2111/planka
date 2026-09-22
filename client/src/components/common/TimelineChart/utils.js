@@ -23,11 +23,12 @@ export const PIXELS_PER_DAY = {
   [ZoomLevels.QUARTER]: 2.5,
 };
 
-// The working day is split into blocks of HOUR_TICK_STEP hours at the day zoom level
+// At day zoom a column spans the working day only (9 AM to 9 PM), split into blocks of
+// HOUR_TICK_STEP hours, so the whole column width is the six slots 9, 11, 1, 3, 5, 7
 export const WORK_DAY_START_HOUR = 9;
-export const WORK_DAY_END_HOUR = 19;
+export const WORK_DAY_END_HOUR = 21;
 export const HOUR_TICK_STEP = 2;
-export const HOURS_PER_DAY = 24;
+export const WORK_DAY_HOURS = WORK_DAY_END_HOUR - WORK_DAY_START_HOUR;
 
 export const LANE_HEADER_WIDTH = 220;
 export const ROW_HEIGHT = 36;
@@ -192,7 +193,7 @@ export const getHeaderColumns = (viewStart, totalDays, zoomLevel, formatDate) =>
     }
 
     if (zoomLevel === ZoomLevels.DAY) {
-      const hourWidth = pixelsPerDay / HOURS_PER_DAY;
+      const hourWidth = pixelsPerDay / WORK_DAY_HOURS;
 
       for (let date = viewStart; date < viewEnd; date = addDays(date, 1)) {
         pushColumn(bottom, date, addDays(date, 1), formatDate(date, 'EEE d'), {
@@ -208,7 +209,7 @@ export const getHeaderColumns = (viewStart, totalDays, zoomLevel, formatDate) =>
           hours.push({
             key: `${at.getTime()}`,
             label: formatDate(at, 'h'),
-            left: dayLeft + hour * hourWidth,
+            left: dayLeft + (hour - WORK_DAY_START_HOUR) * hourWidth,
             width: HOUR_TICK_STEP * hourWidth,
             startHour: hour,
             isDayStart: hour === WORK_DAY_START_HOUR,

@@ -73,27 +73,38 @@ describe('getViewRange', () => {
 describe('getHeaderColumns', () => {
   const formatDate = (date, format) => `${format}:${date.getHours()}`;
 
-  test('day zoom splits the working day into two-hour blocks', () => {
+  test('day zoom splits the working day into six two-hour slots', () => {
     const viewStart = startOfDay(day('2026-09-21'));
     const { hours } = getHeaderColumns(viewStart, 1, ZoomLevels.DAY, formatDate);
 
-    // 9-11, 11-1, 1-3, 3-5, 5-7
-    expect(hours.map((tick) => tick.startHour)).toEqual([9, 11, 13, 15, 17]);
+    // 9-11, 11-1, 1-3, 3-5, 5-7, 7-9
+    expect(hours.map((tick) => tick.startHour)).toEqual([9, 11, 13, 15, 17, 19]);
     expect(hours[0].isDayStart).toBe(true);
     expect(hours[hours.length - 1].isDayEnd).toBe(true);
+    expect(WORK_DAY_END_HOUR - WORK_DAY_START_HOUR).toBe(12);
   });
 
-  test('day zoom places blocks at their share of the day column', () => {
+  test('the six slots exactly fill the day column', () => {
     const viewStart = startOfDay(day('2026-09-21'));
     const { hours } = getHeaderColumns(viewStart, 1, ZoomLevels.DAY, formatDate);
 
-    const pixelsPerHour = PIXELS_PER_DAY[ZoomLevels.DAY] / 24;
+    const pixelsPerDay = PIXELS_PER_DAY[ZoomLevels.DAY];
 
-    expect(hours[0].left).toBeCloseTo(WORK_DAY_START_HOUR * pixelsPerHour);
-    expect(hours[0].width).toBeCloseTo(2 * pixelsPerHour);
+    expect(hours[0].left).toBe(0);
+    expect(hours[0].width).toBeCloseTo(pixelsPerDay / 6);
 
     const lastTick = hours[hours.length - 1];
-    expect(lastTick.left + lastTick.width).toBeCloseTo(WORK_DAY_END_HOUR * pixelsPerHour);
+    expect(lastTick.left + lastTick.width).toBeCloseTo(pixelsPerDay);
+  });
+
+  test('slots line up with the day columns on later days', () => {
+    const viewStart = startOfDay(day('2026-09-21'));
+    const { bottom, hours } = getHeaderColumns(viewStart, 3, ZoomLevels.DAY, formatDate);
+
+    const secondDaySlots = hours.filter((tick) => tick.left >= bottom[1].left);
+
+    expect(secondDaySlots[0].left).toBeCloseTo(bottom[1].left);
+    expect(secondDaySlots).toHaveLength(12); // days two and three
   });
 
   test('other zoom levels have no hour ticks', () => {
