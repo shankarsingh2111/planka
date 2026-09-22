@@ -17,7 +17,7 @@ export const getZoomLevels = (withQuarter) =>
 
 // A single continuous scale per zoom level, so bars, headers, markers and arrows all agree
 export const PIXELS_PER_DAY = {
-  [ZoomLevels.DAY]: 288,
+  [ZoomLevels.DAY]: 144,
   [ZoomLevels.WEEK]: 18,
   [ZoomLevels.MONTH]: 6,
   [ZoomLevels.QUARTER]: 2.5,
@@ -29,6 +29,7 @@ export const WORK_DAY_START_HOUR = 9;
 export const WORK_DAY_END_HOUR = 21;
 export const HOUR_TICK_STEP = 2;
 export const WORK_DAY_HOURS = WORK_DAY_END_HOUR - WORK_DAY_START_HOUR;
+export const SLOTS_PER_DAY = WORK_DAY_HOURS / HOUR_TICK_STEP;
 
 export const LANE_HEADER_WIDTH = 220;
 export const ROW_HEIGHT = 36;
@@ -75,20 +76,73 @@ export const isWeekend = (date) => {
   return day === 0 || day === 6;
 };
 
-// Inclusive day range [start, end] for an item, or null when it has no dates
+// Which of the day's slots a time falls in, clamped to the working day
+export const getSlotOfDay = (date) => {
+  const hour = date.getHours() + date.getMinutes() / 60;
+
+  if (hour <= WORK_DAY_START_HOUR) {
+    return 0;
+  }
+
+  if (hour >= WORK_DAY_END_HOUR) {
+    return SLOTS_PER_DAY - 1;
+  }
+
+  return Math.floor((hour - WORK_DAY_START_HOUR) / HOUR_TICK_STEP);
+};
+
+// Moves a date by whole slots, rolling over to the next/previous working day
+export const addSlots = (date, deltaSlots) => {
+  const total = getSlotOfDay(date) + deltaSlots;
+  const dayShift = Math.floor(total / SLOTS_PER_DAY);
+  const slot = total - dayShift * SLOTS_PER_DAY;
+
+  const result = addDays(startOfDay(date), dayShift);
+  result.setHours(WORK_DAY_START_HOUR + slot * HOUR_TICK_STEP, 0, 0, 0);
+
+  return result;
+};
+
+export const diffInSlots = (from, to) =>
+  diffInDays(from, to) * SLOTS_PER_DAY + getSlotOfDay(to) - getSlotOfDay(from);
+
+// Day zoom snaps to slots, every other zoom level snaps to whole days
+export const isSlotZoom = (zoomLevel) => zoomLevel === ZoomLevels.DAY;
+
+export const getUnitWidth = (zoomLevel) =>
+  isSlotZoom(zoomLevel) ? PIXELS_PER_DAY[zoomLevel] / SLOTS_PER_DAY : PIXELS_PER_DAY[zoomLevel];
+
+export const shiftByUnits = (date, units, zoomLevel) =>
+  isSlotZoom(zoomLevel) ? addSlots(date, units) : addDays(date, units);
+
+export const diffInUnits = (from, to, zoomLevel) =>
+  isSlotZoom(zoomLevel) ? diffInSlots(from, to) : diffInDays(from, to);
+
+// X offset of a date, to the slot at day zoom and to the day elsewhere
+export const getOffsetX = (viewStart, date, zoomLevel) => {
+  const pixelsPerDay = PIXELS_PER_DAY[zoomLevel];
+  const dayOffset = diffInDays(viewStart, date) * pixelsPerDay;
+
+  return isSlotZoom(zoomLevel)
+    ? dayOffset + getSlotOfDay(date) * getUnitWidth(zoomLevel)
+    : dayOffset;
+};
+
+// Inclusive range [start, end] for an item, or null when it has no dates. Times of day are
+// kept so day zoom can place bars on slots; coarser zoom levels round to days when drawing.
 export const getItemRange = ({ startDate, dueDate }) => {
   if (startDate && dueDate) {
-    return { start: startOfDay(startDate), end: startOfDay(dueDate), isPoint: false };
+    return { start: startDate, end: dueDate, isPoint: false };
   }
 
   if (dueDate) {
-    return { start: startOfDay(dueDate), end: startOfDay(dueDate), isPoint: true };
+    return { start: dueDate, end: dueDate, isPoint: true };
   }
 
   if (startDate) {
     return {
-      start: startOfDay(startDate),
-      end: addDays(startOfDay(startDate), OPEN_ENDED_DURATION_DAYS - 1),
+      start: startDate,
+      end: addDays(startDate, OPEN_ENDED_DURATION_DAYS - 1),
       isPoint: false,
       isOpenEnded: true,
     };
@@ -127,7 +181,8 @@ export const getViewRange = (ranges, zoomLevel) => {
   };
 };
 
-// Greedy interval packing: places each item in the first row where it doesn't overlap
+// Greedy interval packing: places each item in the first row where it doesn't overlap.
+// Packing works on whole days, so bars stay clear of each other at every zoom level.
 export const packRows = (entries) => {
   const rowEnds = [];
 
@@ -135,13 +190,16 @@ export const packRows = (entries) => {
     .slice()
     .sort((a, b) => a.range.start - b.range.start || a.range.end - b.range.end)
     .map((entry) => {
-      let rowIndex = rowEnds.findIndex((rowEnd) => rowEnd < entry.range.start);
+      const start = startOfDay(entry.range.start);
+      const end = startOfDay(entry.range.end);
+
+      let rowIndex = rowEnds.findIndex((rowEnd) => rowEnd < start);
 
       if (rowIndex === -1) {
         rowIndex = rowEnds.length;
-        rowEnds.push(entry.range.end);
+        rowEnds.push(end);
       } else {
-        rowEnds[rowIndex] = entry.range.end;
+        rowEnds[rowIndex] = end;
       }
 
       return {

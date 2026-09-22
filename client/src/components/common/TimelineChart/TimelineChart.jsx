@@ -17,9 +17,12 @@ import {
   BAR_HEIGHT,
   LANE_PADDING,
   MIN_LANE_HEIGHT,
-  addDays,
   diffInDays,
   startOfDay,
+  getUnitWidth,
+  getOffsetX,
+  shiftByUnits,
+  diffInUnits,
   getItemRange,
   getViewRange,
   packRows,
@@ -40,43 +43,39 @@ const DRAG_THRESHOLD = 3;
 
 const DEFAULT_ZOOM_LEVELS = [ZoomLevels.DAY, ZoomLevels.WEEK, ZoomLevels.MONTH];
 
-const shiftDate = (date, days) => (date ? addDays(date, days) : date);
+// Applies a drag delta to an item's dates. The unit is a two-hour slot at day zoom and a
+// whole day at every other zoom level.
+const getDraggedDates = (item, range, mode, deltaUnits, zoomLevel) => {
+  const shift = (date, units) => (date ? shiftByUnits(date, units, zoomLevel) : date);
+  const span = diffInUnits(range.start, range.end, zoomLevel);
 
-// Applies a day delta to an item's dates according to the drag mode, keeping times of day
-const getDraggedDates = (item, range, mode, deltaDays) => {
   if (mode === DragModes.MOVE) {
     return {
-      startDate: shiftDate(item.startDate, deltaDays),
-      dueDate: shiftDate(item.dueDate, deltaDays),
+      startDate: shift(item.startDate, deltaUnits),
+      dueDate: shift(item.dueDate, deltaUnits),
     };
   }
 
   if (mode === DragModes.RESIZE_START) {
-    const delta = Math.min(deltaDays, diffInDays(range.start, range.end));
-    const base = item.startDate || item.dueDate;
-
     return {
-      startDate: addDays(base, delta),
+      startDate: shift(item.startDate || item.dueDate, Math.min(deltaUnits, span)),
       dueDate: item.dueDate,
     };
   }
 
-  const delta = Math.max(deltaDays, -diffInDays(range.start, range.end));
+  const delta = Math.max(deltaUnits, -span);
 
   if (item.dueDate) {
     return {
       startDate: item.startDate,
-      dueDate: addDays(item.dueDate, delta),
+      dueDate: shift(item.dueDate, delta),
     };
   }
 
   // Open-ended item: resizing the end commits a real due date
-  const dueDate = addDays(range.end, delta);
-  dueDate.setHours(item.startDate.getHours(), item.startDate.getMinutes(), 0, 0);
-
   return {
     startDate: item.startDate,
-    dueDate,
+    dueDate: shift(range.end, delta),
   };
 };
 
@@ -107,6 +106,7 @@ const TimelineChart = React.memo(
     const dragRef = useRef(null);
 
     const pixelsPerDay = PIXELS_PER_DAY[zoomLevel];
+    const unitWidth = getUnitWidth(zoomLevel);
 
     const itemById = useMemo(
       () =>
@@ -180,16 +180,16 @@ const TimelineChart = React.memo(
       (itemId) => {
         const range = rangeById[itemId];
 
-        if (!drag || drag.itemId !== itemId || drag.deltaDays === 0) {
+        if (!drag || drag.itemId !== itemId || drag.deltaUnits === 0) {
           return range;
         }
 
         return getItemRange({
           ...itemById[itemId],
-          ...getDraggedDates(itemById[itemId], range, drag.mode, drag.deltaDays),
+          ...getDraggedDates(itemById[itemId], range, drag.mode, drag.deltaUnits, zoomLevel),
         });
       },
-      [drag, rangeById, itemById],
+      [drag, rangeById, itemById, zoomLevel],
     );
 
     const bars = useMemo(
@@ -197,10 +197,10 @@ const TimelineChart = React.memo(
         layout.lanes.flatMap(({ lane, top, entries }) =>
           entries.map(({ item, rowIndex }) => {
             const range = getPreviewRange(item.id);
-            const left = diffInDays(viewStart, range.start) * pixelsPerDay;
+            const left = getOffsetX(viewStart, range.start, zoomLevel);
             const width = range.isPoint
               ? 14
-              : Math.max((diffInDays(range.start, range.end) + 1) * pixelsPerDay, 8);
+              : Math.max(getOffsetX(viewStart, range.end, zoomLevel) + unitWidth - left, 8);
 
             return {
               key: `${lane.key}:${item.id}`,
@@ -212,7 +212,7 @@ const TimelineChart = React.memo(
             };
           }),
         ),
-      [layout, getPreviewRange, viewStart, pixelsPerDay],
+      [layout, getPreviewRange, viewStart, zoomLevel, unitWidth],
     );
 
     // Arrows attach to the first occurrence of each item (items may sit in several lanes)
@@ -347,22 +347,22 @@ const TimelineChart = React.memo(
 
         current.isDragging = true;
 
-        const deltaDays = Math.round(deltaX / pixelsPerDay);
+        const deltaUnits = Math.round(deltaX / unitWidth);
 
         setDrag((prevDrag) =>
           prevDrag &&
           prevDrag.itemId === current.itemId &&
           prevDrag.mode === current.mode &&
-          prevDrag.deltaDays === deltaDays
+          prevDrag.deltaUnits === deltaUnits
             ? prevDrag
             : {
                 itemId: current.itemId,
                 mode: current.mode,
-                deltaDays,
+                deltaUnits,
               },
         );
       },
-      [pixelsPerDay],
+      [unitWidth],
     );
 
     const handleBarPointerUp = useCallback(
@@ -384,19 +384,19 @@ const TimelineChart = React.memo(
           return;
         }
 
-        const deltaDays = Math.round((event.clientX - current.startX) / pixelsPerDay);
+        const deltaUnits = Math.round((event.clientX - current.startX) / unitWidth);
         setDrag(null);
 
-        if (deltaDays !== 0) {
+        if (deltaUnits !== 0) {
           const item = itemById[current.itemId];
 
           onItemDatesChange(
             current.itemId,
-            getDraggedDates(item, rangeById[current.itemId], current.mode, deltaDays),
+            getDraggedDates(item, rangeById[current.itemId], current.mode, deltaUnits, zoomLevel),
           );
         }
       },
-      [pixelsPerDay, itemById, rangeById, onItemClick, onItemDatesChange],
+      [unitWidth, zoomLevel, itemById, rangeById, onItemClick, onItemDatesChange],
     );
 
     const handleBarKeyDown = useCallback(

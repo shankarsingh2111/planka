@@ -1,6 +1,12 @@
 import {
   ZoomLevels,
   PIXELS_PER_DAY,
+  SLOTS_PER_DAY,
+  addSlots,
+  getSlotOfDay,
+  diffInSlots,
+  getUnitWidth,
+  getOffsetX,
   WORK_DAY_START_HOUR,
   WORK_DAY_END_HOUR,
   getHeaderColumns,
@@ -67,6 +73,58 @@ describe('getViewRange', () => {
     const { viewStart } = getViewRange([], ZoomLevels.MONTH);
 
     expect(viewStart.getDate()).toBe(1);
+  });
+});
+
+describe('slots', () => {
+  const at = (dateString, hours, minutes = 0) => {
+    const date = new Date(`${dateString}T00:00:00`);
+    date.setHours(hours, minutes, 0, 0);
+    return date;
+  };
+
+  test('maps times to the slot they fall in, clamped to the working day', () => {
+    expect(getSlotOfDay(at('2026-09-21', 9))).toBe(0);
+    expect(getSlotOfDay(at('2026-09-21', 12))).toBe(1); // 11-1
+    expect(getSlotOfDay(at('2026-09-21', 19))).toBe(5); // 7-9
+    expect(getSlotOfDay(at('2026-09-21', 3))).toBe(0); // before hours
+    expect(getSlotOfDay(at('2026-09-21', 23))).toBe(SLOTS_PER_DAY - 1); // after hours
+  });
+
+  test('moves by whole slots inside the day', () => {
+    expect(addSlots(at('2026-09-21', 9), 1)).toEqual(at('2026-09-21', 11));
+    expect(addSlots(at('2026-09-21', 9), 2)).toEqual(at('2026-09-21', 13));
+    expect(addSlots(at('2026-09-21', 17), -1)).toEqual(at('2026-09-21', 15));
+  });
+
+  test('rolls over to the next and previous working day', () => {
+    expect(addSlots(at('2026-09-21', 19), 1)).toEqual(at('2026-09-22', 9));
+    expect(addSlots(at('2026-09-21', 9), SLOTS_PER_DAY)).toEqual(at('2026-09-22', 9));
+    expect(addSlots(at('2026-09-22', 9), -1)).toEqual(at('2026-09-21', 19));
+  });
+
+  test('counts slots between two times', () => {
+    expect(diffInSlots(at('2026-09-21', 9), at('2026-09-21', 11))).toBe(1);
+    expect(diffInSlots(at('2026-09-21', 9), at('2026-09-22', 9))).toBe(SLOTS_PER_DAY);
+  });
+
+  test('day zoom drags by one slot, other zoom levels by a whole day', () => {
+    expect(getUnitWidth(ZoomLevels.DAY)).toBe(PIXELS_PER_DAY[ZoomLevels.DAY] / SLOTS_PER_DAY);
+    expect(getUnitWidth(ZoomLevels.WEEK)).toBe(PIXELS_PER_DAY[ZoomLevels.WEEK]);
+  });
+
+  test('positions a time on its slot at day zoom, and on its day elsewhere', () => {
+    const viewStart = startOfDay(at('2026-09-21', 0));
+    const slotWidth = getUnitWidth(ZoomLevels.DAY);
+
+    expect(getOffsetX(viewStart, at('2026-09-21', 9), ZoomLevels.DAY)).toBe(0);
+    expect(getOffsetX(viewStart, at('2026-09-21', 13), ZoomLevels.DAY)).toBeCloseTo(2 * slotWidth);
+    expect(getOffsetX(viewStart, at('2026-09-22', 9), ZoomLevels.DAY)).toBeCloseTo(
+      PIXELS_PER_DAY[ZoomLevels.DAY],
+    );
+
+    // Week zoom ignores the time of day
+    expect(getOffsetX(viewStart, at('2026-09-21', 17), ZoomLevels.WEEK)).toBe(0);
   });
 });
 
