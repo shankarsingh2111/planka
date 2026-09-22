@@ -1,6 +1,9 @@
 services:
   planka:
-    image: ghcr.io/plankanban/planka:latest
+    # Image built from this fork's Dockerfile (timeline + team dashboard).
+    # Rebuild after pulling new code: docker build -t planka-jugnoo:timeline .
+    image: planka-jugnoo:timeline
+    pull_policy: never
     restart: on-failure
     volumes:
       - data:/app/data
@@ -10,9 +13,9 @@ services:
     # tmpfs:
     #   - /app/.tmp:mode=770,uid=1000,gid=1000
     ports:
-      - 3000:1337
+      - 6161:1337
     environment:
-      - BASE_URL=http://localhost:3000
+      - BASE_URL=https://auto-node-test.jugnoo.in
       - DATABASE_URL=postgresql://postgres@postgres/planka
 
       # Optionally store the database password in secrets:
@@ -22,13 +25,16 @@ services:
       # secrets:
       #   - database_password
 
-      - SECRET_KEY=notsecretkey
+      # Set SECRET_KEY in a .env file next to this compose file. Changing it
+      # invalidates every existing session and API token.
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required - put it in .env}
       # Optionally store in secrets - then SECRET_KEY should not be set
       # - SECRET_KEY__FILE=/run/secrets/secret_key
 
       # - LOG_LEVEL=warn
 
-      # - TRUST_PROXY=true
+      # Required: the app sits behind the nginx/HTTPS reverse proxy
+      - TRUST_PROXY=true
       # - MAX_UPLOAD_FILE_SIZE=
       # - TOKEN_EXPIRES_IN=365 # In days
 
