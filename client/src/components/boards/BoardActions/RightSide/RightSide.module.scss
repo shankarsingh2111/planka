@@ -24,30 +24,4 @@
       background: rgba(0, 0, 0, 0.32);
     }
   }
-
-  .buttonGroup {
-    .button {
-      border-radius: 0;
-
-      &:enabled {
-        background: rgba(0, 0, 0, 0.08);
-        color: rgba(255, 255, 255, 0.72);
-
-        &:hover {
-          background: rgba(0, 0, 0, 0.12);
-          color: #fff;
-        }
-      }
-
-      &:first-child {
-        border-top-left-radius: 3px;
-        border-bottom-left-radius: 3px;
-      }
-
-      &:last-child {
-        border-top-right-radius: 3px;
-        border-bottom-right-radius: 3px;
-      }
-    }
-  }
 }

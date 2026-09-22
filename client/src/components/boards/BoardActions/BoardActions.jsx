@@ -13,6 +13,7 @@ import selectors from '../../../selectors';
 import { BoardContexts } from '../../../constants/Enums';
 import { BoardContextIcons } from '../../../constants/Icons';
 import Filters from './Filters';
+import ViewSwitcher from './ViewSwitcher';
 import RightSide from './RightSide';
 import BoardMemberships from '../../board-memberships/BoardMemberships';
 
@@ -42,24 +43,31 @@ const BoardActions = React.memo(() => {
   return (
     <div className={styles.wrapper}>
       <div className={styles.actions}>
-        {withContextTitle && (
-          <div className={styles.action}>
-            <div className={styles.contextTitle}>
-              <Icon name={BoardContextIcons[boardContext]} className={styles.contextTitleIcon} />
-              {t(`common.${boardContext}`)}
+        <div className={styles.side}>
+          {withContextTitle && (
+            <div className={styles.action}>
+              <div className={styles.contextTitle}>
+                <Icon name={BoardContextIcons[boardContext]} className={styles.contextTitleIcon} />
+                {t(`common.${boardContext}`)}
+              </div>
             </div>
-          </div>
-        )}
-        {withMemberships && (
+          )}
+          {withMemberships && (
+            <div className={styles.action}>
+              <BoardMemberships />
+            </div>
+          )}
           <div className={styles.action}>
-            <BoardMemberships />
+            <Filters />
           </div>
-        )}
-        <div className={styles.action}>
-          <Filters />
         </div>
-        <div className={classNames(styles.action, styles.actionRightSide)}>
-          <RightSide />
+        <div className={styles.center}>
+          <ViewSwitcher />
+        </div>
+        <div className={classNames(styles.side, styles.sideRight)}>
+          <div className={styles.action}>
+            <RightSide />
+          </div>
         </div>
       </div>
     </div>

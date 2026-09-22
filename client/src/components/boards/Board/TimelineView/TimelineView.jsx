@@ -16,6 +16,7 @@ import Paths from '../../../../constants/Paths';
 import { BoardMembershipRoles } from '../../../../constants/Enums';
 import TimelineChart, {
   ColorByOptions,
+  getZoomLevels,
   getColorClassName,
   getHashedColor,
   getStatusColor,
@@ -40,6 +41,10 @@ const TimelineView = React.memo(({ cardIds }) => {
   const memberships = useSelector(selectors.selectMembershipsForCurrentBoard);
   const labels = useSelector(selectors.selectLabelsForCurrentBoard);
   const cardDependencies = useSelector(selectors.selectCardDependenciesForCurrentBoard);
+
+  const withQuarterZoom = useSelector(
+    (state) => selectors.selectCurrentUser(state).showQuarterTimelineZoom,
+  );
 
   const canEdit = useSelector((state) => {
     const boardMembership = selectors.selectCurrentUserMembershipForCurrentBoard(state);
@@ -291,6 +296,7 @@ const TimelineView = React.memo(({ cardIds }) => {
         items={items}
         lanes={lanes}
         dependencies={dependencies}
+        zoomLevels={getZoomLevels(withQuarterZoom)}
         canEdit={canEdit}
         unscheduledCount={cards.length - scheduledCards.length}
         emptyMessage={t('common.noCardsWithDates')}

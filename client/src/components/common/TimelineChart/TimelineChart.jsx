@@ -17,6 +17,9 @@ import {
   BAR_HEIGHT,
   LANE_PADDING,
   MIN_LANE_HEIGHT,
+  WORK_DAY_START_HOUR,
+  WORK_DAY_END_HOUR,
+  HOURS_PER_DAY,
   addDays,
   diffInDays,
   startOfDay,
@@ -37,6 +40,8 @@ const DragModes = {
 };
 
 const DRAG_THRESHOLD = 3;
+
+const DEFAULT_ZOOM_LEVELS = [ZoomLevels.DAY, ZoomLevels.WEEK, ZoomLevels.MONTH];
 
 const shiftDate = (date, days) => (date ? addDays(date, days) : date);
 
@@ -83,6 +88,7 @@ const TimelineChart = React.memo(
     items,
     lanes,
     dependencies,
+    zoomLevels,
     canEdit,
     toolbarChildren,
     unscheduledCount,
@@ -93,7 +99,7 @@ const TimelineChart = React.memo(
     onDependencyDelete,
   }) => {
     const [t, i18n] = useTranslation();
-    const [zoomLevel, setZoomLevel] = useState(ZoomLevels.WEEK);
+    const [zoomLevel, setZoomLevel] = useState(zoomLevels[0]);
     const [drag, setDrag] = useState(null);
     const [linking, setLinking] = useState(null);
     const [hoveredItemId, setHoveredItemId] = useState(null);
@@ -477,23 +483,37 @@ const TimelineChart = React.memo(
 
     const hoveredBar = hoveredItemId && !drag && !linking ? anchorById[hoveredItemId] : null;
 
-    const zoomOptions = [
-      { value: ZoomLevels.DAY, text: t('common.day') },
-      { value: ZoomLevels.WEEK, text: t('common.week') },
-      { value: ZoomLevels.MONTH, text: t('common.month') },
-      { value: ZoomLevels.QUARTER, text: t('common.quarter') },
-    ];
+    const zoomOptions = zoomLevels.map((value) => ({
+      value,
+      text: t(`common.${value}`),
+    }));
 
-    const weekendStripes =
-      zoomLevel === ZoomLevels.DAY || zoomLevel === ZoomLevels.WEEK
-        ? {
-            backgroundImage: `repeating-linear-gradient(90deg, transparent 0, transparent ${
-              5 * pixelsPerDay
-            }px, rgba(9, 30, 66, 0.04) ${5 * pixelsPerDay}px, rgba(9, 30, 66, 0.04) ${
-              7 * pixelsPerDay
-            }px)`,
-          }
-        : undefined;
+    // Weekend columns, and (at day zoom) the hours outside the working day, are shaded with
+    // repeating gradients rather than extra elements
+    const backgroundLayers = [];
+
+    if (zoomLevel === ZoomLevels.DAY || zoomLevel === ZoomLevels.WEEK) {
+      backgroundLayers.push(
+        `repeating-linear-gradient(90deg, transparent 0, transparent ${
+          5 * pixelsPerDay
+        }px, rgba(9, 30, 66, 0.04) ${5 * pixelsPerDay}px, rgba(9, 30, 66, 0.04) ${
+          7 * pixelsPerDay
+        }px)`,
+      );
+    }
+
+    if (zoomLevel === ZoomLevels.DAY) {
+      const hourWidth = pixelsPerDay / HOURS_PER_DAY;
+      const workStart = WORK_DAY_START_HOUR * hourWidth;
+      const workEnd = WORK_DAY_END_HOUR * hourWidth;
+
+      backgroundLayers.push(
+        `repeating-linear-gradient(90deg, rgba(9, 30, 66, 0.05) 0, rgba(9, 30, 66, 0.05) ${workStart}px, transparent ${workStart}px, transparent ${workEnd}px, rgba(9, 30, 66, 0.05) ${workEnd}px, rgba(9, 30, 66, 0.05) ${pixelsPerDay}px)`,
+      );
+    }
+
+    const backgroundStripes =
+      backgroundLayers.length > 0 ? { backgroundImage: backgroundLayers.join(', ') } : undefined;
 
     return (
       <div className={styles.wrapper}>
@@ -567,6 +587,22 @@ const TimelineChart = React.memo(
                     </div>
                   ))}
                 </div>
+                {headerColumns.hours.length > 0 && (
+                  <div className={classNames(styles.headerRow, styles.headerRowHours)}>
+                    {headerColumns.hours.map((tick) => (
+                      <div
+                        key={tick.key}
+                        className={classNames(styles.hourCell, {
+                          [styles.hourCellDayStart]: tick.isDayStart,
+                          [styles.hourCellDayEnd]: tick.isDayEnd,
+                        })}
+                        style={{ left: tick.left, width: tick.width }}
+                      >
+                        {tick.label}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             {lanes.length === 0 || bars.length === 0 ? (
@@ -587,7 +623,7 @@ const TimelineChart = React.memo(
                 <div
                   ref={canvasRef}
                   className={styles.canvas}
-                  style={{ width: totalWidth, height: layout.totalHeight, ...weekendStripes }}
+                  style={{ width: totalWidth, height: layout.totalHeight, ...backgroundStripes }}
                 >
                   {headerColumns.bottom.map((column) => (
                     <div
@@ -595,6 +631,14 @@ const TimelineChart = React.memo(
                       className={styles.gridLine}
                       style={{ left: column.left }}
                     />
+                  ))}
+                  {headerColumns.hours.map((tick) => (
+                    <React.Fragment key={tick.key}>
+                      <div className={styles.hourLine} style={{ left: tick.left }} />
+                      {tick.isDayEnd && (
+                        <div className={styles.hourLine} style={{ left: tick.left + tick.width }} />
+                      )}
+                    </React.Fragment>
                   ))}
                   {layout.lanes.map(({ lane, top, height }) => (
                     <div key={lane.key} className={styles.laneBackground} style={{ top, height }} />
@@ -825,6 +869,7 @@ TimelineChart.propTypes = {
       icon: PropTypes.node,
     }),
   ).isRequired,
+  zoomLevels: PropTypes.arrayOf(PropTypes.oneOf(Object.values(ZoomLevels))),
   dependencies: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.string.isRequired,
@@ -845,6 +890,7 @@ TimelineChart.propTypes = {
 
 TimelineChart.defaultProps = {
   dependencies: [],
+  zoomLevels: DEFAULT_ZOOM_LEVELS,
   canEdit: false,
   toolbarChildren: undefined,
   unscheduledCount: 0,

@@ -122,6 +122,39 @@
     text-align: center;
   }
 
+  .headerRowHours {
+    height: 18px;
+  }
+
+  .hourCell {
+    border-left: 1px solid rgba(9, 30, 66, 0.08);
+    color: #7a869a;
+    font-size: 10px;
+    height: 100%;
+    line-height: 18px;
+    overflow: hidden;
+    padding-left: 3px;
+    position: absolute;
+    top: 0;
+    white-space: nowrap;
+  }
+
+  .hourCellDayStart {
+    color: #5e6c84;
+    font-weight: 600;
+  }
+
+  .hourCellDayEnd {
+    border-right: 1px solid rgba(9, 30, 66, 0.08);
+  }
+
+  .hourLine {
+    border-left: 1px dotted rgba(9, 30, 66, 0.12);
+    bottom: 0;
+    position: absolute;
+    top: 0;
+  }
+
   .headerCellWeekend {
     background: rgba(9, 30, 66, 0.04);
   }

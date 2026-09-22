@@ -76,6 +76,14 @@
  *                 type: boolean
  *                 description: Whether recent card highlighting is disabled
  *                 example: false
+ *               showExtraBoardViews:
+ *                 type: boolean
+ *                 description: Whether the List and Grid board views are offered
+ *                 example: false
+ *               showQuarterTimelineZoom:
+ *                 type: boolean
+ *                 description: Whether the timeline offers the quarter zoom level
+ *                 example: false
  *               enableFavoritesByDefault:
  *                 type: boolean
  *                 description: Whether favorites are enabled by default
@@ -190,6 +198,12 @@ module.exports = {
     turnOffRecentCardHighlighting: {
       type: 'boolean',
     },
+    showExtraBoardViews: {
+      type: 'boolean',
+    },
+    showQuarterTimelineZoom: {
+      type: 'boolean',
+    },
     enableFavoritesByDefault: {
       type: 'boolean',
     },
@@ -279,6 +293,8 @@ module.exports = {
         'subscribeToOwnCards',
         'subscribeToCardWhenCommenting',
         'turnOffRecentCardHighlighting',
+        'showExtraBoardViews',
+        'showQuarterTimelineZoom',
         'enableFavoritesByDefault',
         'defaultEditorMode',
         'defaultHomeView',

@@ -56,6 +56,22 @@ const PreferencesPane = React.memo(() => {
         className={styles.radio}
         onChange={handleChange}
       />
+      <Radio
+        toggle
+        name="showExtraBoardViews"
+        checked={user.showExtraBoardViews}
+        label={t('common.showExtraBoardViews')}
+        className={styles.radio}
+        onChange={handleChange}
+      />
+      <Radio
+        toggle
+        name="showQuarterTimelineZoom"
+        checked={user.showQuarterTimelineZoom}
+        label={t('common.showQuarterTimelineZoom')}
+        className={styles.radio}
+        onChange={handleChange}
+      />
     </Tab.Pane>
   );
 });

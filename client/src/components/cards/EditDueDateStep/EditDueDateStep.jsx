@@ -19,6 +19,9 @@ import parseTime from '../../../utils/parse-time';
 
 import styles from './EditDueDateStep.module.scss';
 
+// New due dates default to the end of the working day
+const DEFAULT_HOURS = 19;
+
 const EditDueDateStep = React.memo(({ cardId, onBack, onClose }) => {
   const selectCardById = useMemo(() => selectors.makeSelectCardById(), []);
 
@@ -28,7 +31,7 @@ const EditDueDateStep = React.memo(({ cardId, onBack, onClose }) => {
   const [t] = useTranslation();
 
   const [data, handleFieldChange, setData] = useForm(() => {
-    const date = defaultValue || new Date().setHours(12, 0, 0, 0);
+    const date = defaultValue || new Date().setHours(DEFAULT_HOURS, 0, 0, 0);
 
     return {
       date: t('format:date', {

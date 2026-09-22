@@ -22,13 +22,28 @@
     }
   }
 
-  .actionRightSide {
-    margin-left: auto;
-  }
-
   .actions {
+    align-items: center;
     display: flex;
     height: 46px;
+  }
+
+  // Equal-width sides keep the view switcher centered whatever the sides hold
+  .side {
+    align-items: center;
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .sideRight {
+    justify-content: flex-end;
+  }
+
+  .center {
+    display: flex;
+    flex: 0 0 auto;
+    padding: 0 12px;
   }
 
   .contextTitle {

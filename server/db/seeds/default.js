@@ -57,6 +57,8 @@ exports.seed = async (knex) => {
           subscribeToOwnCards: false,
           subscribeToCardWhenCommenting: true,
           turnOffRecentCardHighlighting: false,
+          showExtraBoardViews: false,
+          showQuarterTimelineZoom: false,
           enableFavoritesByDefault: true,
           defaultEditorMode: 'wysiwyg',
           defaultHomeView: 'groupedProjects',

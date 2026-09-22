@@ -1,5 +1,10 @@
 import {
   ZoomLevels,
+  PIXELS_PER_DAY,
+  WORK_DAY_START_HOUR,
+  WORK_DAY_END_HOUR,
+  getHeaderColumns,
+  getZoomLevels,
   addDays,
   diffInDays,
   getItemRange,
@@ -35,6 +40,17 @@ describe('getItemRange', () => {
   });
 });
 
+describe('getZoomLevels', () => {
+  test('offers quarter only when enabled', () => {
+    expect(getZoomLevels(false)).toEqual([ZoomLevels.DAY, ZoomLevels.WEEK, ZoomLevels.MONTH]);
+    expect(getZoomLevels(true)).toContain(ZoomLevels.QUARTER);
+  });
+
+  test('starts with day, which is the default zoom', () => {
+    expect(getZoomLevels(false)[0]).toBe(ZoomLevels.DAY);
+  });
+});
+
 describe('getViewRange', () => {
   test('aligns week zoom to a Monday and covers every range', () => {
     const start = startOfDay(day('2020-01-15'));
@@ -51,6 +67,40 @@ describe('getViewRange', () => {
     const { viewStart } = getViewRange([], ZoomLevels.MONTH);
 
     expect(viewStart.getDate()).toBe(1);
+  });
+});
+
+describe('getHeaderColumns', () => {
+  const formatDate = (date, format) => `${format}:${date.getHours()}`;
+
+  test('day zoom splits the working day into two-hour blocks', () => {
+    const viewStart = startOfDay(day('2026-09-21'));
+    const { hours } = getHeaderColumns(viewStart, 1, ZoomLevels.DAY, formatDate);
+
+    // 9-11, 11-1, 1-3, 3-5, 5-7
+    expect(hours.map((tick) => tick.startHour)).toEqual([9, 11, 13, 15, 17]);
+    expect(hours[0].isDayStart).toBe(true);
+    expect(hours[hours.length - 1].isDayEnd).toBe(true);
+  });
+
+  test('day zoom places blocks at their share of the day column', () => {
+    const viewStart = startOfDay(day('2026-09-21'));
+    const { hours } = getHeaderColumns(viewStart, 1, ZoomLevels.DAY, formatDate);
+
+    const pixelsPerHour = PIXELS_PER_DAY[ZoomLevels.DAY] / 24;
+
+    expect(hours[0].left).toBeCloseTo(WORK_DAY_START_HOUR * pixelsPerHour);
+    expect(hours[0].width).toBeCloseTo(2 * pixelsPerHour);
+
+    const lastTick = hours[hours.length - 1];
+    expect(lastTick.left + lastTick.width).toBeCloseTo(WORK_DAY_END_HOUR * pixelsPerHour);
+  });
+
+  test('other zoom levels have no hour ticks', () => {
+    const viewStart = startOfDay(day('2026-09-21'));
+
+    expect(getHeaderColumns(viewStart, 14, ZoomLevels.WEEK, formatDate).hours).toHaveLength(0);
+    expect(getHeaderColumns(viewStart, 90, ZoomLevels.MONTH, formatDate).hours).toHaveLength(0);
   });
 });
 

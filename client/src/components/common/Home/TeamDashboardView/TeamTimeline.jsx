@@ -5,11 +5,14 @@
 
 import React, { useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
+import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { Dropdown } from 'semantic-ui-react';
 
+import selectors from '../../../../selectors';
 import TimelineChart, {
   ColorByOptions,
+  getZoomLevels,
   getColorClassName,
   getHashedColor,
   getStatusColor,
@@ -39,6 +42,11 @@ const TeamTimeline = React.memo(
     onDependencyDelete,
   }) => {
     const [t] = useTranslation();
+
+    const withQuarterZoom = useSelector(
+      (state) => selectors.selectCurrentUser(state).showQuarterTimelineZoom,
+    );
+
     const [groupBy, setGroupBy] = useState(GroupByOptions.MEMBER);
     const [colorBy, setColorBy] = useState(ColorByOptions.PROJECT);
 
@@ -178,6 +186,7 @@ const TeamTimeline = React.memo(
           items={items}
           lanes={lanes}
           dependencies={dependencies}
+          zoomLevels={getZoomLevels(withQuarterZoom)}
           unscheduledCount={entries.length - scheduledEntries.length}
           emptyMessage={t('common.noCardsWithDates')}
           toolbarChildren={

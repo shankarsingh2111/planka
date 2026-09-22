@@ -10,13 +10,24 @@ export const ZoomLevels = {
   QUARTER: 'quarter',
 };
 
+export const getZoomLevels = (withQuarter) =>
+  withQuarter
+    ? [ZoomLevels.DAY, ZoomLevels.WEEK, ZoomLevels.MONTH, ZoomLevels.QUARTER]
+    : [ZoomLevels.DAY, ZoomLevels.WEEK, ZoomLevels.MONTH];
+
 // A single continuous scale per zoom level, so bars, headers, markers and arrows all agree
 export const PIXELS_PER_DAY = {
-  [ZoomLevels.DAY]: 40,
+  [ZoomLevels.DAY]: 288,
   [ZoomLevels.WEEK]: 18,
   [ZoomLevels.MONTH]: 6,
   [ZoomLevels.QUARTER]: 2.5,
 };
+
+// The working day is split into blocks of HOUR_TICK_STEP hours at the day zoom level
+export const WORK_DAY_START_HOUR = 9;
+export const WORK_DAY_END_HOUR = 19;
+export const HOUR_TICK_STEP = 2;
+export const HOURS_PER_DAY = 24;
 
 export const LANE_HEADER_WIDTH = 220;
 export const ROW_HEIGHT = 36;
@@ -146,6 +157,7 @@ export const getHeaderColumns = (viewStart, totalDays, zoomLevel, formatDate) =>
 
   const top = [];
   const bottom = [];
+  const hours = [];
 
   const pushColumn = (columns, start, end, label, extra = {}) => {
     const from = start < viewStart ? viewStart : start;
@@ -180,10 +192,29 @@ export const getHeaderColumns = (viewStart, totalDays, zoomLevel, formatDate) =>
     }
 
     if (zoomLevel === ZoomLevels.DAY) {
+      const hourWidth = pixelsPerDay / HOURS_PER_DAY;
+
       for (let date = viewStart; date < viewEnd; date = addDays(date, 1)) {
-        pushColumn(bottom, date, addDays(date, 1), formatDate(date, 'd'), {
+        pushColumn(bottom, date, addDays(date, 1), formatDate(date, 'EEE d'), {
           isWeekend: isWeekend(date),
         });
+
+        const dayLeft = diffInDays(viewStart, date) * pixelsPerDay;
+
+        for (let hour = WORK_DAY_START_HOUR; hour < WORK_DAY_END_HOUR; hour += HOUR_TICK_STEP) {
+          const at = new Date(date);
+          at.setHours(hour, 0, 0, 0);
+
+          hours.push({
+            key: `${at.getTime()}`,
+            label: formatDate(at, 'h'),
+            left: dayLeft + hour * hourWidth,
+            width: HOUR_TICK_STEP * hourWidth,
+            startHour: hour,
+            isDayStart: hour === WORK_DAY_START_HOUR,
+            isDayEnd: hour + HOUR_TICK_STEP >= WORK_DAY_END_HOUR,
+          });
+        }
       }
     } else if (zoomLevel === ZoomLevels.WEEK) {
       for (let date = viewStart; date < viewEnd; date = addDays(date, 7)) {
@@ -202,7 +233,7 @@ export const getHeaderColumns = (viewStart, totalDays, zoomLevel, formatDate) =>
     }
   }
 
-  return { top, bottom };
+  return { top, bottom, hours };
 };
 
 // Cubic Bézier from the predecessor's end to the successor's start, detouring when the

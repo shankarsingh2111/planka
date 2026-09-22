@@ -77,6 +77,8 @@ export default class extends BaseModel {
     subscribeToOwnCards: attr(),
     subscribeToCardWhenCommenting: attr(),
     turnOffRecentCardHighlighting: attr(),
+    showExtraBoardViews: attr(),
+    showQuarterTimelineZoom: attr(),
     isDefaultAdmin: attr(),
     isSsoUser: attr(),
     isDeactivated: attr(),

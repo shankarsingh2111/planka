@@ -119,6 +119,16 @@
  *           default: false
  *           description: Whether recent card highlighting is disabled (personal field)
  *           example: false
+ *         showExtraBoardViews:
+ *           type: boolean
+ *           default: false
+ *           description: Whether the List and Grid board views are offered in the view switcher (personal field)
+ *           example: false
+ *         showQuarterTimelineZoom:
+ *           type: boolean
+ *           default: false
+ *           description: Whether the timeline offers the quarter zoom level (personal field)
+ *           example: false
  *         enableFavoritesByDefault:
  *           type: boolean
  *           default: true
@@ -245,6 +255,8 @@ const PERSONAL_FIELD_NAMES = [
   'subscribeToOwnCards',
   'subscribeToCardWhenCommenting',
   'turnOffRecentCardHighlighting',
+  'showExtraBoardViews',
+  'showQuarterTimelineZoom',
   'enableFavoritesByDefault',
   'defaultEditorMode',
   'defaultHomeView',
@@ -348,6 +360,16 @@ module.exports = {
       type: 'boolean',
       defaultsTo: false,
       columnName: 'turn_off_recent_card_highlighting',
+    },
+    showExtraBoardViews: {
+      type: 'boolean',
+      defaultsTo: false,
+      columnName: 'show_extra_board_views',
+    },
+    showQuarterTimelineZoom: {
+      type: 'boolean',
+      defaultsTo: false,
+      columnName: 'show_quarter_timeline_zoom',
     },
     enableFavoritesByDefault: {
       type: 'boolean',
