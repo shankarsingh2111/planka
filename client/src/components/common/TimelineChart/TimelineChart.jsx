@@ -330,7 +330,7 @@ const TimelineChart = React.memo(
 
     const handleBarPointerMove = useCallback(
       (event) => {
-        const current = dragRef.current;
+        const { current } = dragRef;
 
         if (!current || !current.isItemEditable) {
           return;
@@ -364,7 +364,7 @@ const TimelineChart = React.memo(
 
     const handleBarPointerUp = useCallback(
       (event) => {
-        const current = dragRef.current;
+        const { current } = dragRef;
         dragRef.current = null;
 
         if (!current) {
@@ -435,11 +435,12 @@ const TimelineChart = React.memo(
       const handleWindowPointerMove = (event) => {
         const point = getCanvasPoint(event);
 
-        setLinking((prevLinking) =>
-          prevLinking && {
-            ...prevLinking,
-            point,
-          },
+        setLinking(
+          (prevLinking) =>
+            prevLinking && {
+              ...prevLinking,
+              point,
+            },
         );
       };
 
@@ -535,9 +536,7 @@ const TimelineChart = React.memo(
             {toolbarChildren}
           </div>
         </div>
-        {isLinkable && (
-          <div className={styles.hint}>{t('common.dragFromDotToLinkDependency')}</div>
-        )}
+        {isLinkable && <div className={styles.hint}>{t('common.dragFromDotToLinkDependency')}</div>}
         <div ref={scrollRef} className={styles.scroll}>
           <div className={styles.inner} style={{ width: LANE_HEADER_WIDTH + totalWidth }}>
             <div className={styles.header}>
@@ -591,14 +590,14 @@ const TimelineChart = React.memo(
                   style={{ width: totalWidth, height: layout.totalHeight, ...weekendStripes }}
                 >
                   {headerColumns.bottom.map((column) => (
-                    <div key={column.key} className={styles.gridLine} style={{ left: column.left }} />
+                    <div
+                      key={column.key}
+                      className={styles.gridLine}
+                      style={{ left: column.left }}
+                    />
                   ))}
                   {layout.lanes.map(({ lane, top, height }) => (
-                    <div
-                      key={lane.key}
-                      className={styles.laneBackground}
-                      style={{ top, height }}
-                    />
+                    <div key={lane.key} className={styles.laneBackground} style={{ top, height }} />
                   ))}
                   {todayLeft >= 0 && todayLeft <= totalWidth && (
                     <div
@@ -624,7 +623,10 @@ const TimelineChart = React.memo(
                           markerHeight="7"
                           orient="auto-start-reverse"
                         >
-                          <path d="M 0 0 L 10 5 L 0 10 z" className={styles[`arrowHead${variant}`]} />
+                          <path
+                            d="M 0 0 L 10 5 L 0 10 z"
+                            className={styles[`arrowHead${variant}`]}
+                          />
                         </marker>
                       ))}
                     </defs>
@@ -690,7 +692,6 @@ const TimelineChart = React.memo(
                         : null;
 
                     return (
-                      // eslint-disable-next-line jsx-a11y/no-static-element-interactions
                       <div
                         key={key}
                         data-timeline-item-id={item.id}
@@ -706,7 +707,9 @@ const TimelineChart = React.memo(
                           [styles.barEditable]: isItemEditable,
                         })}
                         style={{ left, width, top, height: BAR_HEIGHT }}
-                        onPointerDown={(event) => handleBarPointerDown(event, item.id, DragModes.MOVE)}
+                        onPointerDown={(event) =>
+                          handleBarPointerDown(event, item.id, DragModes.MOVE)
+                        }
                         onPointerMove={handleBarPointerMove}
                         onPointerUp={handleBarPointerUp}
                         onPointerEnter={() => setHoveredItemId(item.id)}
@@ -714,7 +717,10 @@ const TimelineChart = React.memo(
                         onKeyDown={(event) => handleBarKeyDown(event, item.id)}
                       >
                         {progress !== null && !range.isPoint && (
-                          <span className={styles.barProgress} style={{ width: `${progress * 100}%` }} />
+                          <span
+                            className={styles.barProgress}
+                            style={{ width: `${progress * 100}%` }}
+                          />
                         )}
                         {!range.isPoint && <span className={styles.barLabel}>{item.name}</span>}
                         {isItemEditable && !range.isPoint && (
@@ -794,7 +800,6 @@ const TimelineChart = React.memo(
 );
 
 TimelineChart.propTypes = {
-  /* eslint-disable react/forbid-prop-types */
   items: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.string.isRequired,
@@ -828,7 +833,6 @@ TimelineChart.propTypes = {
       isPersisted: PropTypes.bool,
     }),
   ),
-  /* eslint-enable react/forbid-prop-types */
   canEdit: PropTypes.bool,
   toolbarChildren: PropTypes.node,
   unscheduledCount: PropTypes.number,

@@ -64,18 +64,20 @@ const RightSide = React.memo(() => {
       </div>
       <div className={styles.action}>
         <div className={styles.buttonGroup}>
-          {[HomeViews.GRID_PROJECTS, HomeViews.GROUPED_PROJECTS, HomeViews.TEAM_DASHBOARD].map((view) => (
-            <button
-              key={view}
-              type="button"
-              value={view}
-              disabled={view === currentView}
-              className={styles.button}
-              onClick={handleSelectViewClick}
-            >
-              <Icon fitted name={HomeViewIcons[view]} />
-            </button>
-          ))}
+          {[HomeViews.GRID_PROJECTS, HomeViews.GROUPED_PROJECTS, HomeViews.TEAM_DASHBOARD].map(
+            (view) => (
+              <button
+                key={view}
+                type="button"
+                value={view}
+                disabled={view === currentView}
+                className={styles.button}
+                onClick={handleSelectViewClick}
+              >
+                <Icon fitted name={HomeViewIcons[view]} />
+              </button>
+            ),
+          )}
         </div>
       </div>
     </>

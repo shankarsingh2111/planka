@@ -31,40 +31,38 @@ const FULL_DATE_FORMAT_BY_SIZE = {
   [Sizes.MEDIUM]: 'fullDateTime',
 };
 
-const StartDateChip = React.memo(
-  ({ value, size, isDisabled, onClick }) => {
-    const [t] = useTranslation();
+const StartDateChip = React.memo(({ value, size, isDisabled, onClick }) => {
+  const [t] = useTranslation();
 
-    const dateFormat = getDateFormat(
-      value,
-      LONG_DATE_FORMAT_BY_SIZE[size],
-      FULL_DATE_FORMAT_BY_SIZE[size],
-    );
+  const dateFormat = getDateFormat(
+    value,
+    LONG_DATE_FORMAT_BY_SIZE[size],
+    FULL_DATE_FORMAT_BY_SIZE[size],
+  );
 
-    const contentNode = (
-      <span
-        className={classNames(
-          styles.wrapper,
-          styles[`wrapper${upperFirst(size)}`],
-          onClick && styles.wrapperHoverable,
-        )}
-      >
-        {t(`format:${dateFormat}`, {
-          value,
-          postProcess: 'formatDate',
-        })}
-      </span>
-    );
+  const contentNode = (
+    <span
+      className={classNames(
+        styles.wrapper,
+        styles[`wrapper${upperFirst(size)}`],
+        onClick && styles.wrapperHoverable,
+      )}
+    >
+      {t(`format:${dateFormat}`, {
+        value,
+        postProcess: 'formatDate',
+      })}
+    </span>
+  );
 
-    return onClick ? (
-      <button type="button" disabled={isDisabled} className={styles.button} onClick={onClick}>
-        {contentNode}
-      </button>
-    ) : (
-      contentNode
-    );
-  },
-);
+  return onClick ? (
+    <button type="button" disabled={isDisabled} className={styles.button} onClick={onClick}>
+      {contentNode}
+    </button>
+  ) : (
+    contentNode
+  );
+});
 
 StartDateChip.propTypes = {
   value: PropTypes.instanceOf(Date).isRequired,

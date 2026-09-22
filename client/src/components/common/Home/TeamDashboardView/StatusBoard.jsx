@@ -114,14 +114,11 @@ const StatusColumn = React.memo(({ column, entries, userById, onCardClick }) => 
       </div>
       <div className={styles.statusColumnBody}>
         {sortedEntries.slice(0, limit).map((entry) => (
-          <StatusCard
-            key={entry.card.id}
-            entry={entry}
-            userById={userById}
-            onClick={onCardClick}
-          />
+          <StatusCard key={entry.card.id} entry={entry} userById={userById} onClick={onCardClick} />
         ))}
-        {entries.length === 0 && <div className={styles.statusColumnEmpty}>{t('common.noCards')}</div>}
+        {entries.length === 0 && (
+          <div className={styles.statusColumnEmpty}>{t('common.noCards')}</div>
+        )}
         {entries.length > limit && (
           <button
             type="button"

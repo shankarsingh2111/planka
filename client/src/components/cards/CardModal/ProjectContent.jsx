@@ -71,6 +71,7 @@ const ProjectContent = React.memo(() => {
     canEditType,
     canEditName,
     canEditDescription,
+    canEditStartDate,
     canEditDueDate,
     canEditStopwatch,
     canSubscribe,
