@@ -352,6 +352,34 @@ export function* handleCardUpdate(card) {
   }
 }
 
+/**
+ * Commits a timeline drop: dates always, plus a list change when the card landed in another
+ * lane. New cards go to the end of the target list, since timeline order comes from the dates
+ * rather than from the position within a list.
+ */
+export function* scheduleCard(id, { listId, startDate, dueDate }) {
+  const data = {
+    startDate: startDate || null,
+    dueDate: dueDate || null,
+  };
+
+  if (listId) {
+    const card = yield select(selectors.selectCardById, id);
+
+    if (listId !== card.listId) {
+      const list = yield select(selectors.selectListById, listId);
+
+      data.listId = listId;
+
+      if (isListFinite(list)) {
+        data.position = yield select(selectors.selectNextCardPosition, listId, undefined, id);
+      }
+    }
+  }
+
+  yield call(updateCard, id, data);
+}
+
 export function* moveCard(id, listId, index) {
   const data = {};
   if (listId) {
@@ -764,6 +792,7 @@ export default {
   updateCard,
   updateCurrentCard,
   handleCardUpdate,
+  scheduleCard,
   moveCard,
   moveCurrentCard,
   moveCardToArchive,

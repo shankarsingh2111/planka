@@ -4,7 +4,40 @@
  */
 
 :global(#app) {
+  .hiddenLanesCount {
+    background: rgba(9, 30, 66, 0.13);
+    border-radius: 9px;
+    color: #5e6c84;
+    display: inline-block;
+    font-size: 11px;
+    margin-left: 6px;
+    padding: 0 6px;
+  }
+
+  .chart {
+    flex: 1;
+    // Both zeroed so the chart clips and scrolls internally rather than stretching this column
+    // to fit its lanes
+    min-height: 0;
+    min-width: 0;
+  }
+
+  .sidebarToggle {
+    margin-right: 4px !important;
+  }
+
+  .sidebarToggleCount {
+    background: rgba(9, 30, 66, 0.13);
+    border-radius: 9px;
+    color: #5e6c84;
+    display: inline-block;
+    font-size: 11px;
+    margin-left: 6px;
+    padding: 0 6px;
+  }
+
   .wrapper {
+    display: flex;
     height: 100%;
     padding: 0 20px 20px;
     width: 100%;

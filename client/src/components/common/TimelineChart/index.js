@@ -8,5 +8,6 @@ import TimelineChart from './TimelineChart';
 export { ZoomLevels, getZoomLevels } from './utils';
 export { ColorByOptions, getColorClassName, getHashedColor, getStatusColor } from './colors';
 export { isCardDone, isCardOverdue } from './card-status';
+export { default as Avatars } from './Avatars';
 
 export default TimelineChart;

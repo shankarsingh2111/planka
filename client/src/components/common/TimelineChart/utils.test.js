@@ -7,6 +7,10 @@ import {
   diffInSlots,
   getUnitWidth,
   getOffsetX,
+  getDateAtOffsetX,
+  getDropRange,
+  HOUR_TICK_STEP,
+  WORK_DAY_HOURS,
   WORK_DAY_START_HOUR,
   WORK_DAY_END_HOUR,
   getHeaderColumns,
@@ -246,5 +250,129 @@ describe('findCriticalPath', () => {
     ];
 
     expect(() => findCriticalPath(dependencies, rangeById)).not.toThrow();
+  });
+});
+
+describe('getDateAtOffsetX', () => {
+  const viewStart = startOfDay(new Date('2026-09-07T00:00:00'));
+
+  test('lands on the start of the working day at week zoom', () => {
+    const result = getDateAtOffsetX(viewStart, 0, ZoomLevels.WEEK);
+
+    expect(result.getDate()).toBe(7);
+    expect(result.getHours()).toBe(WORK_DAY_START_HOUR);
+    expect(result.getMinutes()).toBe(0);
+  });
+
+  test('advances a whole day per unit at week zoom', () => {
+    const unitWidth = getUnitWidth(ZoomLevels.WEEK);
+
+    expect(getDateAtOffsetX(viewStart, unitWidth * 3, ZoomLevels.WEEK).getDate()).toBe(10);
+  });
+
+  test('snaps anywhere inside a unit back to its start', () => {
+    const unitWidth = getUnitWidth(ZoomLevels.WEEK);
+    const atStart = getDateAtOffsetX(viewStart, unitWidth * 2, ZoomLevels.WEEK);
+    const nearEnd = getDateAtOffsetX(viewStart, unitWidth * 3 - 1, ZoomLevels.WEEK);
+
+    expect(nearEnd.getTime()).toBe(atStart.getTime());
+  });
+
+  test('lands on the slot hour at day zoom', () => {
+    const unitWidth = getUnitWidth(ZoomLevels.DAY);
+
+    const first = getDateAtOffsetX(viewStart, 0, ZoomLevels.DAY);
+    expect(first.getHours()).toBe(WORK_DAY_START_HOUR);
+
+    const second = getDateAtOffsetX(viewStart, unitWidth, ZoomLevels.DAY);
+    expect(second.getHours()).toBe(WORK_DAY_START_HOUR + HOUR_TICK_STEP);
+    expect(second.getDate()).toBe(7);
+  });
+
+  test('rolls into the next day after the last slot at day zoom', () => {
+    const unitWidth = getUnitWidth(ZoomLevels.DAY);
+    const result = getDateAtOffsetX(viewStart, unitWidth * SLOTS_PER_DAY, ZoomLevels.DAY);
+
+    expect(result.getDate()).toBe(8);
+    expect(result.getHours()).toBe(WORK_DAY_START_HOUR);
+  });
+
+  test('round-trips with getOffsetX at every zoom level', () => {
+    Object.values(ZoomLevels).forEach((zoomLevel) => {
+      const unitWidth = getUnitWidth(zoomLevel);
+
+      [0, 1, 5, 17].forEach((unitIndex) => {
+        const date = getDateAtOffsetX(viewStart, unitIndex * unitWidth, zoomLevel);
+
+        expect(getOffsetX(viewStart, date, zoomLevel)).toBeCloseTo(unitIndex * unitWidth, 6);
+      });
+    });
+  });
+});
+
+describe('getDropRange', () => {
+  const viewStart = startOfDay(new Date('2026-09-07T00:00:00'));
+
+  test('covers the whole working day at every zoom level', () => {
+    Object.values(ZoomLevels).forEach((zoomLevel) => {
+      const dayWidth = PIXELS_PER_DAY[zoomLevel];
+
+      const { startDate, dueDate } = getDropRange(dayWidth * 2, viewStart, zoomLevel);
+
+      expect(startDate.getDate()).toBe(9);
+      expect(startDate.getHours()).toBe(WORK_DAY_START_HOUR);
+      expect(dueDate.getDate()).toBe(9);
+      expect(dueDate.getHours()).toBe(WORK_DAY_END_HOUR);
+      expect(diffInDays(startDate, dueDate)).toBe(0);
+    });
+  });
+
+  test('snaps to the day, not the slot, at day zoom', () => {
+    const slotWidth = getUnitWidth(ZoomLevels.DAY);
+
+    // Every slot of the same day has to yield the same full day
+    const first = getDropRange(0, viewStart, ZoomLevels.DAY);
+
+    for (let slot = 1; slot < SLOTS_PER_DAY; slot += 1) {
+      const atSlot = getDropRange(slotWidth * slot, viewStart, ZoomLevels.DAY);
+
+      expect(atSlot.startDate.getTime()).toBe(first.startDate.getTime());
+      expect(atSlot.dueDate.getTime()).toBe(first.dueDate.getTime());
+    }
+
+    // The next day's first slot moves on
+    const nextDay = getDropRange(slotWidth * SLOTS_PER_DAY, viewStart, ZoomLevels.DAY);
+    expect(nextDay.startDate.getDate()).toBe(first.startDate.getDate() + 1);
+  });
+
+  test('spans the full working day, not a single slot', () => {
+    const { startDate, dueDate } = getDropRange(0, viewStart, ZoomLevels.DAY);
+
+    expect(dueDate.getHours() - startDate.getHours()).toBe(WORK_DAY_HOURS);
+    expect(WORK_DAY_HOURS).toBe(SLOTS_PER_DAY * HOUR_TICK_STEP);
+  });
+
+  test('never spills into another day, however far along the scale it lands', () => {
+    Object.values(ZoomLevels).forEach((zoomLevel) => {
+      const dayWidth = PIXELS_PER_DAY[zoomLevel];
+
+      [0, dayWidth, dayWidth * 4, dayWidth * 37 + dayWidth / 3].forEach((x) => {
+        const { startDate, dueDate } = getDropRange(x, viewStart, zoomLevel);
+
+        expect(dueDate.getTime()).toBeGreaterThan(startDate.getTime());
+        expect(diffInDays(startDate, dueDate)).toBe(0);
+      });
+    });
+  });
+
+  test('starts where the bar would be drawn', () => {
+    Object.values(ZoomLevels).forEach((zoomLevel) => {
+      const dayWidth = PIXELS_PER_DAY[zoomLevel];
+      const x = dayWidth * 5;
+
+      const { startDate } = getDropRange(x, viewStart, zoomLevel);
+
+      expect(getOffsetX(viewStart, startDate, zoomLevel)).toBeCloseTo(x, 6);
+    });
   });
 });

@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
-import { Button, Icon } from 'semantic-ui-react';
+import { Icon } from 'semantic-ui-react';
 
 import {
   ZoomLevels,
@@ -21,63 +21,21 @@ import {
   startOfDay,
   getUnitWidth,
   getOffsetX,
-  shiftByUnits,
-  diffInUnits,
   getItemRange,
   getViewRange,
   packRows,
   getHeaderColumns,
   buildArrowPath,
 } from './utils';
+import useBarDrag, { DragModes, getDraggedDates } from './use-bar-drag';
+import useDropTarget from './use-drop-target';
 import findCriticalPath from './find-critical-path';
+import Toolbar from './Toolbar';
+import Bar from './Bar';
 
 import styles from './TimelineChart.module.scss';
 
-const DragModes = {
-  MOVE: 'move',
-  RESIZE_START: 'resizeStart',
-  RESIZE_END: 'resizeEnd',
-};
-
-const DRAG_THRESHOLD = 3;
-
 const DEFAULT_ZOOM_LEVELS = [ZoomLevels.DAY, ZoomLevels.WEEK, ZoomLevels.MONTH];
-
-// Applies a drag delta to an item's dates. The unit is a two-hour slot at day zoom and a
-// whole day at every other zoom level.
-const getDraggedDates = (item, range, mode, deltaUnits, zoomLevel) => {
-  const shift = (date, units) => (date ? shiftByUnits(date, units, zoomLevel) : date);
-  const span = diffInUnits(range.start, range.end, zoomLevel);
-
-  if (mode === DragModes.MOVE) {
-    return {
-      startDate: shift(item.startDate, deltaUnits),
-      dueDate: shift(item.dueDate, deltaUnits),
-    };
-  }
-
-  if (mode === DragModes.RESIZE_START) {
-    return {
-      startDate: shift(item.startDate || item.dueDate, Math.min(deltaUnits, span)),
-      dueDate: item.dueDate,
-    };
-  }
-
-  const delta = Math.max(deltaUnits, -span);
-
-  if (item.dueDate) {
-    return {
-      startDate: item.startDate,
-      dueDate: shift(item.dueDate, delta),
-    };
-  }
-
-  // Open-ended item: resizing the end commits a real due date
-  return {
-    startDate: item.startDate,
-    dueDate: shift(range.end, delta),
-  };
-};
 
 const TimelineChart = React.memo(
   ({
@@ -86,24 +44,38 @@ const TimelineChart = React.memo(
     dependencies,
     zoomLevels,
     canEdit,
+    externalDragItem,
+    zoomLevel: zoomLevelProp,
+    collapsedLaneKeys,
+    leadingToolbarChildren,
     toolbarChildren,
     unscheduledCount,
     emptyMessage,
     onItemClick,
     onItemDatesChange,
+    onItemLaneChange,
+    onItemUnschedule,
+    onUnscheduleHoverChange,
+    onExternalDrop,
+    onExternalDragCancel,
+    onZoomLevelChange,
+    onLaneToggle,
     onDependencyCreate,
     onDependencyDelete,
   }) => {
     const [t, i18n] = useTranslation();
-    const [zoomLevel, setZoomLevel] = useState(zoomLevels[0]);
-    const [drag, setDrag] = useState(null);
+    const [internalZoomLevel, setInternalZoomLevel] = useState(zoomLevels[0]);
     const [linking, setLinking] = useState(null);
     const [hoveredItemId, setHoveredItemId] = useState(null);
     const [isCriticalPathShown, setIsCriticalPathShown] = useState(false);
 
+    // Optionally controlled: a persisted level is honoured only while it is still on offer, so
+    // a stored "quarter" cannot strand the chart when quarter zoom is switched off
+    const zoomLevel =
+      zoomLevelProp && zoomLevels.includes(zoomLevelProp) ? zoomLevelProp : internalZoomLevel;
+
     const scrollRef = useRef(null);
     const canvasRef = useRef(null);
-    const dragRef = useRef(null);
 
     const pixelsPerDay = PIXELS_PER_DAY[zoomLevel];
     const unitWidth = getUnitWidth(zoomLevel);
@@ -147,7 +119,9 @@ const TimelineChart = React.memo(
       let top = 0;
 
       const laneLayouts = lanes.map((lane) => {
-        const entries = packRows(
+        const isCollapsed = collapsedLaneKeys.includes(lane.key);
+
+        const packed = packRows(
           items
             .filter((item) => rangeById[item.id] && item.laneKeys.includes(lane.key))
             .map((item) => ({
@@ -155,6 +129,10 @@ const TimelineChart = React.memo(
               range: rangeById[item.id],
             })),
         );
+
+        // A collapsed lane keeps every bar but squashes them onto one row, so it stays a
+        // drop target and still shows where its work sits on the scale
+        const entries = isCollapsed ? packed.map((entry) => ({ ...entry, rowIndex: 0 })) : packed;
 
         const rowsTotal = entries.reduce((max, entry) => Math.max(max, entry.rowIndex + 1), 0);
         const height = Math.max(MIN_LANE_HEIGHT, rowsTotal * ROW_HEIGHT + LANE_PADDING * 2);
@@ -164,6 +142,7 @@ const TimelineChart = React.memo(
           top,
           height,
           entries,
+          isCollapsed,
         };
 
         top += height;
@@ -174,29 +153,80 @@ const TimelineChart = React.memo(
         lanes: laneLayouts,
         totalHeight: top,
       };
-    }, [lanes, items, rangeById]);
+    }, [lanes, items, rangeById, collapsedLaneKeys]);
 
-    const getPreviewRange = useCallback(
-      (itemId) => {
-        const range = rangeById[itemId];
-
-        if (!drag || drag.itemId !== itemId || drag.deltaUnits === 0) {
-          return range;
+    const getLaneKeyAtClientY = useCallback(
+      (clientY) => {
+        if (!canvasRef.current) {
+          return null;
         }
 
-        return getItemRange({
-          ...itemById[itemId],
-          ...getDraggedDates(itemById[itemId], range, drag.mode, drag.deltaUnits, zoomLevel),
-        });
+        const y = clientY - canvasRef.current.getBoundingClientRect().top;
+
+        const laneLayout = layout.lanes.find(
+          (candidate) => y >= candidate.top && y < candidate.top + candidate.height,
+        );
+
+        return laneLayout ? laneLayout.lane.key : null;
       },
-      [drag, rangeById, itemById, zoomLevel],
+      [layout],
+    );
+
+    const {
+      drag,
+      handlePointerDown: handleBarPointerDown,
+      handlePointerMove: handleBarPointerMove,
+      handlePointerUp: handleBarPointerUp,
+      handleKeyDown: handleBarKeyDown,
+    } = useBarDrag({
+      zoomLevel,
+      unitWidth,
+      canEdit,
+      itemById,
+      rangeById,
+      getLaneKeyAtClientY,
+      onItemClick,
+      onItemDatesChange,
+      onItemLaneChange,
+      onItemUnschedule,
+    });
+
+    /**
+     * Resizing drags an edge of the bar itself, so it has to grow and shrink under the cursor.
+     * Moving is the one mode that leaves the bar where it is and sends a ghost instead.
+     */
+    const getRenderRange = useCallback(
+      (itemId, committedRange) => {
+        if (
+          !drag ||
+          drag.itemId !== itemId ||
+          drag.deltaUnits === 0 ||
+          drag.mode === DragModes.MOVE
+        ) {
+          return committedRange;
+        }
+
+        return (
+          getItemRange({
+            ...itemById[itemId],
+            ...getDraggedDates(
+              itemById[itemId],
+              committedRange,
+              drag.mode,
+              drag.deltaUnits,
+              zoomLevel,
+            ),
+          }) || committedRange
+        );
+      },
+      [drag, itemById, zoomLevel],
     );
 
     const bars = useMemo(
       () =>
         layout.lanes.flatMap(({ lane, top, entries }) =>
-          entries.map(({ item, rowIndex }) => {
-            const range = getPreviewRange(item.id);
+          entries.map(({ item, rowIndex, range: committedRange }) => {
+            const range = getRenderRange(item.id, committedRange);
             const left = getOffsetX(viewStart, range.start, zoomLevel);
             const width = range.isPoint
               ? 14
@@ -205,6 +235,7 @@ const TimelineChart = React.memo(
             return {
               key: `${lane.key}:${item.id}`,
               item,
+              laneKey: lane.key,
               range,
               left,
               width,
@@ -212,8 +243,64 @@ const TimelineChart = React.memo(
             };
           }),
         ),
-      [layout, getPreviewRange, viewStart, zoomLevel, unitWidth],
+      [layout, getRenderRange, viewStart, zoomLevel, unitWidth],
     );
+
+    /**
+     * The bar being dragged stays put and a ghost carries the movement instead, so the original
+     * dates remain visible to compare against right up to the drop. The ghost tracks the drag in
+     * both axes: sideways for the new dates, and into another lane when the card would change
+     * list. Across lanes it sits on the first row, since the real packing only happens on commit.
+     * Resizing is excluded — that mode changes the bar in place, see getRenderRange.
+     */
+    const dragGhost = useMemo(() => {
+      if (!drag || drag.mode !== DragModes.MOVE || drag.isOverUnscheduleZone) {
+        return null;
+      }
+
+      const item = itemById[drag.itemId];
+      const committedRange = rangeById[drag.itemId];
+
+      const isLaneChange = !!drag.toLaneKey && drag.toLaneKey !== drag.laneKey;
+
+      if (!item || !committedRange || (drag.deltaUnits === 0 && !isLaneChange)) {
+        return null;
+      }
+
+      const range = getItemRange({
+        ...item,
+        ...getDraggedDates(item, committedRange, drag.mode, drag.deltaUnits, zoomLevel),
+      });
+
+      const target = layout.lanes.find(
+        (candidate) => candidate.lane.key === (isLaneChange ? drag.toLaneKey : drag.laneKey),
+      );
+
+      if (!range || !target) {
+        return null;
+      }
+
+      // Staying in the same lane, the ghost rides the bar's own row so the two line up
+      const entry = isLaneChange
+        ? null
+        : target.entries.find((candidate) => candidate.item.id === drag.itemId);
+
+      const left = getOffsetX(viewStart, range.start, zoomLevel);
+
+      return {
+        item,
+        range,
+        left,
+        width: range.isPoint
+          ? 14
+          : Math.max(getOffsetX(viewStart, range.end, zoomLevel) + unitWidth - left, 8),
+        top:
+          target.top + LANE_PADDING + (entry ? entry.rowIndex : 0) * ROW_HEIGHT + (ROW_HEIGHT - BAR_HEIGHT) / 2,
+        laneTop: target.top,
+        laneHeight: target.height,
+        isLaneChange,
+      };
+    }, [drag, layout, itemById, rangeById, viewStart, zoomLevel, unitWidth]);
 
     // Arrows attach to the first occurrence of each item (items may sit in several lanes)
     const anchorById = useMemo(
@@ -294,6 +381,45 @@ const TimelineChart = React.memo(
       scrollToToday();
     }, [zoomLevel]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    const handleExternalDrop = useCallback(
+      (laneKey, dates) => {
+        onExternalDrop(externalDragItem.id, { laneKey, ...dates });
+      },
+      [externalDragItem, onExternalDrop],
+    );
+
+    const dropPreview = useDropTarget({
+      isActive: !!externalDragItem && !!onExternalDrop,
+      canvasRef,
+      viewStart,
+      zoomLevel,
+      totalWidth,
+      layout,
+      onDrop: handleExternalDrop,
+      onCancel: onExternalDragCancel,
+    });
+
+    // Told to the consumer rather than drawn here: the sidebar that shows the card in flight is
+    // outside this component
+    const unscheduleHoverItemId = drag && drag.isOverUnscheduleZone ? drag.itemId : null;
+
+    useEffect(() => {
+      if (onUnscheduleHoverChange) {
+        onUnscheduleHoverChange(unscheduleHoverItemId);
+      }
+    }, [unscheduleHoverItemId, onUnscheduleHoverChange]);
+
+    const handleZoomLevelChange = useCallback(
+      (value) => {
+        setInternalZoomLevel(value);
+
+        if (onZoomLevelChange) {
+          onZoomLevelChange(value);
+        }
+      },
+      [onZoomLevelChange],
+    );
+
     const getCanvasPoint = useCallback((event) => {
       const rect = canvasRef.current.getBoundingClientRect();
 
@@ -302,112 +428,6 @@ const TimelineChart = React.memo(
         y: event.clientY - rect.top,
       };
     }, []);
-
-    /* Dragging bars */
-
-    const handleBarPointerDown = useCallback(
-      (event, itemId, mode) => {
-        if (event.button !== 0) {
-          return;
-        }
-
-        event.stopPropagation();
-
-        const isItemEditable =
-          canEdit && !!onItemDatesChange && itemById[itemId].isEditable !== false;
-
-        dragRef.current = {
-          itemId,
-          mode,
-          isItemEditable,
-          startX: event.clientX,
-          isDragging: false,
-        };
-
-        if (isItemEditable) {
-          event.currentTarget.setPointerCapture(event.pointerId);
-        }
-      },
-      [canEdit, onItemDatesChange, itemById],
-    );
-
-    const handleBarPointerMove = useCallback(
-      (event) => {
-        const { current } = dragRef;
-
-        if (!current || !current.isItemEditable) {
-          return;
-        }
-
-        const deltaX = event.clientX - current.startX;
-
-        if (!current.isDragging && Math.abs(deltaX) < DRAG_THRESHOLD) {
-          return;
-        }
-
-        current.isDragging = true;
-
-        const deltaUnits = Math.round(deltaX / unitWidth);
-
-        setDrag((prevDrag) =>
-          prevDrag &&
-          prevDrag.itemId === current.itemId &&
-          prevDrag.mode === current.mode &&
-          prevDrag.deltaUnits === deltaUnits
-            ? prevDrag
-            : {
-                itemId: current.itemId,
-                mode: current.mode,
-                deltaUnits,
-              },
-        );
-      },
-      [unitWidth],
-    );
-
-    const handleBarPointerUp = useCallback(
-      (event) => {
-        const { current } = dragRef;
-        dragRef.current = null;
-
-        if (!current) {
-          return;
-        }
-
-        if (!current.isDragging) {
-          setDrag(null);
-
-          if (current.mode === DragModes.MOVE) {
-            onItemClick(current.itemId);
-          }
-
-          return;
-        }
-
-        const deltaUnits = Math.round((event.clientX - current.startX) / unitWidth);
-        setDrag(null);
-
-        if (deltaUnits !== 0) {
-          const item = itemById[current.itemId];
-
-          onItemDatesChange(
-            current.itemId,
-            getDraggedDates(item, rangeById[current.itemId], current.mode, deltaUnits, zoomLevel),
-          );
-        }
-      },
-      [unitWidth, zoomLevel, itemById, rangeById, onItemClick, onItemDatesChange],
-    );
-
-    const handleBarKeyDown = useCallback(
-      (event, itemId) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onItemClick(itemId);
-        }
-      },
-      [onItemClick],
-    );
 
     /* Linking bars */
 
@@ -480,11 +500,6 @@ const TimelineChart = React.memo(
 
     const hoveredBar = hoveredItemId && !drag && !linking ? anchorById[hoveredItemId] : null;
 
-    const zoomOptions = zoomLevels.map((value) => ({
-      value,
-      text: t(`common.${value}`),
-    }));
-
     // Weekend columns are shaded with a repeating gradient rather than extra elements
     const backgroundLayers = [];
 
@@ -503,45 +518,19 @@ const TimelineChart = React.memo(
 
     return (
       <div className={styles.wrapper}>
-        <div className={styles.toolbar}>
-          <div className={styles.toolbarGroup}>
-            <Button.Group size="mini" basic>
-              {zoomOptions.map((option) => (
-                <Button
-                  key={option.value}
-                  active={zoomLevel === option.value}
-                  onClick={() => setZoomLevel(option.value)}
-                >
-                  {option.text}
-                </Button>
-              ))}
-            </Button.Group>
-            <Button size="mini" basic onClick={scrollToToday}>
-              <Icon name="crosshairs" />
-              {t('common.today')}
-            </Button>
-            {dependencies.length > 0 && (
-              <Button
-                size="mini"
-                basic
-                active={isCriticalPathShown}
-                onClick={() => setIsCriticalPathShown(!isCriticalPathShown)}
-              >
-                <Icon name="lightning" />
-                {t('common.criticalPath')}
-              </Button>
-            )}
-          </div>
-          <div className={styles.toolbarGroup}>
-            {unscheduledCount > 0 && (
-              <span className={styles.unscheduledBadge}>
-                <Icon name="calendar times outline" />
-                {t('common.unscheduledCards', { count: unscheduledCount })}
-              </span>
-            )}
-            {toolbarChildren}
-          </div>
-        </div>
+        <Toolbar
+          zoomLevel={zoomLevel}
+          zoomLevels={zoomLevels}
+          unscheduledCount={unscheduledCount}
+          withCriticalPath={dependencies.length > 0}
+          isCriticalPathShown={isCriticalPathShown}
+          leadingChildren={leadingToolbarChildren}
+          onZoomLevelChange={handleZoomLevelChange}
+          onScrollToToday={scrollToToday}
+          onCriticalPathToggle={() => setIsCriticalPathShown(!isCriticalPathShown)}
+        >
+          {toolbarChildren}
+        </Toolbar>
         {isLinkable && <div className={styles.hint}>{t('common.dragFromDotToLinkDependency')}</div>}
         <div ref={scrollRef} className={styles.scroll}>
           <div className={styles.inner} style={{ width: LANE_HEADER_WIDTH + totalWidth }}>
@@ -591,13 +580,38 @@ const TimelineChart = React.memo(
                 )}
               </div>
             </div>
-            {lanes.length === 0 || bars.length === 0 ? (
+            {lanes.length === 0 ? (
               <div className={styles.empty}>{emptyMessage}</div>
             ) : (
               <div className={styles.body}>
                 <div className={styles.laneHeaders} style={{ width: LANE_HEADER_WIDTH }}>
-                  {layout.lanes.map(({ lane, height, entries }) => (
-                    <div key={lane.key} className={styles.laneHeader} style={{ height }}>
+                  {layout.lanes.map(({ lane, height, entries, isCollapsed }) => (
+                    <div
+                      key={lane.key}
+                      className={classNames(
+                        styles.laneHeader,
+                        onLaneToggle && styles.laneHeaderToggleable,
+                      )}
+                      style={{ height }}
+                      {...(onLaneToggle && {
+                        role: 'button',
+                        tabIndex: 0,
+                        onClick: () => onLaneToggle(lane.key),
+                        onKeyDown: (event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            onLaneToggle(lane.key);
+                          }
+                        },
+                      })}
+                    >
+                      {onLaneToggle && (
+                        <Icon
+                          fitted
+                          name={isCollapsed ? 'caret right' : 'caret down'}
+                          className={styles.laneCaret}
+                        />
+                      )}
                       {lane.icon}
                       <span className={styles.laneLabel} title={lane.label}>
                         {lane.label}
@@ -712,76 +726,77 @@ const TimelineChart = React.memo(
                       />
                     )}
                   </svg>
-                  {bars.map(({ key, item, range, left, width, top }) => {
-                    const isItemEditable = isEditable && item.isEditable !== false;
-                    const isItemLinkable = isLinkable && item.isEditable !== false;
-
-                    const progress =
-                      item.progress && item.progress.total > 0
-                        ? item.progress.completed / item.progress.total
-                        : null;
-
-                    return (
+                  {bars.map(({ key, item, laneKey, range, left, width, top }) => (
+                    <Bar
+                      key={key}
+                      item={item}
+                      laneKey={laneKey}
+                      range={range}
+                      left={left}
+                      width={width}
+                      top={top}
+                      isEditable={isEditable && item.isEditable !== false}
+                      isLinkable={isLinkable && item.isEditable !== false}
+                      isCritical={criticalPath.itemIds.has(item.id)}
+                      isDragging={!!drag && drag.itemId === item.id}
+                      onPointerDown={handleBarPointerDown}
+                      onPointerMove={handleBarPointerMove}
+                      onPointerUp={handleBarPointerUp}
+                      onPointerEnter={setHoveredItemId}
+                      onPointerLeave={setHoveredItemId}
+                      onKeyDown={handleBarKeyDown}
+                      onLinkPointerDown={handleLinkPointerDown}
+                    />
+                  ))}
+                  {dragGhost && (
+                    <>
+                      {dragGhost.isLaneChange && (
+                        <div
+                          className={styles.dropLane}
+                          style={{ top: dragGhost.laneTop, height: dragGhost.laneHeight }}
+                        />
+                      )}
                       <div
-                        key={key}
-                        data-timeline-item-id={item.id}
-                        role="button"
-                        tabIndex={0}
-                        className={classNames(styles.bar, item.colorClassName, {
-                          [styles.barPoint]: range.isPoint,
-                          [styles.barOpenEnded]: range.isOpenEnded,
-                          [styles.barCompleted]: item.isCompleted,
-                          [styles.barOverdue]: item.isOverdue,
-                          [styles.barCritical]: criticalPath.itemIds.has(item.id),
-                          [styles.barDragging]: drag && drag.itemId === item.id,
-                          [styles.barEditable]: isItemEditable,
-                        })}
-                        style={{ left, width, top, height: BAR_HEIGHT }}
-                        onPointerDown={(event) =>
-                          handleBarPointerDown(event, item.id, DragModes.MOVE)
-                        }
-                        onPointerMove={handleBarPointerMove}
-                        onPointerUp={handleBarPointerUp}
-                        onPointerEnter={() => setHoveredItemId(item.id)}
-                        onPointerLeave={() => setHoveredItemId(null)}
-                        onKeyDown={(event) => handleBarKeyDown(event, item.id)}
+                        className={classNames(
+                          styles.ghostBar,
+                          dragGhost.item.colorClassName,
+                          dragGhost.range.isPoint && styles.ghostBarPoint,
+                        )}
+                        style={{
+                          left: dragGhost.left,
+                          width: dragGhost.width,
+                          top: dragGhost.top,
+                          height: BAR_HEIGHT,
+                        }}
                       >
-                        {progress !== null && !range.isPoint && (
-                          <span
-                            className={styles.barProgress}
-                            style={{ width: `${progress * 100}%` }}
-                          />
-                        )}
-                        {!range.isPoint && <span className={styles.barLabel}>{item.name}</span>}
-                        {isItemEditable && !range.isPoint && (
-                          <>
-                            <span
-                              className={classNames(styles.barHandle, styles.barHandleStart)}
-                              onPointerDown={(event) =>
-                                handleBarPointerDown(event, item.id, DragModes.RESIZE_START)
-                              }
-                              onPointerMove={handleBarPointerMove}
-                              onPointerUp={handleBarPointerUp}
-                            />
-                            <span
-                              className={classNames(styles.barHandle, styles.barHandleEnd)}
-                              onPointerDown={(event) =>
-                                handleBarPointerDown(event, item.id, DragModes.RESIZE_END)
-                              }
-                              onPointerMove={handleBarPointerMove}
-                              onPointerUp={handleBarPointerUp}
-                            />
-                          </>
-                        )}
-                        {isItemLinkable && (
-                          <span
-                            className={styles.linkDot}
-                            onPointerDown={(event) => handleLinkPointerDown(event, item.id)}
-                          />
+                        {!dragGhost.range.isPoint && (
+                          <span className={styles.ghostBarLabel}>{dragGhost.item.name}</span>
                         )}
                       </div>
-                    );
-                  })}
+                    </>
+                  )}
+                  {dropPreview && externalDragItem && (
+                    <>
+                      <div
+                        className={styles.dropLane}
+                        style={{ top: dropPreview.laneTop, height: dropPreview.laneHeight }}
+                      />
+                      <div
+                        className={styles.dropPreview}
+                        style={{
+                          left: dropPreview.left,
+                          width: dropPreview.width,
+                          top: dropPreview.laneTop + LANE_PADDING + (ROW_HEIGHT - BAR_HEIGHT) / 2,
+                          height: BAR_HEIGHT,
+                        }}
+                      >
+                        <span className={styles.dropPreviewLabel}>{externalDragItem.name}</span>
+                      </div>
+                    </>
+                  )}
+                  {bars.length === 0 && emptyMessage && (
+                    <div className={styles.emptyOverlay}>{emptyMessage}</div>
+                  )}
                   {hoveredBar && (
                     <div
                       className={styles.tooltip}
@@ -865,11 +880,25 @@ TimelineChart.propTypes = {
     }),
   ),
   canEdit: PropTypes.bool,
+  externalDragItem: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
+  }),
+  zoomLevel: PropTypes.oneOf(Object.values(ZoomLevels)),
+  collapsedLaneKeys: PropTypes.arrayOf(PropTypes.string),
+  leadingToolbarChildren: PropTypes.node,
   toolbarChildren: PropTypes.node,
   unscheduledCount: PropTypes.number,
   emptyMessage: PropTypes.string,
   onItemClick: PropTypes.func.isRequired,
   onItemDatesChange: PropTypes.func,
+  onItemLaneChange: PropTypes.func,
+  onItemUnschedule: PropTypes.func,
+  onUnscheduleHoverChange: PropTypes.func,
+  onExternalDrop: PropTypes.func,
+  onExternalDragCancel: PropTypes.func,
+  onZoomLevelChange: PropTypes.func,
+  onLaneToggle: PropTypes.func,
   onDependencyCreate: PropTypes.func,
   onDependencyDelete: PropTypes.func,
 };
@@ -878,10 +907,21 @@ TimelineChart.defaultProps = {
   dependencies: [],
   zoomLevels: DEFAULT_ZOOM_LEVELS,
   canEdit: false,
+  externalDragItem: undefined,
+  zoomLevel: undefined,
+  collapsedLaneKeys: [],
+  leadingToolbarChildren: undefined,
   toolbarChildren: undefined,
   unscheduledCount: 0,
   emptyMessage: undefined,
   onItemDatesChange: undefined,
+  onItemLaneChange: undefined,
+  onItemUnschedule: undefined,
+  onUnscheduleHoverChange: undefined,
+  onExternalDrop: undefined,
+  onExternalDragCancel: undefined,
+  onZoomLevelChange: undefined,
+  onLaneToggle: undefined,
   onDependencyCreate: undefined,
   onDependencyDelete: undefined,
 };

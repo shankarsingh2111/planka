@@ -128,6 +128,43 @@ export const getOffsetX = (viewStart, date, zoomLevel) => {
     : dayOffset;
 };
 
+// Inverse of getOffsetX: the date at the start of the unit an x offset falls in. Day zoom lands
+// on the slot's hour, coarser zoom levels on the start of the working day.
+export const getDateAtOffsetX = (viewStart, x, zoomLevel) => {
+  const unitIndex = Math.floor(x / getUnitWidth(zoomLevel));
+
+  if (!isSlotZoom(zoomLevel)) {
+    const result = addDays(startOfDay(viewStart), unitIndex);
+    result.setHours(WORK_DAY_START_HOUR, 0, 0, 0);
+
+    return result;
+  }
+
+  const dayIndex = Math.floor(unitIndex / SLOTS_PER_DAY);
+  const slot = unitIndex - dayIndex * SLOTS_PER_DAY;
+
+  const result = addDays(startOfDay(viewStart), dayIndex);
+  result.setHours(WORK_DAY_START_HOUR + slot * HOUR_TICK_STEP, 0, 0, 0);
+
+  return result;
+};
+
+/**
+ * Dates for a card dropped onto the canvas at an x offset: always the whole working day it lands
+ * on, at every zoom level. Day zoom snaps to the day rather than to the two-hour slot under the
+ * cursor, since a dropped card is scheduled work, not a two-hour appointment. Narrower or longer
+ * spans are set afterwards by resizing the bar.
+ */
+export const getDropRange = (x, viewStart, zoomLevel) => {
+  const startDate = startOfDay(getDateAtOffsetX(viewStart, x, zoomLevel));
+  startDate.setHours(WORK_DAY_START_HOUR, 0, 0, 0);
+
+  const dueDate = startOfDay(startDate);
+  dueDate.setHours(WORK_DAY_END_HOUR, 0, 0, 0);
+
+  return { startDate, dueDate };
+};
+
 // Inclusive range [start, end] for an item, or null when it has no dates. Times of day are
 // kept so day zoom can place bars on slots; coarser zoom levels round to days when drawing.
 export const getItemRange = ({ startDate, dueDate }) => {

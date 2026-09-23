@@ -58,6 +58,42 @@ require_stack() {
   [ -f "$dir/${COMPOSE_FILE:-docker-compose.yml}" ] || die "No ${COMPOSE_FILE:-docker-compose.yml} in $dir"
 }
 
+# True when the stack's postgres container is up. `docker compose ps -q` lists only running
+# containers, so an empty result means it is stopped or was never created.
+db_is_running() {
+  [ -n "$(compose_in "$1" ps -q postgres 2>/dev/null)" ]
+}
+
+# Brings postgres up on its own and waits until it accepts connections.
+#
+# Every pre-flight check below reads the database, and `docker compose exec` on a stopped service
+# prints "service postgres is not running" and yields nothing without failing the pipeline. That
+# makes the checks pass vacuously: assert_image_covers_db sees no applied migrations and raises no
+# objection, the "new migrations" list becomes every migration ever written, row counts come back
+# blank, and on production pg_dump writes an empty backup. So the database is started first, and
+# anything that cannot reach it is a hard stop rather than a silent pass.
+ensure_db_running() {
+  local dir="$1" timeout="${2:-120}" waited=0
+
+  if ! db_is_running "$dir"; then
+    info 'Postgres is not running; starting it'
+    compose_in "$dir" up -d postgres || die 'Could not start postgres.'
+  fi
+
+  while [ "$waited" -lt "$timeout" ]; do
+    if compose_in "$dir" exec -T postgres pg_isready -U postgres -d planka >/dev/null 2>&1; then
+      [ "$waited" -gt 0 ] && info "Postgres accepting connections after ${waited}s"
+      return 0
+    fi
+
+    sleep 2
+    waited=$((waited + 2))
+  done
+
+  compose_in "$dir" logs --tail 40 postgres
+  die "Postgres did not accept connections within ${timeout}s."
+}
+
 # Migrations applied in the stack's database, one per line, sorted
 db_migrations() {
   compose_in "$1" exec -T postgres psql -U postgres -d planka -t -A \
@@ -80,6 +116,56 @@ assert_image_covers_db() {
     printf '      %s\n' $missing
     die "$image cannot run against this database."
   fi
+}
+
+# A pg_dump of even an empty Planka schema runs to tens of kilobytes, so anything under this is
+# a failure that happened to leave a file behind.
+MIN_DUMP_BYTES="${PLANKA_MIN_DUMP_BYTES:-10240}"
+
+# A backup only counts once it has been read back.
+#
+# pg_dump writes to a redirected file, so a failure still leaves something on disk - empty when
+# the server was unreachable, truncated when it died partway. Reporting that file's size would
+# announce a backup that cannot be restored, and the deploy would carry on behind it. A rejected
+# dump is renamed rather than deleted: it keeps the evidence while making sure nothing can later
+# mistake it for a usable backup.
+assert_usable_dump() {
+  # assert_usable_dump <dir> <dump-file>
+  local dir="$1" dump="$2" size
+
+  reject_dump() {
+    mv -f "$dump" "${dump}.failed" 2>/dev/null || true
+    die "$1 (kept as ${dump}.failed)"
+  }
+
+  [ -f "$dump" ] || die "pg_dump produced no file at ${dump}"
+  [ -s "$dump" ] || reject_dump 'Backup is empty - pg_dump wrote nothing'
+
+  size="$(wc -c < "$dump" | tr -d ' ')"
+  [ "$size" -ge "$MIN_DUMP_BYTES" ] ||
+    reject_dump "Backup is only ${size} bytes, too small to be a real dump"
+
+  # Reads the custom-format archive's table of contents. Catches a truncated or corrupt dump,
+  # and touches no database doing it.
+  compose_in "$dir" exec -T postgres pg_restore --list >/dev/null 2>&1 < "$dump" ||
+    reject_dump 'Backup is not a readable pg_dump archive'
+
+  info "Database:    ${dump} ($(du -h "$dump" | cut -f1), archive verified)"
+}
+
+# Same idea for the attachments tarball: gzip -t walks the whole stream, so a truncated write is
+# caught here rather than on the day someone needs it.
+assert_usable_tarball() {
+  local tarball="$1"
+
+  [ -s "$tarball" ] || die "Attachment backup is empty: ${tarball}"
+
+  gzip -t "$tarball" 2>/dev/null || {
+    mv -f "$tarball" "${tarball}.failed" 2>/dev/null || true
+    die "Attachment backup is corrupt (kept as ${tarball}.failed)"
+  }
+
+  info "Attachments: ${tarball} ($(du -h "$tarball" | cut -f1), archive verified)"
 }
 
 ensure_image_present() {

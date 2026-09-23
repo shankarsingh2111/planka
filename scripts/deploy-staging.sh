@@ -33,6 +33,8 @@ IMAGE="${PLANKA_IMAGE_REPO}:${TAG}"
 log "Deploying ${IMAGE} to staging (${STAGING_DIR})"
 ensure_image_present "$IMAGE"
 
+ensure_db_running "$STAGING_DIR"
+
 assert_image_covers_db "$STAGING_DIR" "$IMAGE"
 
 NEW_MIGRATIONS="$(comm -13 <(db_migrations "$STAGING_DIR") <(image_migrations "$IMAGE") || true)"

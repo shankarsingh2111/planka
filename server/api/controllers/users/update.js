@@ -84,6 +84,29 @@
  *                 type: boolean
  *                 description: Whether the timeline offers the quarter zoom level
  *                 example: false
+ *               timelineZoomLevel:
+ *                 type: string
+ *                 enum: [day, week, month, quarter]
+ *                 description: Last used timeline zoom level
+ *                 example: week
+ *               timelineGroupBy:
+ *                 type: string
+ *                 enum: [list, member, label, none]
+ *                 description: Last used timeline lane grouping
+ *                 example: list
+ *               timelineColorBy:
+ *                 type: string
+ *                 enum: [status, label, list, member, project]
+ *                 description: Last used timeline bar coloring
+ *                 example: status
+ *               timelineSidebarOpened:
+ *                 type: boolean
+ *                 description: Whether the timeline unscheduled sidebar is expanded
+ *                 example: true
+ *               timelineBoardPreferences:
+ *                 type: object
+ *                 description: Per-board timeline state keyed by board id
+ *                 example: { "1357158568008091266": { "hiddenLaneKeys": { "list": [] }, "collapsedLaneKeys": [] } }
  *               enableFavoritesByDefault:
  *                 type: boolean
  *                 description: Whether favorites are enabled by default
@@ -204,6 +227,24 @@ module.exports = {
     showQuarterTimelineZoom: {
       type: 'boolean',
     },
+    timelineZoomLevel: {
+      type: 'string',
+      isIn: Object.values(User.TimelineZoomLevels),
+    },
+    timelineGroupBy: {
+      type: 'string',
+      isIn: Object.values(User.TimelineGroupings),
+    },
+    timelineColorBy: {
+      type: 'string',
+      isIn: Object.values(User.TimelineColorings),
+    },
+    timelineSidebarOpened: {
+      type: 'boolean',
+    },
+    timelineBoardPreferences: {
+      type: 'json',
+    },
     enableFavoritesByDefault: {
       type: 'boolean',
     },
@@ -295,6 +336,11 @@ module.exports = {
         'turnOffRecentCardHighlighting',
         'showExtraBoardViews',
         'showQuarterTimelineZoom',
+        'timelineZoomLevel',
+        'timelineGroupBy',
+        'timelineColorBy',
+        'timelineSidebarOpened',
+        'timelineBoardPreferences',
         'enableFavoritesByDefault',
         'defaultEditorMode',
         'defaultHomeView',
