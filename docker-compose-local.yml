@@ -1,0 +1,46 @@
+# Local stack for the Mac: empty database, demo admin, http://localhost:1337
+# Driven by scripts/deploy-local.sh (project name planka_local).
+
+services:
+  planka:
+    image: ${PLANKA_IMAGE:?run scripts/deploy-local.sh, which sets this}
+    pull_policy: never
+    restart: on-failure
+    volumes:
+      - data:/app/data
+    ports:
+      - 1337:1337
+    environment:
+      - BASE_URL=http://localhost:1337
+      - DATABASE_URL=postgresql://postgres@postgres/planka
+
+      # Local only - never used by staging or production
+      - SECRET_KEY=local-development-not-a-secret
+
+      # The login form requires a real TLD, so admin@local would be rejected.
+      # .test is reserved by the IETF and can never be a real domain.
+      - DEFAULT_ADMIN_EMAIL=admin@local.test
+      - DEFAULT_ADMIN_PASSWORD=admin
+      - DEFAULT_ADMIN_NAME=Local Admin
+      - DEFAULT_ADMIN_USERNAME=admin
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    restart: on-failure
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=planka
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d planka"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  data:
+  db-data:

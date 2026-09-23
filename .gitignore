@@ -1,6 +1,7 @@
 docker-compose.override.yml
 .env
 .env.previous
+.deploy.env
 .idea
 .DS_Store
 

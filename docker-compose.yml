@@ -1,8 +1,8 @@
 services:
   planka:
-    # Image built from this fork's Dockerfile. The tag lives in .env as
-    # PLANKA_IMAGE_TAG and is written by scripts/deploy-staging.sh.
-    image: planka-jugnoo:${PLANKA_IMAGE_TAG:-timeline}
+    # Image built and pushed from the development machine. The reference lives in .env
+    # as PLANKA_IMAGE and is written by the deploy scripts, which pull it explicitly.
+    image: ${PLANKA_IMAGE:?set by scripts/deploy-staging.sh}
     pull_policy: never
     restart: on-failure
     volumes:
