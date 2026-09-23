@@ -7,6 +7,7 @@ import {
   diffInSlots,
   getUnitWidth,
   getOffsetX,
+  getNowOffsetX,
   getDateAtOffsetX,
   getDropRange,
   HOUR_TICK_STEP,
@@ -129,6 +130,33 @@ describe('slots', () => {
 
     // Week zoom ignores the time of day
     expect(getOffsetX(viewStart, at('2026-09-21', 17), ZoomLevels.WEEK)).toBe(0);
+  });
+});
+
+describe('getNowOffsetX', () => {
+  const viewStart = new Date('2026-09-21T00:00:00');
+  const at = (hours, minutes = 0) => new Date(2026, 8, 23, hours, minutes);
+  const dayLeft = 2 * PIXELS_PER_DAY[ZoomLevels.DAY];
+  const hourWidth = PIXELS_PER_DAY[ZoomLevels.DAY] / WORK_DAY_HOURS;
+
+  test('moves continuously through the working day', () => {
+    expect(getNowOffsetX(viewStart, at(WORK_DAY_START_HOUR), ZoomLevels.DAY)).toBe(dayLeft);
+    expect(getNowOffsetX(viewStart, at(14, 30), ZoomLevels.DAY)).toBeCloseTo(
+      dayLeft + 5.5 * hourWidth,
+    );
+  });
+
+  test('stops at the edges of the current day outside working hours', () => {
+    expect(getNowOffsetX(viewStart, at(6), ZoomLevels.DAY)).toBe(dayLeft);
+    expect(getNowOffsetX(viewStart, at(23, 45), ZoomLevels.DAY)).toBe(
+      dayLeft + PIXELS_PER_DAY[ZoomLevels.DAY],
+    );
+  });
+
+  test('uses the same fraction of the day at coarser zoom levels', () => {
+    expect(getNowOffsetX(viewStart, at(15), ZoomLevels.WEEK)).toBe(
+      2.5 * PIXELS_PER_DAY[ZoomLevels.WEEK],
+    );
   });
 });
 

@@ -21,6 +21,7 @@ import {
   startOfDay,
   getUnitWidth,
   getOffsetX,
+  getNowOffsetX,
   getItemRange,
   getViewRange,
   packRows,
@@ -34,6 +35,8 @@ import Toolbar from './Toolbar';
 import Bar from './Bar';
 
 import styles from './TimelineChart.module.scss';
+
+const NOW_TICK_INTERVAL = 60 * 1000;
 
 const DEFAULT_ZOOM_LEVELS = [ZoomLevels.DAY, ZoomLevels.WEEK, ZoomLevels.MONTH];
 
@@ -68,6 +71,13 @@ const TimelineChart = React.memo(
     const [linking, setLinking] = useState(null);
     const [hoveredItemId, setHoveredItemId] = useState(null);
     const [isCriticalPathShown, setIsCriticalPathShown] = useState(false);
+    const [now, setNow] = useState(() => new Date());
+
+    // Keeps the current-time marker moving; a minute is well under a pixel at every zoom level
+    useEffect(() => {
+      const interval = setInterval(() => setNow(new Date()), NOW_TICK_INTERVAL);
+      return () => clearInterval(interval);
+    }, []);
 
     // Optionally controlled: a persisted level is honoured only while it is still on offer, so
     // a stored "quarter" cannot strand the chart when quarter zoom is switched off
@@ -368,7 +378,8 @@ const TimelineChart = React.memo(
       [viewStart, totalDays, zoomLevel, i18n],
     );
 
-    const todayLeft = diffInDays(viewStart, startOfDay(new Date())) * pixelsPerDay;
+    const todayLeft = diffInDays(viewStart, startOfDay(now)) * pixelsPerDay;
+    const nowLeft = getNowOffsetX(viewStart, now, zoomLevel);
 
     const scrollToToday = useCallback(() => {
       if (scrollRef.current) {
@@ -643,11 +654,8 @@ const TimelineChart = React.memo(
                   {layout.lanes.map(({ lane, top, height }) => (
                     <div key={lane.key} className={styles.laneBackground} style={{ top, height }} />
                   ))}
-                  {todayLeft >= 0 && todayLeft <= totalWidth && (
-                    <div
-                      className={styles.todayMarker}
-                      style={{ left: todayLeft + pixelsPerDay / 2 }}
-                    />
+                  {nowLeft >= 0 && nowLeft <= totalWidth && (
+                    <div className={styles.todayMarker} style={{ left: nowLeft }} />
                   )}
                   <svg
                     className={styles.arrows}

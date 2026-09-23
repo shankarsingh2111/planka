@@ -59,7 +59,7 @@ exports.seed = async (knex) => {
           turnOffRecentCardHighlighting: false,
           showExtraBoardViews: false,
           showQuarterTimelineZoom: false,
-          timelineZoomLevel: 'week',
+          timelineZoomLevel: 'day',
           timelineGroupBy: 'list',
           timelineColorBy: 'status',
           timelineSidebarOpened: true,

@@ -103,6 +103,17 @@ export const addSlots = (date, deltaSlots) => {
   return result;
 };
 
+// How far through the working day a time is, from 0 at 9 AM to 1 at 9 PM, pinned at both ends
+export const getWorkDayProgress = (date) => {
+  const hour = date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
+
+  return Math.min(Math.max((hour - WORK_DAY_START_HOUR) / WORK_DAY_HOURS, 0), 1);
+};
+
+// X offset of the current time: continuous within the working day, unlike getOffsetX which snaps
+export const getNowOffsetX = (viewStart, now, zoomLevel) =>
+  (diffInDays(viewStart, now) + getWorkDayProgress(now)) * PIXELS_PER_DAY[zoomLevel];
+
 export const diffInSlots = (from, to) =>
   diffInDays(from, to) * SLOTS_PER_DAY + getSlotOfDay(to) - getSlotOfDay(from);
 
