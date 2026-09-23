@@ -157,7 +157,7 @@ existing `packRows` step only.
 One migration, five columns on `user_account`:
 
 ```
-timeline_zoom_level          text    default 'week'
+timeline_zoom_level          text    default 'day'
 timeline_group_by            text    default 'list'
 timeline_color_by            text    default 'status'
 timeline_sidebar_opened      boolean default true

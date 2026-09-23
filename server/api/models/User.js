@@ -436,7 +436,7 @@ module.exports = {
     timelineZoomLevel: {
       type: 'string',
       isIn: Object.values(TimelineZoomLevels),
-      defaultsTo: TimelineZoomLevels.WEEK,
+      defaultsTo: TimelineZoomLevels.DAY,
       columnName: 'timeline_zoom_level',
     },
     timelineGroupBy: {
