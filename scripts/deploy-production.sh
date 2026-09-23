@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 #
-# Promotes an already-built image to the production stack, with backups and checks.
+# Promotes the image staging is running to the production stack, with backups and checks.
 #
 #   scripts/deploy-production.sh [--tag TAG] [--yes] [--skip-backup]
 #
-# The tag defaults to whatever staging is currently running. The image must exist
-# locally; this script never builds, so production runs the exact bits staging ran.
+# The tag defaults to whatever staging currently runs. This script never builds, so
+# production gets the same image that was tested locally and on staging.
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${REPO_DIR}/scripts/lib.sh"
+load_deploy_env "$REPO_DIR"
 
 STAGING_DIR="${PLANKA_STAGING_DIR:-$REPO_DIR}"
 PROD_DIR="${PLANKA_PROD_DIR:-$HOME/planka}"
@@ -21,22 +22,27 @@ while [ $# -gt 0 ]; do
     --tag) TAG="${2:-}"; shift 2 ;;
     --yes|-y) ASSUME_YES=1; shift ;;
     --skip-backup) SKIP_BACKUP=1; shift ;;
-    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,9p' "$0"; exit 0 ;;
     *) die "Unknown option: $1" ;;
   esac
 done
 
 require_stack "$PROD_DIR"
 
-[ -n "$TAG" ] || TAG="$(current_image_tag "$STAGING_DIR")"
-[ -n "$TAG" ] || die 'No tag given and staging has none recorded. Pass --tag TAG.'
+if [ -n "$TAG" ]; then
+  require_image_repo
+  IMAGE="${PLANKA_IMAGE_REPO}:${TAG}"
+else
+  IMAGE="$(current_image "$STAGING_DIR")"
+  [ -n "$IMAGE" ] || die 'Staging has no image recorded. Pass --tag TAG.'
+  info "Taking the image staging runs: ${IMAGE}"
+fi
 
-IMAGE="planka-jugnoo:${TAG}"
-PREVIOUS_TAG="$(current_image_tag "$PROD_DIR")"
+PREVIOUS_IMAGE="$(current_image "$PROD_DIR")"
 
 log "Promoting ${IMAGE} to production (${PROD_DIR})"
-docker image inspect "$IMAGE" >/dev/null 2>&1 || die "Image not found locally: ${IMAGE}. Build it with deploy-staging.sh first."
-[ -n "$PREVIOUS_TAG" ] && info "Currently deployed: planka-jugnoo:${PREVIOUS_TAG}"
+ensure_image_present "$IMAGE"
+[ -n "$PREVIOUS_IMAGE" ] && info "Currently deployed: ${PREVIOUS_IMAGE}"
 
 log 'Checking the image against the production database'
 assert_image_covers_db "$PROD_DIR" "$IMAGE"
@@ -75,8 +81,8 @@ else
 fi
 
 log 'Deploying'
-[ -n "$PREVIOUS_TAG" ] && printf 'PLANKA_PREVIOUS_IMAGE_TAG=%s\n' "$PREVIOUS_TAG" > "${PROD_DIR}/.env.previous"
-set_image_tag "$PROD_DIR" "$TAG"
+[ -n "$PREVIOUS_IMAGE" ] && printf 'PLANKA_PREVIOUS_IMAGE=%s\n' "$PREVIOUS_IMAGE" > "${PROD_DIR}/.env.previous"
+set_image "$PROD_DIR" "$IMAGE"
 compose_in "$PROD_DIR" up -d
 
 log 'Waiting for the app'
@@ -94,5 +100,5 @@ db_migrations "$PROD_DIR" | sort -r | head -3 | sed 's/^/    /'
 
 log 'Done'
 info "Production is running ${IMAGE} on port $(published_port "$PROD_DIR")"
-[ -n "$PREVIOUS_TAG" ] && info "Roll back with: scripts/rollback-production.sh --tag ${PREVIOUS_TAG}"
+[ -n "$PREVIOUS_IMAGE" ] && info "Roll back with: scripts/rollback-production.sh --image ${PREVIOUS_IMAGE}"
 info 'Now check in the browser: log in, open a card, open an attachment, open the timeline.'
