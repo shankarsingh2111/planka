@@ -1,8 +1,8 @@
 services:
   planka:
-    # Image built from this fork's Dockerfile (timeline + team dashboard).
-    # Rebuild after pulling new code: docker build -t planka-jugnoo:timeline .
-    image: planka-jugnoo:timeline
+    # Image built from this fork's Dockerfile. The tag lives in .env as
+    # PLANKA_IMAGE_TAG and is written by scripts/deploy-staging.sh.
+    image: planka-jugnoo:${PLANKA_IMAGE_TAG:-timeline}
     pull_policy: never
     restart: on-failure
     volumes:

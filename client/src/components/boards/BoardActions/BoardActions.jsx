@@ -61,10 +61,10 @@ const BoardActions = React.memo(() => {
             <Filters />
           </div>
         </div>
-        <div className={styles.center}>
-          <ViewSwitcher />
-        </div>
         <div className={classNames(styles.side, styles.sideRight)}>
+          <div className={styles.action}>
+            <ViewSwitcher />
+          </div>
           <div className={styles.action}>
             <RightSide />
           </div>

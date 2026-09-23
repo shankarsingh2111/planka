@@ -28,22 +28,15 @@
     height: 46px;
   }
 
-  // Equal-width sides keep the view switcher centered whatever the sides hold
   .side {
     align-items: center;
     display: flex;
-    flex: 1 1 0;
-    min-width: 0;
-  }
-
-  .sideRight {
-    justify-content: flex-end;
-  }
-
-  .center {
-    display: flex;
     flex: 0 0 auto;
-    padding: 0 12px;
+  }
+
+  // Pushed to the right edge, clear of the search field however wide the left side grows
+  .sideRight {
+    margin-left: auto;
   }
 
   .contextTitle {
