@@ -1,0 +1,40 @@
+:global(#app) {
+  .wrapper {
+    align-items: center;
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  // UserAvatar's own tiny size is 24px, which crowds a 26px bar, so the inner circle is
+  // brought down to 18px here rather than adding another size to the shared component
+  .avatar {
+    display: inline-flex;
+    margin-left: -6px;
+
+    &:first-child {
+      margin-left: 0;
+    }
+
+    > span {
+      box-shadow: 0 0 0 1.5px #fff;
+      font-size: 8px;
+      height: 18px;
+      line-height: 14px;
+      padding: 2px 0;
+      width: 18px;
+    }
+  }
+
+  .overflow {
+    background: rgba(9, 30, 66, 0.55);
+    border-radius: 50%;
+    box-shadow: 0 0 0 1.5px #fff;
+    color: #fff;
+    font-size: 8px;
+    height: 18px;
+    line-height: 18px;
+    margin-left: -6px;
+    text-align: center;
+    width: 18px;
+  }
+}

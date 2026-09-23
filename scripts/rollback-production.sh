@@ -37,6 +37,8 @@ fi
 log "Rolling production back to ${IMAGE}"
 ensure_image_present "$IMAGE"
 
+ensure_db_running "$PROD_DIR"
+
 EXTRA="$(comm -23 <(db_migrations "$PROD_DIR") <(image_migrations "$IMAGE") || true)"
 if [ -n "$EXTRA" ]; then
   warn 'The database has migrations this older image does not contain:'

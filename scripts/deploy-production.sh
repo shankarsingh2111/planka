@@ -45,6 +45,8 @@ ensure_image_present "$IMAGE"
 [ -n "$PREVIOUS_IMAGE" ] && info "Currently deployed: ${PREVIOUS_IMAGE}"
 
 log 'Checking the image against the production database'
+ensure_db_running "$PROD_DIR"
+
 assert_image_covers_db "$PROD_DIR" "$IMAGE"
 
 NEW_MIGRATIONS="$(comm -13 <(db_migrations "$PROD_DIR") <(image_migrations "$IMAGE") || true)"
@@ -67,15 +69,20 @@ else
   mkdir -p "$BACKUP_DIR"
   STAMP="$(date +%F-%H%M)"
 
-  compose_in "$PROD_DIR" exec -T postgres pg_dump -U postgres -Fc planka > "${BACKUP_DIR}/planka-prod-${STAMP}.dump"
-  info "Database:    ${BACKUP_DIR}/planka-prod-${STAMP}.dump ($(du -h "${BACKUP_DIR}/planka-prod-${STAMP}.dump" | cut -f1))"
+  DUMP="${BACKUP_DIR}/planka-prod-${STAMP}.dump"
+  TARBALL="${BACKUP_DIR}/planka_data-${STAMP}.tgz"
+
+  compose_in "$PROD_DIR" exec -T postgres pg_dump -U postgres -Fc planka > "$DUMP" ||
+    die "pg_dump failed; ${DUMP} is not a usable backup."
+  assert_usable_dump "$PROD_DIR" "$DUMP"
 
   DATA_VOLUME="$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/app/data"}}{{.Name}}{{end}}{{end}}' "$(compose_in "$PROD_DIR" ps -q planka)")"
   [ -n "$DATA_VOLUME" ] || die 'Could not find the /app/data volume of the production container.'
 
   docker run --rm -v "${DATA_VOLUME}:/data:ro" -v "${BACKUP_DIR}:/backup" alpine \
-    tar czf "/backup/planka_data-${STAMP}.tgz" -C /data .
-  info "Attachments: ${BACKUP_DIR}/planka_data-${STAMP}.tgz ($(du -h "${BACKUP_DIR}/planka_data-${STAMP}.tgz" | cut -f1))"
+    tar czf "/backup/planka_data-${STAMP}.tgz" -C /data . ||
+    die "Could not archive the attachments volume; ${TARBALL} is not a usable backup."
+  assert_usable_tarball "$TARBALL"
 
   cp "$PROD_DIR/docker-compose.yml" "${BACKUP_DIR}/docker-compose-${STAMP}.yml"
 fi

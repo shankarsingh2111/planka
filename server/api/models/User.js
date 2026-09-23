@@ -129,6 +129,36 @@
  *           default: false
  *           description: Whether the timeline offers the quarter zoom level (personal field)
  *           example: false
+ *         timelineZoomLevel:
+ *           type: string
+ *           enum: [day, week, month, quarter]
+ *           default: week
+ *           description: Last used timeline zoom level (personal field)
+ *           example: week
+ *         timelineGroupBy:
+ *           type: string
+ *           enum: [list, member, label, none]
+ *           default: list
+ *           description: Last used timeline lane grouping (personal field)
+ *           example: list
+ *         timelineColorBy:
+ *           type: string
+ *           enum: [status, label, list, member, project]
+ *           default: status
+ *           description: Last used timeline bar coloring (personal field)
+ *           example: status
+ *         timelineSidebarOpened:
+ *           type: boolean
+ *           default: true
+ *           description: Whether the timeline unscheduled sidebar is expanded (personal field)
+ *           example: true
+ *         timelineBoardPreferences:
+ *           type: object
+ *           default: {}
+ *           description: >
+ *             Per-board timeline state keyed by board id, holding the hidden lane keys of each
+ *             grouping and the collapsed lane keys (personal field)
+ *           example: { "1357158568008091266": { "hiddenLaneKeys": { "list": ["1357158568008091270"] }, "collapsedLaneKeys": [] } }
  *         enableFavoritesByDefault:
  *           type: boolean
  *           default: true
@@ -209,6 +239,30 @@ const ProjectOrders = {
   BY_CREATION_TIME: 'byCreationTime',
 };
 
+// Kept in step with the client's ZoomLevels, GroupByOptions and ColorByOptions, so an
+// unknown value can never reach the timeline and leave it with nothing to render
+const TimelineZoomLevels = {
+  DAY: 'day',
+  WEEK: 'week',
+  MONTH: 'month',
+  QUARTER: 'quarter',
+};
+
+const TimelineGroupings = {
+  LIST: 'list',
+  MEMBER: 'member',
+  LABEL: 'label',
+  NONE: 'none',
+};
+
+const TimelineColorings = {
+  STATUS: 'status',
+  LABEL: 'label',
+  LIST: 'list',
+  MEMBER: 'member',
+  PROJECT: 'project',
+};
+
 const LANGUAGES = [
   'ar-YE',
   'bg-BG',
@@ -257,6 +311,11 @@ const PERSONAL_FIELD_NAMES = [
   'turnOffRecentCardHighlighting',
   'showExtraBoardViews',
   'showQuarterTimelineZoom',
+  'timelineZoomLevel',
+  'timelineGroupBy',
+  'timelineColorBy',
+  'timelineSidebarOpened',
+  'timelineBoardPreferences',
   'enableFavoritesByDefault',
   'defaultEditorMode',
   'defaultHomeView',
@@ -278,6 +337,9 @@ module.exports = {
   EditorModes,
   HomeViews,
   ProjectOrders,
+  TimelineZoomLevels,
+  TimelineGroupings,
+  TimelineColorings,
   LANGUAGES,
   PRIVATE_FIELD_NAMES,
   PERSONAL_FIELD_NAMES,
@@ -370,6 +432,34 @@ module.exports = {
       type: 'boolean',
       defaultsTo: false,
       columnName: 'show_quarter_timeline_zoom',
+    },
+    timelineZoomLevel: {
+      type: 'string',
+      isIn: Object.values(TimelineZoomLevels),
+      defaultsTo: TimelineZoomLevels.WEEK,
+      columnName: 'timeline_zoom_level',
+    },
+    timelineGroupBy: {
+      type: 'string',
+      isIn: Object.values(TimelineGroupings),
+      defaultsTo: TimelineGroupings.LIST,
+      columnName: 'timeline_group_by',
+    },
+    timelineColorBy: {
+      type: 'string',
+      isIn: Object.values(TimelineColorings),
+      defaultsTo: TimelineColorings.STATUS,
+      columnName: 'timeline_color_by',
+    },
+    timelineSidebarOpened: {
+      type: 'boolean',
+      defaultsTo: true,
+      columnName: 'timeline_sidebar_opened',
+    },
+    timelineBoardPreferences: {
+      type: 'json',
+      defaultsTo: {},
+      columnName: 'timeline_board_preferences',
     },
     enableFavoritesByDefault: {
       type: 'boolean',

@@ -74,6 +74,16 @@ const handleCardUpdate = (card) => ({
   },
 });
 
+// Dropping a card onto the timeline sets its dates and, when the lane belongs to another list,
+// moves it there — in one update rather than two round trips
+const scheduleCard = (id, data) => ({
+  type: EntryActionTypes.CARD_SCHEDULE,
+  payload: {
+    id,
+    data,
+  },
+});
+
 const moveCard = (id, listId, index = 0) => ({
   type: EntryActionTypes.CARD_MOVE,
   payload: {
@@ -217,6 +227,7 @@ export default {
   updateCard,
   updateCurrentCard,
   handleCardUpdate,
+  scheduleCard,
   moveCard,
   moveCurrentCard,
   moveCardToArchive,

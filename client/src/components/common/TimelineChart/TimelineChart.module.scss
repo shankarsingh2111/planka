@@ -188,6 +188,23 @@
     padding: 10px 10px 0 12px;
   }
 
+  .laneHeaderToggleable {
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.1s ease;
+    user-select: none;
+
+    &:hover {
+      background: rgba(9, 30, 66, 0.04);
+    }
+  }
+
+  .laneCaret {
+    color: #6b808c;
+    flex-shrink: 0;
+    line-height: 18px;
+  }
+
   .laneLabel {
     flex: 1;
     font-size: 13px;
@@ -235,6 +252,70 @@
     z-index: 3;
   }
 
+  // Highlights the lane a dragged card would land in
+  .dropLane {
+    background: rgba(0, 121, 191, 0.07);
+    border: 1px dashed rgba(0, 121, 191, 0.5);
+    border-radius: 3px;
+    left: 0;
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+    z-index: 2;
+  }
+
+  // A copy of the dragged bar drawn in the lane it would land in. It keeps the card's own colour
+  // so it reads as the same card, with a dashed outline to say it is not committed yet
+  .ghostBar {
+    align-items: center;
+    border: 1px dashed #fff;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(9, 30, 66, 0.3);
+    display: flex;
+    opacity: 0.75;
+    overflow: hidden;
+    pointer-events: none;
+    position: absolute;
+    z-index: 6;
+  }
+
+  .ghostBarPoint {
+    border-radius: 2px;
+    transform: scale(0.75) rotate(45deg);
+  }
+
+  .ghostBarLabel {
+    color: #fff;
+    font-size: 12px;
+    overflow: hidden;
+    padding: 0 8px;
+    text-overflow: ellipsis;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+    white-space: nowrap;
+  }
+
+  .dropPreview {
+    align-items: center;
+    background: rgba(0, 121, 191, 0.85);
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(9, 30, 66, 0.25);
+    display: flex;
+    overflow: hidden;
+    padding: 0 8px;
+    pointer-events: none;
+    position: absolute;
+    z-index: 6;
+  }
+
+  .dropPreviewLabel {
+    color: #fff;
+    font-size: 12px;
+    line-height: 26px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .empty {
     color: #5e6c84;
     left: 0;
@@ -242,6 +323,24 @@
     position: sticky;
     text-align: center;
     width: min(100%, 100vw);
+  }
+
+  // Sits over the grid rather than replacing it, so lanes stay visible as drop targets while
+  // the board has nothing scheduled yet
+  .emptyOverlay {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(9, 30, 66, 0.13);
+    border-radius: 6px;
+    color: #5e6c84;
+    left: 0;
+    margin: 24px auto;
+    padding: 12px 20px;
+    pointer-events: none;
+    position: sticky;
+    text-align: center;
+    top: 24px;
+    width: fit-content;
+    z-index: 4;
   }
 
   /* Bars */
@@ -291,6 +390,13 @@
     text-overflow: ellipsis;
     text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
     white-space: nowrap;
+  }
+
+  .barAvatars {
+    margin-left: auto;
+    padding-right: 6px;
+    position: relative;
+    z-index: 1;
   }
 
   .barProgress {

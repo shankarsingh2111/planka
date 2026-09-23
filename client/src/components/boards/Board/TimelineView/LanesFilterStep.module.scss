@@ -1,0 +1,56 @@
+:global(#app) {
+  .checkbox {
+    flex: 0 0 auto;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+
+  .laneName {
+    display: inline-block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+    white-space: nowrap;
+    width: calc(100% - 28px);
+  }
+
+  .menu {
+    margin: 0;
+    max-height: 60vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    width: 100%;
+  }
+
+  .menuItem {
+    align-items: center;
+    border-radius: 3px;
+    color: #17394d;
+    display: flex;
+    margin: 0;
+    padding: 6px 8px;
+    text-align: left;
+    transition: background 0.1s ease;
+    width: 100%;
+
+    &:hover {
+      background: rgba(9, 30, 66, 0.06);
+    }
+  }
+
+  .showAllButton {
+    background: transparent;
+    box-shadow: none;
+    color: #6b808c;
+    font-weight: normal;
+    margin-top: 4px;
+    padding: 6px;
+    text-align: center;
+    transition: background 0.1s ease;
+
+    &:hover {
+      background: rgba(9, 30, 66, 0.06);
+      color: #17394d;
+    }
+  }
+}

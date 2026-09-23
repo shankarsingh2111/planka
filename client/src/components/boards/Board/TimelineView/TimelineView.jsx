@@ -3,17 +3,21 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { Dropdown } from 'semantic-ui-react';
+import { Button, Dropdown, Icon } from 'semantic-ui-react';
+import { usePopup } from '../../../../lib/popup';
 
 import selectors from '../../../../selectors';
 import entryActions from '../../../../entry-actions';
 import Paths from '../../../../constants/Paths';
 import { BoardMembershipRoles } from '../../../../constants/Enums';
+import useTimelinePreferences from './use-timeline-preferences';
+import LanesFilterStep from './LanesFilterStep';
+import UnscheduledSidebar from './UnscheduledSidebar';
 import TimelineChart, {
   ColorByOptions,
   getZoomLevels,
@@ -35,11 +39,21 @@ const GroupByOptions = {
 
 const NO_VALUE_KEY = '__none__';
 
+const UNSCHEDULED_DRAG_THRESHOLD = 4;
+
+const LANES_FILTER_TITLES = {
+  [GroupByOptions.LIST]: 'common.lists',
+  [GroupByOptions.MEMBER]: 'common.members',
+  [GroupByOptions.LABEL]: 'common.labels',
+  [GroupByOptions.NONE]: 'common.lanes',
+};
+
 const TimelineView = React.memo(({ cardIds }) => {
   const board = useSelector(selectors.selectCurrentBoard);
   const cards = useSelector((state) => selectors.selectTimelineCardsByIds(state, cardIds));
   const memberships = useSelector(selectors.selectMembershipsForCurrentBoard);
   const labels = useSelector(selectors.selectLabelsForCurrentBoard);
+  const lists = useSelector(selectors.selectAvailableListsForCurrentBoard);
   const cardDependencies = useSelector(selectors.selectCardDependenciesForCurrentBoard);
 
   const withQuarterZoom = useSelector(
@@ -55,8 +69,85 @@ const TimelineView = React.memo(({ cardIds }) => {
   const navigate = useNavigate();
   const [t] = useTranslation();
 
-  const [groupBy, setGroupBy] = useState(GroupByOptions.LIST);
-  const [colorBy, setColorBy] = useState(ColorByOptions.STATUS);
+  const {
+    zoomLevel,
+    groupBy,
+    colorBy,
+    collapsedLaneKeys,
+    isSidebarOpened,
+    getHiddenLaneKeys,
+    setZoomLevel,
+    setGroupBy,
+    setColorBy,
+    setIsSidebarOpened,
+    toggleLaneHidden,
+    showAllLanes,
+    toggleLaneCollapsed,
+  } = useTimelinePreferences(board.id);
+
+  const hiddenLaneKeys = getHiddenLaneKeys(groupBy);
+
+  // A press on a sidebar card only becomes a drag once it travels far enough, so the same
+  // gesture still opens the card on a plain click
+  const [externalDragItem, setExternalDragItem] = useState(null);
+  const [unschedulingCardId, setUnschedulingCardId] = useState(null);
+  const pendingDragRef = useRef(null);
+  const wasDraggingRef = useRef(false);
+
+  const handleUnscheduledCardDragStart = useCallback(
+    (event, card) => {
+      if (event.button !== 0 || !canEdit) {
+        return;
+      }
+
+      wasDraggingRef.current = false;
+
+      pendingDragRef.current = {
+        card,
+        startX: event.clientX,
+        startY: event.clientY,
+      };
+    },
+    [canEdit],
+  );
+
+  useEffect(() => {
+    if (!canEdit) {
+      return undefined;
+    }
+
+    const handlePointerMove = (event) => {
+      const pending = pendingDragRef.current;
+
+      if (!pending) {
+        return;
+      }
+
+      if (
+        Math.abs(event.clientX - pending.startX) < UNSCHEDULED_DRAG_THRESHOLD &&
+        Math.abs(event.clientY - pending.startY) < UNSCHEDULED_DRAG_THRESHOLD
+      ) {
+        return;
+      }
+
+      pendingDragRef.current = null;
+      wasDraggingRef.current = true;
+
+      setExternalDragItem({ id: pending.card.id, name: pending.card.name });
+    };
+
+    const handlePointerUp = () => {
+      pendingDragRef.current = null;
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [canEdit]);
 
   useEffect(() => {
     dispatch(entryActions.fetchCardDependenciesInCurrentBoard());
@@ -91,62 +182,47 @@ const TimelineView = React.memo(({ cardIds }) => {
     [cards],
   );
 
-  const lanes = useMemo(() => {
+  // The sidebar holds exactly what the chart cannot place — a card with either date still gets
+  // a bar, open-ended or as a point
+  const unscheduledCards = useMemo(
+    () => cards.filter((card) => !card.startDate && !card.dueDate),
+    [cards],
+  );
+
+  // Lanes come from the board's own lists, members and labels rather than from the cards that
+  // happen to be scheduled, so an empty list still gets a row to drop onto
+  const allLanes = useMemo(() => {
     switch (groupBy) {
-      case GroupByOptions.LIST: {
-        const listById = {};
-
-        scheduledCards.forEach((card) => {
-          if (card.list) {
-            listById[card.list.id] = card.list;
-          }
-        });
-
-        return Object.values(listById)
+      case GroupByOptions.LIST:
+        return lists
+          .slice()
           .sort((a, b) => (a.position || 0) - (b.position || 0))
           .map((list) => ({
             key: list.id,
             label: list.name || t(`common.${list.type}`),
           }));
-      }
-      case GroupByOptions.MEMBER: {
-        const userIds = new Set(scheduledCards.flatMap((card) => card.userIds));
-
-        const result = memberships
-          .filter((membership) => userIds.has(membership.user.id))
-          .map((membership) => ({
+      case GroupByOptions.MEMBER:
+        return [
+          ...memberships.map((membership) => ({
             key: membership.user.id,
             label: membership.user.name,
-          }));
-
-        if (scheduledCards.some((card) => card.userIds.length === 0)) {
-          result.push({
+          })),
+          {
             key: NO_VALUE_KEY,
             label: t('common.unassigned', { context: 'title' }),
-          });
-        }
-
-        return result;
-      }
-      case GroupByOptions.LABEL: {
-        const labelIds = new Set(scheduledCards.flatMap((card) => card.labelIds));
-
-        const result = labels
-          .filter((label) => labelIds.has(label.id))
-          .map((label) => ({
+          },
+        ];
+      case GroupByOptions.LABEL:
+        return [
+          ...labels.map((label) => ({
             key: label.id,
             label: label.name || t(`common.${label.color}`, { defaultValue: label.color }),
-          }));
-
-        if (scheduledCards.some((card) => card.labelIds.length === 0)) {
-          result.push({
+          })),
+          {
             key: NO_VALUE_KEY,
             label: t('common.noLabels'),
-          });
-        }
-
-        return result;
-      }
+          },
+        ];
       default:
         return [
           {
@@ -155,7 +231,12 @@ const TimelineView = React.memo(({ cardIds }) => {
           },
         ];
     }
-  }, [groupBy, scheduledCards, memberships, labels, board.name, t]);
+  }, [groupBy, lists, memberships, labels, board.name, t]);
+
+  const lanes = useMemo(
+    () => allLanes.filter((lane) => !hiddenLaneKeys.includes(lane.key)),
+    [allLanes, hiddenLaneKeys],
+  );
 
   const items = useMemo(
     () =>
@@ -215,6 +296,7 @@ const TimelineView = React.memo(({ cardIds }) => {
           startDate: card.startDate || undefined,
           dueDate: card.dueDate || undefined,
           laneKeys,
+          memberIds: card.userIds,
           colorClassName: getColorClassName(color),
           isCompleted: isDone || !!card.isDueCompleted,
           isOverdue,
@@ -290,18 +372,145 @@ const TimelineView = React.memo(({ cardIds }) => {
     { value: ColorByOptions.MEMBER, text: t('common.colorByMember') },
   ];
 
+  const handleExternalDrop = useCallback(
+    (cardId, { laneKey, startDate, dueDate }) => {
+      setExternalDragItem(null);
+
+      dispatch(
+        entryActions.scheduleCard(cardId, {
+          // Only list lanes name a list; member and label lanes leave the card where it is
+          listId: groupBy === GroupByOptions.LIST ? laneKey : undefined,
+          startDate,
+          dueDate,
+        }),
+      );
+    },
+    [dispatch, groupBy],
+  );
+
+  // Vertical drag only means something when the lanes are lists; in member or label grouping a
+  // lane is not somewhere a card can be moved to
+  const handleItemLaneChange = useCallback(
+    (cardId, laneKey, { startDate, dueDate }) => {
+      dispatch(
+        entryActions.scheduleCard(cardId, {
+          listId: laneKey,
+          startDate,
+          dueDate,
+        }),
+      );
+    },
+    [dispatch],
+  );
+
+  // The card shown in the sidebar while a bar is held over it, before the dates are actually
+  // cleared. Looked up from every card, since it is still a scheduled one at this point.
+  const unschedulingCard = useMemo(
+    () => (unschedulingCardId ? cards.find((card) => card.id === unschedulingCardId) : undefined),
+    [unschedulingCardId, cards],
+  );
+
+  const handleItemUnschedule = useCallback(
+    (cardId) => {
+      dispatch(
+        entryActions.updateCard(cardId, {
+          startDate: null,
+          dueDate: null,
+        }),
+      );
+    },
+    [dispatch],
+  );
+
+  const handleExternalDragCancel = useCallback(() => {
+    setExternalDragItem(null);
+  }, []);
+
+  const handleUnscheduledCardClick = useCallback(
+    (cardId) => {
+      if (wasDraggingRef.current) {
+        wasDraggingRef.current = false;
+        return;
+      }
+
+      handleItemClick(cardId);
+    },
+    [handleItemClick],
+  );
+
+  const handleLaneToggleHidden = useCallback(
+    (laneKey) => {
+      toggleLaneHidden(groupBy, laneKey);
+    },
+    [toggleLaneHidden, groupBy],
+  );
+
+  const handleLanesShowAll = useCallback(() => {
+    showAllLanes(groupBy);
+  }, [showAllLanes, groupBy]);
+
+  const LanesFilterPopup = usePopup(LanesFilterStep);
+
+  const lanesFilterTitle = LANES_FILTER_TITLES[groupBy] || LANES_FILTER_TITLES[GroupByOptions.LIST];
+
+  const sidebarToggleNode = (
+    <Button
+      size="mini"
+      basic
+      active={isSidebarOpened}
+      title={t('common.unscheduledCardsSidebar')}
+      className={styles.sidebarToggle}
+      onClick={() => setIsSidebarOpened(!isSidebarOpened)}
+    >
+      <Icon fitted name={isSidebarOpened ? 'angle double left' : 'angle double right'} />
+      {unscheduledCards.length > 0 && (
+        <span className={styles.sidebarToggleCount}>{unscheduledCards.length}</span>
+      )}
+    </Button>
+  );
+
   return (
     <div className={styles.wrapper}>
-      <TimelineChart
+      {isSidebarOpened && (
+        <UnscheduledSidebar
+          cards={unscheduledCards}
+          ghostCard={unschedulingCard}
+          isDropTarget={!!unschedulingCard}
+          draggingCardId={externalDragItem && externalDragItem.id}
+          onCardClick={handleUnscheduledCardClick}
+          onCardDragStart={handleUnscheduledCardDragStart}
+        />
+      )}
+      <div className={styles.chart}>
+        <TimelineChart
         items={items}
         lanes={lanes}
         dependencies={dependencies}
         zoomLevels={getZoomLevels(withQuarterZoom)}
         canEdit={canEdit}
-        unscheduledCount={cards.length - scheduledCards.length}
+        zoomLevel={zoomLevel}
+        collapsedLaneKeys={collapsedLaneKeys}
+        externalDragItem={externalDragItem}
+        leadingToolbarChildren={sidebarToggleNode}
+        unscheduledCount={isSidebarOpened ? 0 : unscheduledCards.length}
         emptyMessage={t('common.noCardsWithDates')}
         toolbarChildren={
           <>
+            <LanesFilterPopup
+              lanes={allLanes}
+              hiddenLaneKeys={hiddenLaneKeys}
+              title={lanesFilterTitle}
+              onToggle={handleLaneToggleHidden}
+              onShowAll={handleLanesShowAll}
+            >
+              <Button size="mini" basic active={hiddenLaneKeys.length > 0}>
+                <Icon name="filter" />
+                {t(lanesFilterTitle)}
+                {hiddenLaneKeys.length > 0 && (
+                  <span className={styles.hiddenLanesCount}>{hiddenLaneKeys.length}</span>
+                )}
+              </Button>
+            </LanesFilterPopup>
             <Dropdown
               inline
               options={groupByOptions}
@@ -318,9 +527,19 @@ const TimelineView = React.memo(({ cardIds }) => {
         }
         onItemClick={handleItemClick}
         onItemDatesChange={handleItemDatesChange}
+        onItemLaneChange={
+          canEdit && groupBy === GroupByOptions.LIST ? handleItemLaneChange : undefined
+        }
+        onItemUnschedule={canEdit && isSidebarOpened ? handleItemUnschedule : undefined}
+        onUnscheduleHoverChange={setUnschedulingCardId}
+        onExternalDrop={canEdit ? handleExternalDrop : undefined}
+        onExternalDragCancel={handleExternalDragCancel}
+        onZoomLevelChange={setZoomLevel}
+        onLaneToggle={toggleLaneCollapsed}
         onDependencyCreate={handleDependencyCreate}
         onDependencyDelete={handleDependencyDelete}
-      />
+        />
+      </div>
     </div>
   );
 });

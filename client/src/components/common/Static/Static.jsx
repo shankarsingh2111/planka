@@ -95,7 +95,10 @@ const Static = React.memo(() => {
   } else {
     wrapperClassNames = [
       isFavoritesActive ? styles.wrapperBoardWithFavorites : styles.wrapperBoard,
-      [BoardViews.GRID, BoardViews.LIST].includes(board.view) && styles.wrapperVertical,
+      // These views scroll inside themselves; without clipping here the page scrolls instead and
+      // slides their content under the fixed header
+      [BoardViews.GRID, BoardViews.LIST, BoardViews.TIMELINE].includes(board.view) &&
+        styles.wrapperVertical,
       styles.wrapperFlex,
     ];
 
