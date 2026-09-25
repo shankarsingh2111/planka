@@ -19,16 +19,34 @@ import parseTime from '../../../utils/parse-time';
 
 import styles from '../EditDueDateStep/EditDueDateStep.module.scss';
 
-const EditStartDateStep = React.memo(({ cardId, onBack, onClose }) => {
+const EditStartDateStep = React.memo(({ cardId, defaultValue, onUpdate, onBack, onClose }) => {
   const selectCardById = useMemo(() => selectors.makeSelectCardById(), []);
 
-  const defaultValue = useSelector((state) => selectCardById(state, cardId).startDate);
+  // A card that does not exist yet (the add card dialog) passes its value in and takes it back
+  // through onUpdate instead of going through the store
+  const cardValue = useSelector((state) => cardId && selectCardById(state, cardId).startDate);
+  const initialValue = cardId ? cardValue : defaultValue;
 
   const dispatch = useDispatch();
   const [t] = useTranslation();
 
+  const update = useCallback(
+    (value) => {
+      if (cardId) {
+        dispatch(
+          entryActions.updateCard(cardId, {
+            startDate: value,
+          }),
+        );
+      } else {
+        onUpdate(value);
+      }
+    },
+    [cardId, onUpdate, dispatch],
+  );
+
   const [data, handleFieldChange, setData] = useForm(() => {
-    const date = defaultValue || new Date().setHours(9, 0, 0, 0);
+    const date = initialValue || new Date().setHours(9, 0, 0, 0);
 
     return {
       date: t('format:date', {
@@ -80,28 +98,20 @@ const EditStartDateStep = React.memo(({ cardId, onBack, onClose }) => {
       }
     }
 
-    if (!defaultValue || value.getTime() !== defaultValue.getTime()) {
-      dispatch(
-        entryActions.updateCard(cardId, {
-          startDate: value,
-        }),
-      );
+    if (!initialValue || value.getTime() !== initialValue.getTime()) {
+      update(value);
     }
 
     onClose();
-  }, [cardId, onClose, defaultValue, dispatch, t, data, dateFieldRef, timeFieldRef, nullableDate]);
+  }, [onClose, initialValue, update, t, data, dateFieldRef, timeFieldRef, nullableDate]);
 
   const handleClearClick = useCallback(() => {
-    if (defaultValue) {
-      dispatch(
-        entryActions.updateCard(cardId, {
-          startDate: null,
-        }),
-      );
+    if (initialValue) {
+      update(null);
     }
 
     onClose();
-  }, [cardId, onClose, defaultValue, dispatch]);
+  }, [onClose, initialValue, update]);
 
   const handleDatePickerChange = useCallback(
     (date) => {
@@ -176,12 +186,17 @@ const EditStartDateStep = React.memo(({ cardId, onBack, onClose }) => {
 });
 
 EditStartDateStep.propTypes = {
-  cardId: PropTypes.string.isRequired,
+  cardId: PropTypes.string,
+  defaultValue: PropTypes.instanceOf(Date),
+  onUpdate: PropTypes.func,
   onBack: PropTypes.func,
   onClose: PropTypes.func.isRequired,
 };
 
 EditStartDateStep.defaultProps = {
+  cardId: undefined,
+  defaultValue: undefined,
+  onUpdate: undefined,
   onBack: undefined,
 };
 

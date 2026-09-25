@@ -1,0 +1,23 @@
+/*!
+ * Copyright (c) 2024 PLANKA Software GmbH
+ * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
+ */
+
+// Everything else comes from the card view's own styles, so the two stay alike
+
+:global(#app) {
+  .cancelButton {
+    text-align: center;
+  }
+
+  .error {
+    color: #db2828;
+    font-size: 12px;
+    line-height: 20px;
+    margin-bottom: 8px;
+  }
+
+  .submitButton {
+    margin: 8px 0 0;
+  }
+}

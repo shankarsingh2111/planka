@@ -24,6 +24,7 @@ import {
   getNowOffsetX,
   getItemRange,
   getViewRange,
+  getDropRange,
   packRows,
   getHeaderColumns,
   buildArrowPath,
@@ -51,6 +52,7 @@ const TimelineChart = React.memo(
     zoomLevel: zoomLevelProp,
     collapsedLaneKeys,
     leadingToolbarChildren,
+    toolbarActionChildren,
     toolbarChildren,
     unscheduledCount,
     emptyMessage,
@@ -65,6 +67,7 @@ const TimelineChart = React.memo(
     onLaneToggle,
     onDependencyCreate,
     onDependencyDelete,
+    onCanvasDoubleClick,
   }) => {
     const [t, i18n] = useTranslation();
     const [internalZoomLevel, setInternalZoomLevel] = useState(zoomLevels[0]);
@@ -504,10 +507,37 @@ const TimelineChart = React.memo(
 
     const linkingFrom = linking && anchorById[linking.fromId];
 
+    /* Creating from empty space */
+
+    /**
+     * A double-click on an empty stretch of a lane hands the consumer that lane and the whole
+     * working day under the cursor — the same day a card dropped there would get. Bars and the
+     * dependency arrows sit on top of the canvas and keep their own meaning.
+     */
+    const handleCanvasDoubleClick = useCallback(
+      (event) => {
+        if (event.target.closest('[data-timeline-item-id], svg')) {
+          return;
+        }
+
+        const laneKey = getLaneKeyAtClientY(event.clientY);
+
+        if (!laneKey) {
+          return;
+        }
+
+        const { x } = getCanvasPoint(event);
+
+        onCanvasDoubleClick(laneKey, getDropRange(x, viewStart, zoomLevel));
+      },
+      [getLaneKeyAtClientY, getCanvasPoint, viewStart, zoomLevel, onCanvasDoubleClick],
+    );
+
     /* Rendering */
 
     const isEditable = canEdit && !!onItemDatesChange;
     const isLinkable = canEdit && !!onDependencyCreate;
+    const isCreatable = canEdit && !!onCanvasDoubleClick;
 
     const hoveredBar = hoveredItemId && !drag && !linking ? anchorById[hoveredItemId] : null;
 
@@ -536,13 +566,23 @@ const TimelineChart = React.memo(
           withCriticalPath={dependencies.length > 0}
           isCriticalPathShown={isCriticalPathShown}
           leadingChildren={leadingToolbarChildren}
+          actionChildren={toolbarActionChildren}
           onZoomLevelChange={handleZoomLevelChange}
           onScrollToToday={scrollToToday}
           onCriticalPathToggle={() => setIsCriticalPathShown(!isCriticalPathShown)}
         >
           {toolbarChildren}
         </Toolbar>
-        {isLinkable && <div className={styles.hint}>{t('common.dragFromDotToLinkDependency')}</div>}
+        {(isLinkable || isCreatable) && (
+          <div className={styles.hint}>
+            {[
+              isLinkable && t('common.dragFromDotToLinkDependency'),
+              isCreatable && t('common.doubleClickToAddCard'),
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          </div>
+        )}
         <div ref={scrollRef} className={styles.scroll}>
           <div className={styles.inner} style={{ width: LANE_HEADER_WIDTH + totalWidth }}>
             <div className={styles.header}>
@@ -633,8 +673,9 @@ const TimelineChart = React.memo(
                 </div>
                 <div
                   ref={canvasRef}
-                  className={styles.canvas}
+                  className={classNames(styles.canvas, isCreatable && styles.canvasCreatable)}
                   style={{ width: totalWidth, height: layout.totalHeight, ...backgroundStripes }}
+                  onDoubleClick={isCreatable ? handleCanvasDoubleClick : undefined}
                 >
                   {headerColumns.bottom.map((column) => (
                     <div
@@ -895,6 +936,7 @@ TimelineChart.propTypes = {
   zoomLevel: PropTypes.oneOf(Object.values(ZoomLevels)),
   collapsedLaneKeys: PropTypes.arrayOf(PropTypes.string),
   leadingToolbarChildren: PropTypes.node,
+  toolbarActionChildren: PropTypes.node,
   toolbarChildren: PropTypes.node,
   unscheduledCount: PropTypes.number,
   emptyMessage: PropTypes.string,
@@ -909,6 +951,7 @@ TimelineChart.propTypes = {
   onLaneToggle: PropTypes.func,
   onDependencyCreate: PropTypes.func,
   onDependencyDelete: PropTypes.func,
+  onCanvasDoubleClick: PropTypes.func,
 };
 
 TimelineChart.defaultProps = {
@@ -919,6 +962,7 @@ TimelineChart.defaultProps = {
   zoomLevel: undefined,
   collapsedLaneKeys: [],
   leadingToolbarChildren: undefined,
+  toolbarActionChildren: undefined,
   toolbarChildren: undefined,
   unscheduledCount: 0,
   emptyMessage: undefined,
@@ -932,6 +976,7 @@ TimelineChart.defaultProps = {
   onLaneToggle: undefined,
   onDependencyCreate: undefined,
   onDependencyDelete: undefined,
+  onCanvasDoubleClick: undefined,
 };
 
 export default TimelineChart;

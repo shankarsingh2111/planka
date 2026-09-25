@@ -4,6 +4,10 @@
  */
 
 :global(#app) {
+  .addCardButton {
+    font-weight: bold;
+  }
+
   .hiddenLanesCount {
     background: rgba(9, 30, 66, 0.13);
     border-radius: 9px;

@@ -45,6 +45,17 @@ const createCardInCurrentList = (data, autoOpen = false) => ({
   },
 });
 
+// Members and labels ride along for the create dialog; they are attached once the card exists
+const createCardWithDetails = (listId, data, { userIds, labelIds }) => ({
+  type: EntryActionTypes.CARD_WITH_DETAILS_CREATE,
+  payload: {
+    listId,
+    data,
+    userIds,
+    labelIds,
+  },
+});
+
 const handleCardCreate = (card) => ({
   type: EntryActionTypes.CARD_CREATE_HANDLE,
   payload: {
@@ -223,6 +234,7 @@ export default {
   createCard,
   createCardInCurrentContext,
   createCardInCurrentList,
+  createCardWithDetails,
   handleCardCreate,
   updateCard,
   updateCurrentCard,

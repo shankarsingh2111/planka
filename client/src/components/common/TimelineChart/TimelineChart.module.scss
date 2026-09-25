@@ -35,6 +35,13 @@
     gap: 8px;
   }
 
+  .toolbarActions {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+    margin-left: 12px;
+  }
+
   .unscheduledBadge {
     background: rgba(9, 30, 66, 0.08);
     border-radius: 10px;
@@ -226,6 +233,11 @@
   .canvas {
     flex-shrink: 0;
     position: relative;
+  }
+
+  // Double-click creates here, so it must not also select the text around the cursor
+  .canvasCreatable {
+    user-select: none;
   }
 
   .gridLine {
