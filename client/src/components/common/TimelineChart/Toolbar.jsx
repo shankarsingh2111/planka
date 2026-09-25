@@ -20,6 +20,7 @@ const Toolbar = React.memo(
     withCriticalPath,
     isCriticalPathShown,
     leadingChildren,
+    actionChildren,
     children,
     onZoomLevelChange,
     onScrollToToday,
@@ -52,6 +53,8 @@ const Toolbar = React.memo(
               {t('common.criticalPath')}
             </Button>
           )}
+          {/* Set apart from the view controls: these change the board, not how it is shown */}
+          {actionChildren && <div className={styles.toolbarActions}>{actionChildren}</div>}
         </div>
         <div className={styles.toolbarGroup}>
           {unscheduledCount > 0 && (
@@ -74,6 +77,7 @@ Toolbar.propTypes = {
   withCriticalPath: PropTypes.bool,
   isCriticalPathShown: PropTypes.bool,
   leadingChildren: PropTypes.node,
+  actionChildren: PropTypes.node,
   children: PropTypes.node,
   onZoomLevelChange: PropTypes.func.isRequired,
   onScrollToToday: PropTypes.func.isRequired,
@@ -85,6 +89,7 @@ Toolbar.defaultProps = {
   withCriticalPath: false,
   isCriticalPathShown: false,
   leadingChildren: undefined,
+  actionChildren: undefined,
   children: undefined,
 };
 

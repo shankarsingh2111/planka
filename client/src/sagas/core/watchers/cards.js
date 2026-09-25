@@ -27,6 +27,11 @@ export default function* cardsWatchers() {
     takeEvery(EntryActionTypes.CARD_IN_CURRENT_LIST_CREATE, ({ payload: { data, autoOpen } }) =>
       services.createCardInCurrentList(data, autoOpen),
     ),
+    takeEvery(
+      EntryActionTypes.CARD_WITH_DETAILS_CREATE,
+      ({ payload: { listId, data, userIds, labelIds } }) =>
+        services.createCardWithDetails(listId, data, { userIds, labelIds }),
+    ),
     takeEvery(EntryActionTypes.CARD_CREATE_HANDLE, ({ payload: { card } }) =>
       services.handleCardCreate(card),
     ),

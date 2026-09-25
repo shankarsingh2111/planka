@@ -3,11 +3,13 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-import { call, fork, join, put, race, select, take } from 'redux-saga/effects';
+import { all, call, fork, join, put, race, select, take } from 'redux-saga/effects';
 import toast from 'react-hot-toast';
 import { LOCATION_CHANGE_HANDLE } from '../../../lib/redux-router';
 
 import { goToBoard, goToCard } from './router';
+import { addUserToCard } from './users';
+import { addLabelToCard } from './labels';
 import request from '../request';
 import selectors from '../../../selectors';
 import actions from '../../../actions';
@@ -117,6 +119,7 @@ export function* handleCardsUpdate(cards, activities) {
   yield put(actions.handleCardsUpdate(cards, activities));
 }
 
+// Resolves to the card as the server created it, or null when the request failed
 export function* createCard(listId, data, index, autoOpen) {
   const localId = yield call(createLocalId);
   const list = yield select(selectors.selectListById, listId);
@@ -161,7 +164,7 @@ export function* createCard(listId, data, index, autoOpen) {
     ({ item: card } = yield call(request, api.createCard, listId, nextData));
   } catch (error) {
     yield put(actions.createCard.failure(localId, error));
-    return;
+    return null;
   }
 
   yield put(actions.createCard.success(localId, card));
@@ -169,6 +172,26 @@ export function* createCard(listId, data, index, autoOpen) {
   if (watchForCreateCardActionTask && watchForCreateCardActionTask.isRunning()) {
     yield call(goToCard, card.id);
   }
+
+  return card;
+}
+
+/**
+ * The API only takes members and labels on a card that already exists, so they follow the create
+ * instead of riding along with it, addressed by the server's id rather than the local one the
+ * store showed in the meantime. Each attach rolls itself back if it fails.
+ */
+export function* createCardWithDetails(listId, data, { userIds, labelIds }) {
+  const card = yield call(createCard, listId, data);
+
+  if (!card) {
+    return;
+  }
+
+  yield all([
+    ...userIds.map((userId) => call(addUserToCard, userId, card.id)),
+    ...labelIds.map((labelId) => call(addLabelToCard, labelId, card.id)),
+  ]);
 }
 
 export function* createCardInCurrentContext(data, index, autoOpen) {
@@ -788,6 +811,7 @@ export default {
   createCard,
   createCardInCurrentContext,
   createCardInCurrentList,
+  createCardWithDetails,
   handleCardCreate,
   updateCard,
   updateCurrentCard,

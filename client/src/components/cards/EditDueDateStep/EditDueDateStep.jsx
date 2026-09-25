@@ -22,16 +22,34 @@ import styles from './EditDueDateStep.module.scss';
 // New due dates default to the end of the working day
 const DEFAULT_HOURS = 19;
 
-const EditDueDateStep = React.memo(({ cardId, onBack, onClose }) => {
+const EditDueDateStep = React.memo(({ cardId, defaultValue, onUpdate, onBack, onClose }) => {
   const selectCardById = useMemo(() => selectors.makeSelectCardById(), []);
 
-  const defaultValue = useSelector((state) => selectCardById(state, cardId).dueDate);
+  // A card that does not exist yet (the add card dialog) passes its value in and takes it back
+  // through onUpdate instead of going through the store
+  const cardValue = useSelector((state) => cardId && selectCardById(state, cardId).dueDate);
+  const initialValue = cardId ? cardValue : defaultValue;
 
   const dispatch = useDispatch();
   const [t] = useTranslation();
 
+  const update = useCallback(
+    (value) => {
+      if (cardId) {
+        dispatch(
+          entryActions.updateCard(cardId, {
+            dueDate: value,
+          }),
+        );
+      } else {
+        onUpdate(value);
+      }
+    },
+    [cardId, onUpdate, dispatch],
+  );
+
   const [data, handleFieldChange, setData] = useForm(() => {
-    const date = defaultValue || new Date().setHours(DEFAULT_HOURS, 0, 0, 0);
+    const date = initialValue || new Date().setHours(DEFAULT_HOURS, 0, 0, 0);
 
     return {
       date: t('format:date', {
@@ -83,28 +101,20 @@ const EditDueDateStep = React.memo(({ cardId, onBack, onClose }) => {
       }
     }
 
-    if (!defaultValue || value.getTime() !== defaultValue.getTime()) {
-      dispatch(
-        entryActions.updateCard(cardId, {
-          dueDate: value,
-        }),
-      );
+    if (!initialValue || value.getTime() !== initialValue.getTime()) {
+      update(value);
     }
 
     onClose();
-  }, [cardId, onClose, defaultValue, dispatch, t, data, dateFieldRef, timeFieldRef, nullableDate]);
+  }, [onClose, initialValue, update, t, data, dateFieldRef, timeFieldRef, nullableDate]);
 
   const handleClearClick = useCallback(() => {
-    if (defaultValue) {
-      dispatch(
-        entryActions.updateCard(cardId, {
-          dueDate: null,
-        }),
-      );
+    if (initialValue) {
+      update(null);
     }
 
     onClose();
-  }, [cardId, onClose, defaultValue, dispatch]);
+  }, [onClose, initialValue, update]);
 
   const handleDatePickerChange = useCallback(
     (date) => {
@@ -179,12 +189,17 @@ const EditDueDateStep = React.memo(({ cardId, onBack, onClose }) => {
 });
 
 EditDueDateStep.propTypes = {
-  cardId: PropTypes.string.isRequired,
+  cardId: PropTypes.string,
+  defaultValue: PropTypes.instanceOf(Date),
+  onUpdate: PropTypes.func,
   onBack: PropTypes.func,
   onClose: PropTypes.func.isRequired,
 };
 
 EditDueDateStep.defaultProps = {
+  cardId: undefined,
+  defaultValue: undefined,
+  onUpdate: undefined,
   onBack: undefined,
 };
 

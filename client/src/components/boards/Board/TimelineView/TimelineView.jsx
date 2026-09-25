@@ -15,9 +15,12 @@ import selectors from '../../../../selectors';
 import entryActions from '../../../../entry-actions';
 import Paths from '../../../../constants/Paths';
 import { BoardMembershipRoles } from '../../../../constants/Enums';
+import { GroupByOptions, NO_VALUE_KEY } from './constants';
+import { getAddCardDefaults } from './add-card-defaults';
 import useTimelinePreferences from './use-timeline-preferences';
 import LanesFilterStep from './LanesFilterStep';
 import UnscheduledSidebar from './UnscheduledSidebar';
+import AddCardModal from '../../../cards/AddCardModal';
 import TimelineChart, {
   ColorByOptions,
   getZoomLevels,
@@ -29,15 +32,6 @@ import TimelineChart, {
 } from '../../../common/TimelineChart';
 
 import styles from './TimelineView.module.scss';
-
-const GroupByOptions = {
-  LIST: 'list',
-  MEMBER: 'member',
-  LABEL: 'label',
-  NONE: 'none',
-};
-
-const NO_VALUE_KEY = '__none__';
 
 const UNSCHEDULED_DRAG_THRESHOLD = 4;
 
@@ -93,6 +87,9 @@ const TimelineView = React.memo(({ cardIds }) => {
   const [unschedulingCardId, setUnschedulingCardId] = useState(null);
   const pendingDragRef = useRef(null);
   const wasDraggingRef = useRef(false);
+
+  // What the add card dialog opens with; null while it is closed
+  const [addCardDefaultData, setAddCardDefaultData] = useState(null);
 
   const handleUnscheduledCardDragStart = useCallback(
     (event, card) => {
@@ -189,18 +186,24 @@ const TimelineView = React.memo(({ cardIds }) => {
     [cards],
   );
 
+  const sortedLists = useMemo(
+    () => lists.slice().sort((a, b) => (a.position || 0) - (b.position || 0)),
+    [lists],
+  );
+
+  // Where a new card goes when nothing about the way it was started names a list
+  const firstListId = sortedLists.length > 0 ? sortedLists[0].id : undefined;
+  const canAddCard = canEdit && !!firstListId;
+
   // Lanes come from the board's own lists, members and labels rather than from the cards that
   // happen to be scheduled, so an empty list still gets a row to drop onto
   const allLanes = useMemo(() => {
     switch (groupBy) {
       case GroupByOptions.LIST:
-        return lists
-          .slice()
-          .sort((a, b) => (a.position || 0) - (b.position || 0))
-          .map((list) => ({
-            key: list.id,
-            label: list.name || t(`common.${list.type}`),
-          }));
+        return sortedLists.map((list) => ({
+          key: list.id,
+          label: list.name || t(`common.${list.type}`),
+        }));
       case GroupByOptions.MEMBER:
         return [
           ...memberships.map((membership) => ({
@@ -231,7 +234,7 @@ const TimelineView = React.memo(({ cardIds }) => {
           },
         ];
     }
-  }, [groupBy, lists, memberships, labels, board.name, t]);
+  }, [groupBy, sortedLists, memberships, labels, board.name, t]);
 
   const lanes = useMemo(
     () => allLanes.filter((lane) => !hiddenLaneKeys.includes(lane.key)),
@@ -449,6 +452,30 @@ const TimelineView = React.memo(({ cardIds }) => {
     showAllLanes(groupBy);
   }, [showAllLanes, groupBy]);
 
+  const handleAddCardClick = useCallback(() => {
+    setAddCardDefaultData({
+      listId: firstListId,
+    });
+  }, [firstListId]);
+
+  const handleCanvasDoubleClick = useCallback(
+    (laneKey, dates) => {
+      setAddCardDefaultData(getAddCardDefaults(groupBy, laneKey, dates, firstListId));
+    },
+    [groupBy, firstListId],
+  );
+
+  const handleCardCreate = useCallback(
+    (listId, data, details) => {
+      dispatch(entryActions.createCardWithDetails(listId, data, details));
+    },
+    [dispatch],
+  );
+
+  const handleAddCardClose = useCallback(() => {
+    setAddCardDefaultData(null);
+  }, []);
+
   const LanesFilterPopup = usePopup(LanesFilterStep);
 
   const lanesFilterTitle = LANES_FILTER_TITLES[groupBy] || LANES_FILTER_TITLES[GroupByOptions.LIST];
@@ -469,6 +496,15 @@ const TimelineView = React.memo(({ cardIds }) => {
     </Button>
   );
 
+  const addCardButtonNode = canAddCard && (
+    <Button size="mini" basic className={styles.addCardButton} onClick={handleAddCardClick}>
+      <Icon name="add" />
+      {t('action.addCard', {
+        context: 'title',
+      })}
+    </Button>
+  );
+
   return (
     <div className={styles.wrapper}>
       {isSidebarOpened && (
@@ -483,63 +519,72 @@ const TimelineView = React.memo(({ cardIds }) => {
       )}
       <div className={styles.chart}>
         <TimelineChart
-        items={items}
-        lanes={lanes}
-        dependencies={dependencies}
-        zoomLevels={getZoomLevels(withQuarterZoom)}
-        canEdit={canEdit}
-        zoomLevel={zoomLevel}
-        collapsedLaneKeys={collapsedLaneKeys}
-        externalDragItem={externalDragItem}
-        leadingToolbarChildren={sidebarToggleNode}
-        unscheduledCount={isSidebarOpened ? 0 : unscheduledCards.length}
-        emptyMessage={t('common.noCardsWithDates')}
-        toolbarChildren={
-          <>
-            <LanesFilterPopup
-              lanes={allLanes}
-              hiddenLaneKeys={hiddenLaneKeys}
-              title={lanesFilterTitle}
-              onToggle={handleLaneToggleHidden}
-              onShowAll={handleLanesShowAll}
-            >
-              <Button size="mini" basic active={hiddenLaneKeys.length > 0}>
-                <Icon name="filter" />
-                {t(lanesFilterTitle)}
-                {hiddenLaneKeys.length > 0 && (
-                  <span className={styles.hiddenLanesCount}>{hiddenLaneKeys.length}</span>
-                )}
-              </Button>
-            </LanesFilterPopup>
-            <Dropdown
-              inline
-              options={groupByOptions}
-              value={groupBy}
-              onChange={(_, { value }) => setGroupBy(value)}
-            />
-            <Dropdown
-              inline
-              options={colorByOptions}
-              value={colorBy}
-              onChange={(_, { value }) => setColorBy(value)}
-            />
-          </>
-        }
-        onItemClick={handleItemClick}
-        onItemDatesChange={handleItemDatesChange}
-        onItemLaneChange={
-          canEdit && groupBy === GroupByOptions.LIST ? handleItemLaneChange : undefined
-        }
-        onItemUnschedule={canEdit && isSidebarOpened ? handleItemUnschedule : undefined}
-        onUnscheduleHoverChange={setUnschedulingCardId}
-        onExternalDrop={canEdit ? handleExternalDrop : undefined}
-        onExternalDragCancel={handleExternalDragCancel}
-        onZoomLevelChange={setZoomLevel}
-        onLaneToggle={toggleLaneCollapsed}
-        onDependencyCreate={handleDependencyCreate}
-        onDependencyDelete={handleDependencyDelete}
+          items={items}
+          lanes={lanes}
+          dependencies={dependencies}
+          zoomLevels={getZoomLevels(withQuarterZoom)}
+          canEdit={canEdit}
+          zoomLevel={zoomLevel}
+          collapsedLaneKeys={collapsedLaneKeys}
+          externalDragItem={externalDragItem}
+          leadingToolbarChildren={sidebarToggleNode}
+          toolbarActionChildren={addCardButtonNode}
+          unscheduledCount={isSidebarOpened ? 0 : unscheduledCards.length}
+          emptyMessage={t('common.noCardsWithDates')}
+          toolbarChildren={
+            <>
+              <LanesFilterPopup
+                lanes={allLanes}
+                hiddenLaneKeys={hiddenLaneKeys}
+                title={lanesFilterTitle}
+                onToggle={handleLaneToggleHidden}
+                onShowAll={handleLanesShowAll}
+              >
+                <Button size="mini" basic active={hiddenLaneKeys.length > 0}>
+                  <Icon name="filter" />
+                  {t(lanesFilterTitle)}
+                  {hiddenLaneKeys.length > 0 && (
+                    <span className={styles.hiddenLanesCount}>{hiddenLaneKeys.length}</span>
+                  )}
+                </Button>
+              </LanesFilterPopup>
+              <Dropdown
+                inline
+                options={groupByOptions}
+                value={groupBy}
+                onChange={(_, { value }) => setGroupBy(value)}
+              />
+              <Dropdown
+                inline
+                options={colorByOptions}
+                value={colorBy}
+                onChange={(_, { value }) => setColorBy(value)}
+              />
+            </>
+          }
+          onItemClick={handleItemClick}
+          onItemDatesChange={handleItemDatesChange}
+          onItemLaneChange={
+            canEdit && groupBy === GroupByOptions.LIST ? handleItemLaneChange : undefined
+          }
+          onItemUnschedule={canEdit && isSidebarOpened ? handleItemUnschedule : undefined}
+          onUnscheduleHoverChange={setUnschedulingCardId}
+          onExternalDrop={canEdit ? handleExternalDrop : undefined}
+          onExternalDragCancel={handleExternalDragCancel}
+          onZoomLevelChange={setZoomLevel}
+          onLaneToggle={toggleLaneCollapsed}
+          onDependencyCreate={handleDependencyCreate}
+          onDependencyDelete={handleDependencyDelete}
+          onCanvasDoubleClick={canAddCard ? handleCanvasDoubleClick : undefined}
         />
       </div>
+      {addCardDefaultData && (
+        <AddCardModal
+          defaultData={addCardDefaultData}
+          onCreate={handleCardCreate}
+          onClose={handleAddCardClose}
+        />
+      )}
     </div>
   );
 });
