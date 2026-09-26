@@ -32,11 +32,15 @@ describe('getItemRange', () => {
     const range = getItemRange({ startDate: day('2026-09-01'), dueDate: day('2026-09-05') });
 
     expect(diffInDays(range.start, range.end)).toBe(4);
-    expect(range.isPoint).toBe(false);
+    expect(range.isStartMissing).toBeFalsy();
   });
 
-  test('treats due-only items as point markers', () => {
-    expect(getItemRange({ dueDate: day('2026-09-05') }).isPoint).toBe(true);
+  test('spreads a due-only item over the whole working day it is due on', () => {
+    const range = getItemRange({ dueDate: new Date(2026, 8, 5, 11, 0) });
+
+    expect(range.start).toEqual(new Date(2026, 8, 5, 9, 0));
+    expect(range.end).toEqual(new Date(2026, 8, 5, 21, 0));
+    expect(range.isStartMissing).toBe(true);
   });
 
   test('gives start-only items an open-ended week', () => {

@@ -180,18 +180,25 @@ export const getDropRange = (x, viewStart, zoomLevel) => {
 // kept so day zoom can place bars on slots; coarser zoom levels round to days when drawing.
 export const getItemRange = ({ startDate, dueDate }) => {
   if (startDate && dueDate) {
-    return { start: startDate, end: dueDate, isPoint: false };
+    return { start: startDate, end: dueDate };
   }
 
+  // Due-only: drawn over the whole working day it is due on, flagged so the bar can show that
+  // its start is still to be set
   if (dueDate) {
-    return { start: dueDate, end: dueDate, isPoint: true };
+    const start = startOfDay(dueDate);
+    start.setHours(WORK_DAY_START_HOUR, 0, 0, 0);
+
+    const end = startOfDay(dueDate);
+    end.setHours(WORK_DAY_END_HOUR, 0, 0, 0);
+
+    return { start, end, isStartMissing: true };
   }
 
   if (startDate) {
     return {
       start: startDate,
       end: addDays(startDate, OPEN_ENDED_DURATION_DAYS - 1),
-      isPoint: false,
       isOpenEnded: true,
     };
   }

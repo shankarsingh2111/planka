@@ -30,16 +30,18 @@ export const getDraggedDates = (item, range, mode, deltaUnits, zoomLevel) => {
   const shift = (date, units) => (date ? shiftByUnits(date, units, zoomLevel) : date);
   const span = diffInUnits(range.start, range.end, zoomLevel);
 
+  // Moving or dragging the start edge works from the start as drawn, which for a due-only item is
+  // the beginning of its due day, so either gesture gives it the start date it was missing
   if (mode === DragModes.MOVE) {
     return {
-      startDate: shift(item.startDate, deltaUnits),
+      startDate: shift(range.start, deltaUnits),
       dueDate: shift(item.dueDate, deltaUnits),
     };
   }
 
   if (mode === DragModes.RESIZE_START) {
     return {
-      startDate: shift(item.startDate || item.dueDate, Math.min(deltaUnits, span)),
+      startDate: shift(range.start, Math.min(deltaUnits, span)),
       dueDate: item.dueDate,
     };
   }
