@@ -367,6 +367,7 @@ export default {
       sortList_title: 'Sort List',
       sourceCardIsNoLongerAvailableForCopying: 'Source card is no longer available for copying.',
       sourceCardIsNoLongerAvailableForMoving: 'Source card is no longer available for moving.',
+      startDateNotSet: 'Start date not set',
       startDateMustNotBeAfterDueDate: 'The start date must not be after the due date.',
       startDate_title: 'Start Date',
       statusBoard: 'Status Board',

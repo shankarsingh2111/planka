@@ -291,11 +291,6 @@
     z-index: 6;
   }
 
-  .ghostBarPoint {
-    border-radius: 2px;
-    transform: scale(0.75) rotate(45deg);
-  }
-
   .ghostBarLabel {
     color: #fff;
     font-size: 12px;
@@ -420,9 +415,16 @@
     top: 0;
   }
 
-  .barPoint {
-    border-radius: 2px;
-    transform: scale(0.75) rotate(45deg);
+  // Just outside the bar's start edge: no start date is set yet
+  .startMissingDot {
+    background: #db2828;
+    border-radius: 50%;
+    height: 8px;
+    left: -12px;
+    pointer-events: none;
+    position: absolute;
+    top: calc(50% - 4px);
+    width: 8px;
   }
 
   .barOpenEnded {

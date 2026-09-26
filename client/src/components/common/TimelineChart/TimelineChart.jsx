@@ -241,9 +241,10 @@ const TimelineChart = React.memo(
           entries.map(({ item, rowIndex, range: committedRange }) => {
             const range = getRenderRange(item.id, committedRange);
             const left = getOffsetX(viewStart, range.start, zoomLevel);
-            const width = range.isPoint
-              ? 14
-              : Math.max(getOffsetX(viewStart, range.end, zoomLevel) + unitWidth - left, 8);
+            const width = Math.max(
+              getOffsetX(viewStart, range.end, zoomLevel) + unitWidth - left,
+              8,
+            );
 
             return {
               key: `${lane.key}:${item.id}`,
@@ -304,9 +305,7 @@ const TimelineChart = React.memo(
         item,
         range,
         left,
-        width: range.isPoint
-          ? 14
-          : Math.max(getOffsetX(viewStart, range.end, zoomLevel) + unitWidth - left, 8),
+        width: Math.max(getOffsetX(viewStart, range.end, zoomLevel) + unitWidth - left, 8),
         top:
           target.top + LANE_PADDING + (entry ? entry.rowIndex : 0) * ROW_HEIGHT + (ROW_HEIGHT - BAR_HEIGHT) / 2,
         laneTop: target.top,
@@ -806,11 +805,7 @@ const TimelineChart = React.memo(
                         />
                       )}
                       <div
-                        className={classNames(
-                          styles.ghostBar,
-                          dragGhost.item.colorClassName,
-                          dragGhost.range.isPoint && styles.ghostBarPoint,
-                        )}
+                        className={classNames(styles.ghostBar, dragGhost.item.colorClassName)}
                         style={{
                           left: dragGhost.left,
                           width: dragGhost.width,
@@ -818,9 +813,7 @@ const TimelineChart = React.memo(
                           height: BAR_HEIGHT,
                         }}
                       >
-                        {!dragGhost.range.isPoint && (
-                          <span className={styles.ghostBarLabel}>{dragGhost.item.name}</span>
-                        )}
+                        <span className={styles.ghostBarLabel}>{dragGhost.item.name}</span>
                       </div>
                     </>
                   )}
@@ -868,6 +861,9 @@ const TimelineChart = React.memo(
                             postProcess: 'formatDate',
                           })}
                       </div>
+                      {hoveredBar.range.isStartMissing && (
+                        <div className={styles.tooltipLine}>{t('common.startDateNotSet')}</div>
+                      )}
                       {hoveredBar.item.progress && hoveredBar.item.progress.total > 0 && (
                         <div className={styles.tooltipLine}>
                           {t('common.tasksProgress', {

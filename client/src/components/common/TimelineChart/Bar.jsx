@@ -41,7 +41,7 @@ const Bar = React.memo(
         : null;
 
     // Below this the bar has no room left for the name once circles are in it
-    const withAvatars = !range.isPoint && width >= MIN_WIDTH_FOR_AVATARS && item.memberIds;
+    const withAvatars = width >= MIN_WIDTH_FOR_AVATARS && item.memberIds;
 
     return (
       <div
@@ -49,7 +49,6 @@ const Bar = React.memo(
         role="button"
         tabIndex={0}
         className={classNames(styles.bar, item.colorClassName, {
-          [styles.barPoint]: range.isPoint,
           [styles.barOpenEnded]: range.isOpenEnded,
           [styles.barCompleted]: item.isCompleted,
           [styles.barOverdue]: item.isOverdue,
@@ -65,12 +64,14 @@ const Bar = React.memo(
         onPointerLeave={() => onPointerLeave(null)}
         onKeyDown={(event) => onKeyDown(event, item.id)}
       >
-        {progress !== null && !range.isPoint && (
+        {progress !== null && (
           <span className={styles.barProgress} style={{ width: `${progress * 100}%` }} />
         )}
-        {!range.isPoint && <span className={styles.barLabel}>{item.name}</span>}
+        {/* No start date yet: the bar only stands in for the due day until one is set */}
+        {range.isStartMissing && <span className={styles.startMissingDot} />}
+        <span className={styles.barLabel}>{item.name}</span>
         {withAvatars && <Avatars userIds={item.memberIds} className={styles.barAvatars} />}
-        {isEditable && !range.isPoint && (
+        {isEditable && (
           <>
             <span
               className={classNames(styles.barHandle, styles.barHandleStart)}

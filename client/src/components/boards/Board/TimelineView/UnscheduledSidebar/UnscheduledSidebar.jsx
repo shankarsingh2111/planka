@@ -3,7 +3,7 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
@@ -22,6 +22,21 @@ const UnscheduledSidebar = React.memo(
   ({ cards, ghostCard, isDropTarget, draggingCardId, onCardClick, onCardDragStart }) => {
   const [t] = useTranslation();
   const [search, setSearch] = useState('');
+  const [collapsedListIds, setCollapsedListIds] = useState(() => new Set());
+
+  const handleGroupToggle = useCallback((listId) => {
+    setCollapsedListIds((prevCollapsedListIds) => {
+      const nextCollapsedListIds = new Set(prevCollapsedListIds);
+
+      if (nextCollapsedListIds.has(listId)) {
+        nextCollapsedListIds.delete(listId);
+      } else {
+        nextCollapsedListIds.add(listId);
+      }
+
+      return nextCollapsedListIds;
+    });
+  }, []);
 
   const cleanSearch = useMemo(() => search.trim().toLowerCase(), [search]);
 
@@ -86,15 +101,30 @@ const UnscheduledSidebar = React.memo(
         {groups.length === 0 && !ghostCard ? (
           <div className={styles.empty}>{t('common.noUnscheduledCards')}</div>
         ) : (
-          groups.map((group) => (
+          groups.map((group) => {
+            const isCollapsed = collapsedListIds.has(group.listId);
+
+            return (
             <div key={group.listId} className={styles.group}>
-              <div className={styles.groupHeader}>
+              <button
+                type="button"
+                aria-expanded={!isCollapsed}
+                className={styles.groupHeader}
+                onClick={() => handleGroupToggle(group.listId)}
+              >
+                <span className={styles.groupToggle}>
+                  <Icon
+                    fitted
+                    name={isCollapsed ? 'chevron right' : 'chevron down'}
+                    className={styles.groupToggleIcon}
+                  />
+                </span>
                 <span className={styles.groupName} title={group.name}>
                   {group.name}
                 </span>
                 <span className={styles.groupCount}>{group.cards.length}</span>
-              </div>
-              {group.cards.map((card) => (
+              </button>
+              {!isCollapsed && group.cards.map((card) => (
                 <div
                   key={card.id}
                   role="button"
@@ -117,7 +147,8 @@ const UnscheduledSidebar = React.memo(
                 </div>
               ))}
             </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
