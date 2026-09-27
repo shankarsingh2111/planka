@@ -13,10 +13,43 @@ import selectors from '../../../selectors';
 import actions from '../../../actions';
 import api from '../../../api';
 import { createLocalId } from '../../../utils/local-id';
+import { AttachmentFileProblems, getAttachmentFileProblem } from '../../../utils/attachment-files';
 import { AttachmentTypes } from '../../../constants/Enums';
 import ToastTypes from '../../../constants/ToastTypes';
 
+const TOAST_TYPE_BY_ATTACHMENT_FILE_PROBLEM = {
+  [AttachmentFileProblems.TYPE_NOT_ALLOWED]: ToastTypes.FILE_TYPE_NOT_ALLOWED,
+  [AttachmentFileProblems.TOO_BIG]: ToastTypes.FILE_IS_TOO_BIG,
+};
+
+const TOAST_TYPE_BY_UPLOAD_ERROR_MESSAGE = {
+  'Storage limit reached': ToastTypes.NOT_ENOUGH_STORAGE,
+  'File type not allowed': ToastTypes.FILE_TYPE_NOT_ALLOWED,
+  'SVG contains active content': ToastTypes.SVG_CONTAINS_ACTIVE_CONTENT,
+};
+
 export function* createAttachment(cardId, data) {
+  if (data.type === AttachmentTypes.FILE) {
+    const allowedExtensions = yield select(selectors.selectAllowedAttachmentExtensions);
+    const maxFileSize = yield select(selectors.selectMaxUploadFileSize);
+
+    const problem = getAttachmentFileProblem(data.file, {
+      allowedExtensions,
+      maxFileSize,
+    });
+
+    if (problem) {
+      yield call(toast, {
+        type: TOAST_TYPE_BY_ATTACHMENT_FILE_PROBLEM[problem],
+        params: {
+          filename: data.file.name,
+        },
+      });
+
+      return;
+    }
+  }
+
   const localId = yield call(createLocalId);
   const currentUserId = yield select(selectors.selectCurrentUserId);
 
@@ -45,16 +78,16 @@ export function* createAttachment(cardId, data) {
     yield put(actions.createAttachment.failure(localId, error));
 
     if (error.code === 'E_UNPROCESSABLE_ENTITY') {
-      let toastType;
-      if (error.message.startsWith('Upload limit')) {
-        toastType = ToastTypes.FILE_IS_TOO_BIG;
-      } else if (error.message === 'Storage limit reached') {
-        toastType = ToastTypes.NOT_ENOUGH_STORAGE;
-      }
+      const toastType = error.message.startsWith('Upload limit')
+        ? ToastTypes.FILE_IS_TOO_BIG
+        : TOAST_TYPE_BY_UPLOAD_ERROR_MESSAGE[error.message];
 
       if (toastType) {
         yield call(toast, {
           type: toastType,
+          params: {
+            filename: nextData.name,
+          },
         });
       }
     }

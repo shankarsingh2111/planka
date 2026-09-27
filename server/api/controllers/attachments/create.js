@@ -93,10 +93,14 @@
  *                   type: string
  *                   enum:
  *                     - No file was uploaded
+ *                     - File type not allowed
+ *                     - SVG contains active content
  *                     - Url must be present
  *                   description: Specific error message
  *                   example: No file was uploaded
  */
+
+const { rimraf } = require('rimraf');
 
 const { isUrl } = require('../../../utils/validators');
 const { idInput } = require('../../../utils/inputs');
@@ -110,6 +114,12 @@ const Errors = {
   },
   NO_FILE_WAS_UPLOADED: {
     noFileWasUploaded: 'No file was uploaded',
+  },
+  FILE_TYPE_NOT_ALLOWED: {
+    fileTypeNotAllowed: 'File type not allowed',
+  },
+  SVG_CONTAINS_ACTIVE_CONTENT: {
+    svgContainsActiveContent: 'SVG contains active content',
   },
   URL_MUST_BE_PRESENT: {
     urlMustBePresent: 'Url must be present',
@@ -157,6 +167,12 @@ module.exports = {
     uploadError: {
       responseType: 'unprocessableEntity',
     },
+    fileTypeNotAllowed: {
+      responseType: 'unprocessableEntity',
+    },
+    svgContainsActiveContent: {
+      responseType: 'unprocessableEntity',
+    },
     urlMustBePresent: {
       responseType: 'unprocessableEntity',
     },
@@ -196,6 +212,17 @@ module.exports = {
       }
 
       const file = _.last(files);
+
+      try {
+        await sails.helpers.attachments
+          .checkUploadedFile(file)
+          .intercept('fileTypeNotAllowed', () => Errors.FILE_TYPE_NOT_ALLOWED)
+          .intercept('svgContainsActiveContent', () => Errors.SVG_CONTAINS_ACTIVE_CONTENT);
+      } catch (error) {
+        await rimraf(file.fd);
+        throw error;
+      }
+
       data = await sails.helpers.attachments.processUploadedFile(file);
     } else if (inputs.type === Attachment.Types.LINK) {
       if (!inputs.url) {

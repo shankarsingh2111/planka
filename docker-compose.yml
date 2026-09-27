@@ -35,8 +35,13 @@ services:
 
       # Required: the app sits behind the nginx/HTTPS reverse proxy
       - TRUST_PROXY=true
-      # - MAX_UPLOAD_FILE_SIZE=
+      # Keep nginx's client_max_body_size a little above this (e.g. 110m)
+      - MAX_UPLOAD_FILE_SIZE=100MB
       # - TOKEN_EXPIRES_IN=365 # In days
+
+      # Comma-separated file extensions allowed for card attachments. Defaults to common image,
+      # video, audio, PDF, Office/OpenDocument, text and zip types. Set to * to allow any type.
+      # - ALLOWED_ATTACHMENT_EXTENSIONS=
 
       # - STORAGE_LIMIT=
       # - ACTIVE_USERS_LIMIT=
@@ -74,6 +79,8 @@ services:
       # Set to true to expose the Swagger specification at /swagger.json
       # - SWAGGER_EXPOSED=false
 
+      # With an AWS instance role (e.g. on EC2), set only S3_REGION and S3_BUCKET
+      # and leave the access keys unset.
       # - S3_ENDPOINT=
       # - S3_REGION=
       # - S3_ACCESS_KEY_ID=

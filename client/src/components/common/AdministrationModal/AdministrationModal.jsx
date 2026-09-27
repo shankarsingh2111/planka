@@ -14,6 +14,7 @@ import entryActions from '../../../entry-actions';
 import { useClosableModal } from '../../../hooks';
 import UsersPane from './UsersPane';
 import SmtpPane from './SmtpPane';
+import StoragePane from './StoragePane';
 import WebhooksPane from './WebhooksPane';
 
 import styles from './AdministrationModal.module.scss';
@@ -51,6 +52,12 @@ const AdministrationModal = React.memo(() => {
       render: () => <SmtpPane />,
     });
   }
+  panes.push({
+    menuItem: t('common.storage', {
+      context: 'title',
+    }),
+    render: () => <StoragePane />,
+  });
   panes.push({
     menuItem: t('common.webhooks', {
       context: 'title',

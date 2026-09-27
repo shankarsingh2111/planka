@@ -14,14 +14,16 @@ module.exports = {
   },
 
   fn(inputs) {
+    const record = _.omit(inputs.record, Config.S3_EXPORT_FIELD_NAMES);
+
     if (sails.config.custom.smtpHost) {
-      return _.omit(inputs.record, Config.SMTP_FIELD_NAMES);
+      return _.omit(record, Config.SMTP_FIELD_NAMES);
     }
 
-    if (inputs.record.smtpPassword) {
-      return _.omit(inputs.record, 'smtpPassword');
+    if (record.smtpPassword) {
+      return _.omit(record, 'smtpPassword');
     }
 
-    return inputs.record;
+    return record;
   },
 };

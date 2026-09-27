@@ -47,6 +47,18 @@
  *                       type: boolean
  *                       description: Whether OIDC authentication is enforced (users must use OIDC to login)
  *                       example: false
+ *                 maxUploadFileSize:
+ *                   type: number
+ *                   nullable: true
+ *                   description: Maximum size of an uploaded file in bytes, null if unlimited (conditionally added for authenticated users)
+ *                   example: 104857600
+ *                 allowedAttachmentExtensions:
+ *                   type: array
+ *                   nullable: true
+ *                   description: File extensions allowed for attachments, null if any type is allowed (conditionally added for authenticated users)
+ *                   items:
+ *                     type: string
+ *                   example: [pdf, docx, png]
  *                 activeUsersLimit:
  *                   type: number
  *                   nullable: true

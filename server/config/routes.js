@@ -111,6 +111,9 @@ module.exports.routes = {
   'PATCH /api/config': 'config/update',
   'POST /api/config/test-smtp': 'config/test-smtp',
 
+  'GET /api/storage': 'storage/show',
+  'POST /api/storage/export-to-s3': 'storage/export-to-s3',
+
   'GET /api/webhooks': 'webhooks/index',
   'POST /api/webhooks': 'webhooks/create',
   'PATCH /api/webhooks/:id': 'webhooks/update',

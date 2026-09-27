@@ -8,6 +8,8 @@ import { Toaster as HotToaster, ToastBar as HotToastBar } from 'react-hot-toast'
 
 import ToastTypes from '../../../constants/ToastTypes';
 import FileIsTooBigToast from './FileIsTooBigToast';
+import FileTypeNotAllowedToast from './FileTypeNotAllowedToast';
+import SvgContainsActiveContentToast from './SvgContainsActiveContentToast';
 import NotEnoughStorageToast from './NotEnoughStorageToast';
 import EmptyTrashToast from './EmptyTrashToast';
 import SourceCardNotCopyableToast from './SourceCardNotCopyableToast';
@@ -15,6 +17,8 @@ import SourceCardNotMovableToast from './SourceCardNotMovableToast';
 
 const TOAST_BY_TYPE = {
   [ToastTypes.FILE_IS_TOO_BIG]: FileIsTooBigToast,
+  [ToastTypes.FILE_TYPE_NOT_ALLOWED]: FileTypeNotAllowedToast,
+  [ToastTypes.SVG_CONTAINS_ACTIVE_CONTENT]: SvgContainsActiveContentToast,
   [ToastTypes.NOT_ENOUGH_STORAGE]: NotEnoughStorageToast,
   [ToastTypes.EMPTY_TRASH]: EmptyTrashToast,
   [ToastTypes.SOURCE_CARD_NOT_COPYABLE]: SourceCardNotCopyableToast,

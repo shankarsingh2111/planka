@@ -19,7 +19,7 @@ module.exports = function defineFileManagerHook(sails) {
 
   const createInstance = () => {
     instance = sails.hooks.s3.isEnabled()
-      ? new S3FileManager(sails.hooks.s3.getClient())
+      ? new S3FileManager(sails.hooks.s3.getClient(), new LocalFileManager())
       : new LocalFileManager();
   };
 

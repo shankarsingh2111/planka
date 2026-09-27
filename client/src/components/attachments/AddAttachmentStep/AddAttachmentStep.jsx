@@ -5,17 +5,21 @@
 
 import React, { useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { Icon, Menu } from 'semantic-ui-react';
 import { FilePicker, Popup } from '../../../lib/custom-ui';
 
+import selectors from '../../../selectors';
 import entryActions from '../../../entry-actions';
+import { buildAcceptAttribute } from '../../../utils/attachment-files';
 import { AttachmentTypes } from '../../../constants/Enums';
 
 import styles from './AddAttachmentStep.module.scss';
 
 const AddAttachmentStep = React.memo(({ onClose }) => {
+  const allowedExtensions = useSelector(selectors.selectAllowedAttachmentExtensions);
+
   const dispatch = useDispatch();
   const [t] = useTranslation();
 
@@ -45,7 +49,11 @@ const AddAttachmentStep = React.memo(({ onClose }) => {
       </Popup.Header>
       <Popup.Content>
         <Menu secondary vertical className={styles.menu}>
-          <FilePicker multiple onSelect={handleFilesSelect}>
+          <FilePicker
+            multiple
+            accept={buildAcceptAttribute(allowedExtensions)}
+            onSelect={handleFilesSelect}
+          >
             <Menu.Item className={styles.menuItem}>
               <Icon name="computer" className={styles.menuItemIcon} />
               {t('common.fromComputer', {

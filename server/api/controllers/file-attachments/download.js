@@ -4,6 +4,7 @@
  */
 
 const { idInput } = require('../../../utils/inputs');
+const { getFileExtension } = require('../../../utils/attachment-files');
 
 const Errors = {
   FILE_ATTACHMENT_NOT_FOUND: {
@@ -88,6 +89,14 @@ module.exports = {
     }
     if (!INLINE_MIME_TYPES_SET.has(attachment.data.mimeType) && !attachment.data.image) {
       headers['Content-Disposition'] = 'attachment';
+    }
+    // Even if an SVG slips past the upload check, scripts in it never run
+    if (
+      getFileExtension(attachment.data.filename) === 'svg' ||
+      (headers['Content-Type'] && headers['Content-Type'].includes('svg'))
+    ) {
+      headers['Content-Security-Policy'] =
+        "default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox";
     }
 
     this.res.set({

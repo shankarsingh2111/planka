@@ -88,9 +88,13 @@ const SMTP_FIELD_NAMES = [
   'smtpFrom',
 ];
 
+// Presented through /api/storage only
+const S3_EXPORT_FIELD_NAMES = ['s3LastExportedAt', 's3LastExportResult'];
+
 module.exports = {
   MAIN_ID,
   SMTP_FIELD_NAMES,
+  S3_EXPORT_FIELD_NAMES,
 
   attributes: {
     //  ╔═╗╦═╗╦╔╦╗╦╔╦╗╦╦  ╦╔═╗╔═╗
@@ -136,6 +140,14 @@ module.exports = {
       type: 'string',
       allowNull: true,
       columnName: 'smtp_from',
+    },
+    s3LastExportedAt: {
+      type: 'ref',
+      columnName: 's3_last_exported_at',
+    },
+    s3LastExportResult: {
+      type: 'json',
+      columnName: 's3_last_export_result',
     },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗

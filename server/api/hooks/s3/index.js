@@ -32,12 +32,20 @@ module.exports = function defineS3Hook(sails) {
       const config = {
         endpoint: sails.config.custom.s3Endpoint,
         region: sails.config.custom.s3Region || 'eu-central-1',
-        credentials: {
-          accessKeyId: sails.config.custom.s3AccessKeyId,
-          secretAccessKey: sails.config.custom.s3SecretAccessKey,
-        },
         forcePathStyle: sails.config.custom.s3ForcePathStyle,
       };
+
+      // Without keys the SDK's default provider chain is used (env, shared config, EC2 instance role)
+      if (sails.config.custom.s3AccessKeyId && sails.config.custom.s3SecretAccessKey) {
+        config.credentials = {
+          accessKeyId: sails.config.custom.s3AccessKeyId,
+          secretAccessKey: sails.config.custom.s3SecretAccessKey,
+        };
+      } else {
+        sails.log.info(
+          'S3 access keys are not set, using the default AWS credential provider chain',
+        );
+      }
 
       if (sails.config.custom.s3RequestChecksumCalculation) {
         config.requestChecksumCalculation = sails.config.custom.s3RequestChecksumCalculation;

@@ -38,6 +38,7 @@ export default {
       allProjects: 'All projects',
       alphabetically: 'Alphabetically',
       alwaysDisplayCardCreator: 'Always display card creator',
+      andMoreFailedFiles: '...and {{number}} more',
       anyDate: 'Any date',
       apiKeyCreated_title: 'API Key Created',
       apiKey_title: 'API Key',
@@ -50,6 +51,8 @@ export default {
       areYouSureYouWantToAssignThisProjectManagerAsOwner:
         'Are you sure you want to assign this project manager as owner?',
       areYouSureYouWantToDeactivateThisUser: 'Are you sure you want to deactivate this user?',
+      areYouSureYouWantToDeleteLocalCopies:
+        'Each local file is deleted once its copy in S3 is verified. Deleted local files cannot be recovered.',
       areYouSureYouWantToDeleteThisApiKey: 'Are you sure you want to delete this API key?',
       areYouSureYouWantToDeleteThisAttachment: 'Are you sure you want to delete this attachment?',
       areYouSureYouWantToDeleteThisBackgroundImage:
@@ -151,11 +154,17 @@ export default {
       customFields_title: 'Custom Fields',
       customerPanel_title: 'Customer Panel',
       dangerZone_title: 'Danger Zone',
+      deleteLocalCopies_title: 'Delete Local Copies',
+      deleteLocalCopiesOnceVerifiedInS3: 'Delete local copies once verified in S3',
       discoverPlankaPro: '✨ More features for your boards: Discover PLANKA Pro',
       discoverPlankaPro_title: 'Discover PLANKA Pro',
       dismissProBannerFor30Days: 'Dismiss for 30 days',
       dragFromDotToLinkDependency:
         'Drag bars to reschedule, drag their edges to resize, and drag the dot on a bar onto another bar to add a dependency.',
+      exportLocalFilesToS3_title: 'Export Local Files to S3',
+      exportLocalFilesToS3Description:
+        'Copies the files stored on the local disk (attachments, thumbnails, avatars, backgrounds and favicons) to S3. Files already in S3 with the same size are skipped, so it is safe to run again. Until a file is exported, it is still served from the local disk.',
+      failedFiles_title: 'Failed Files',
       gridViewHint: 'All cards as a compact grid, across every list.',
       groupByBoard: 'Group by board',
       groupByLabel: 'Group by label',
@@ -163,18 +172,44 @@ export default {
       groupByMember: 'Group by member',
       groupByProject: 'Group by project',
       kanbanViewHint: 'Lists side by side — drag cards between them.',
+      lastExportedToS3: 'Last exported to S3',
+      listingLocalFiles: 'Listing local files...',
       listViewHint: 'One card per row, grouped by list.',
+      localDisk: 'Local disk',
+      never: 'Never',
       nextTwoWeeks: 'Next 2 weeks',
       noGrouping: 'No grouping',
       onlyMe: 'Only me',
       quarter: 'Quarter',
       refresh: 'Refresh',
       removeDependency: 'Remove dependency',
+      s3Bucket: 'S3 bucket "{{bucket}}"',
+      s3ExportCompleted:
+        'Export finished: {{copied}} copied, {{skipped}} already in S3, {{deleted}} local copies deleted.',
+      s3ExportCompletedWithFailures_one:
+        'Export finished with {{count}} failed file ({{copied}} copied, {{skipped}} already in S3, {{deleted}} local copies deleted). Failed files stay on the local disk, run the export again to retry them.',
+      s3ExportCompletedWithFailures_other:
+        'Export finished with {{count}} failed files ({{copied}} copied, {{skipped}} already in S3, {{deleted}} local copies deleted). Failed files stay on the local disk, run the export again to retry them.',
+      s3ExportFailed: 'Export failed: {{error}}',
+      s3ExportLeftOutFiles_one:
+        '{{count}} leftover local file of a deleted upload was not exported.',
+      s3ExportLeftOutFiles_other:
+        '{{count}} leftover local files of deleted uploads were not exported.',
+      s3ExportProgress_one:
+        '{{processed}} of {{count}} file: {{copied}} copied, {{skipped}} already in S3, {{deleted}} local copies deleted, {{failed}} failed',
+      s3ExportProgress_other:
+        '{{processed}} of {{count}} files: {{copied}} copied, {{skipped}} already in S3, {{deleted}} local copies deleted, {{failed}} failed',
+      s3IsNotEnabled:
+        'Files are stored on the local disk. To store them in S3, set S3_REGION and S3_BUCKET on the server and restart it (access keys are not needed when it runs with an AWS instance role). Files already on the local disk can then be exported from here.',
+      s3LastExportResult:
+        '{{copied}} copied, {{skipped}} already in S3, {{deleted}} local copies deleted',
       showCompleted: 'Show completed',
       showExtraBoardViews: 'Show List and Grid board views',
       showMoreCards: 'Show {{count}} more',
       showQuarterTimelineZoom: 'Show quarter zoom on timelines',
       somethingWentWrong: 'Something went wrong.',
+      storage: 'Storage',
+      storageLocation: 'Storage location',
       tasksProgress: '{{completed}}/{{total}} tasks done',
       teamTimeline: 'Team Timeline',
       thisMonth: 'This month',
@@ -402,8 +437,12 @@ export default {
       unsavedChanges: 'Unsaved changes',
       upcoming: 'Upcoming',
       uploadFailedFileIsTooBig: 'Upload failed: File is too big.',
+      uploadFailedFileTypeIsNotAllowed:
+        'Upload failed: "{{filename}}" is not an allowed file type.',
       uploadFailedNotEnoughStorageSpace: 'Upload failed: Not enough storage space.',
       uploadedImages: 'Uploaded images',
+      uploadFailedSvgContainsActiveContent:
+        'Upload failed: "{{filename}}" contains scripts or links to outside content, which are not allowed in SVG files.',
       url: 'URL',
       useSecureConnection: 'Use secure connection',
       userActions_title: 'User Actions',
@@ -531,6 +570,8 @@ export default {
       editUsername_title: 'Edit Username',
       emptyTrash: 'Empty trash',
       emptyTrash_title: 'Empty Trash',
+      exportAndDeleteLocalCopies: 'Export and delete local copies',
+      exportLocalFilesToS3: 'Export local files to S3',
       import: 'Import',
       join: 'Join',
       leave: 'Leave',

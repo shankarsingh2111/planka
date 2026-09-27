@@ -17,8 +17,13 @@ const {
 const { Upload } = require('@aws-sdk/lib-storage');
 
 class S3FileManager {
-  constructor(client) {
+  /**
+   * @param {S3Client} client
+   * @param {LocalFileManager} [fallbackFileManager] Reads files that have not been exported to S3 yet
+   */
+  constructor(client, fallbackFileManager = null) {
     this.client = client;
+    this.fallbackFileManager = fallbackFileManager;
   }
 
   async move(sourceFilePath, filePathSegment, contentType) {
@@ -53,7 +58,22 @@ class S3FileManager {
       Key: filePathSegment,
     });
 
-    const result = await this.client.send(command);
+    let result;
+    try {
+      result = await this.client.send(command);
+    } catch (error) {
+      if (this.fallbackFileManager) {
+        try {
+          return await this.fallbackFileManager.read(filePathSegment, {
+            withHeaders,
+          });
+        } catch (fallbackError) {
+          /* empty */
+        }
+      }
+
+      throw error;
+    }
 
     if (withHeaders) {
       const headers = {

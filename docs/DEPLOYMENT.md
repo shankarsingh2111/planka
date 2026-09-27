@@ -155,10 +155,13 @@ DROP TABLE IF EXISTS card_dependency;
 ALTER TABLE card DROP COLUMN IF EXISTS start_date;
 ALTER TABLE user_account DROP COLUMN IF EXISTS show_extra_board_views,
                          DROP COLUMN IF EXISTS show_quarter_timeline_zoom;
+ALTER TABLE config DROP COLUMN IF EXISTS s3_last_exported_at,
+                   DROP COLUMN IF EXISTS s3_last_export_result;
 DELETE FROM migration WHERE name IN (
   '20260912000000_add_start_date_to_card.js',
   '20260921000000_add_card_dependencies.js',
-  '20260923000000_add_view_preferences_to_user.js');
+  '20260923000000_add_view_preferences_to_user.js',
+  '20260927000000_add_s3_export_to_config.js');
 ```
 
 ## Restoring a backup
@@ -169,6 +172,40 @@ docker compose exec -T postgres pg_restore -U postgres -d planka --clean --if-ex
   < ~/backups/planka-prod-<stamp>.dump
 docker compose start planka
 ```
+
+## Uploads and file storage
+
+**Limits.** `MAX_UPLOAD_FILE_SIZE` (e.g. `100MB`) caps every uploaded file. Card attachments
+are also limited to common image, video, audio, PDF, Office/OpenDocument, text and zip
+types; override the list with `ALLOWED_ATTACHMENT_EXTENSIONS` (comma-separated, or `*` for
+any type). SVGs with scripts or references to outside content are always rejected.
+
+nginx has its own limit, 1 MB unless set. Keep it a little above Planka's, in the
+`listen 443` block of `/etc/nginx/conf.d/planka.jugnoo.in.conf`, then
+`sudo nginx -t && sudo systemctl reload nginx`:
+
+```nginx
+client_max_body_size 110m;
+client_body_timeout  300s;
+```
+
+**Moving files to S3.** Once the bucket exists and the EC2 instance role can read, write,
+list and delete in it:
+
+1. In the production compose file set `S3_REGION` and `S3_BUCKET`, and leave
+   `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` unset: the instance role is then used.
+   Because Planka runs in a container, the instance metadata hop limit must be 2
+   (`aws ec2 modify-instance-metadata-options --instance-id <id> --http-put-response-hop-limit 2`).
+2. Deploy or restart. New uploads go to S3; existing files keep being served from the `data`
+   volume until they are exported.
+3. Administration → Storage → **Export local files to S3**. It skips files already in S3
+   with the same size, so it is safe to run again after a failure.
+4. Spot-check some older attachments, avatars and backgrounds, then run it once more with
+   **Delete local copies once verified in S3** ticked.
+
+The production script's `tar` backup covers the `data` volume only, so once files live in
+S3, back them up there (bucket versioning, for example). Going back to local storage is not
+automatic: files that exist only in S3 must first be copied back into the volume.
 
 ## Notes
 

@@ -9,6 +9,7 @@ import bootstrap from './bootstrap';
 import core from './core';
 import modals from './modals';
 import config from './config';
+import storage from './storage';
 import webhooks from './webhooks';
 import users from './users';
 import projects from './projects';
@@ -39,6 +40,7 @@ export default [
   core,
   modals,
   config,
+  storage,
   webhooks,
   users,
   projects,

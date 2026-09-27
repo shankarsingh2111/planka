@@ -33,6 +33,11 @@ const createOne = (values) =>
     return uploadedFile;
   });
 
+const getAllIds = async () => {
+  const queryResult = await sails.sendNativeQuery('SELECT id FROM uploaded_file');
+  return queryResult.rows.map((row) => row.id);
+};
+
 const deleteOne = (criteria) =>
   sails.getDatastore().transaction(async (db) => {
     const uploadedFile = await UploadedFile.destroyOne(criteria).usingConnection(db);
@@ -50,6 +55,7 @@ const deleteOne = (criteria) =>
 
 module.exports = {
   createOne,
+  getAllIds,
   deleteOne,
 
   transformRowToModel,

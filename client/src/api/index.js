@@ -9,6 +9,7 @@ import bootstrap from './bootstrap';
 import terms from './terms';
 import accessTokens from './access-tokens';
 import config from './config';
+import storage from './storage';
 import webhooks from './webhooks';
 import users from './users';
 import projects from './projects';
@@ -42,6 +43,7 @@ export default {
   ...terms,
   ...accessTokens,
   ...config,
+  ...storage,
   ...webhooks,
   ...users,
   ...projects,

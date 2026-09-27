@@ -14,6 +14,7 @@ const bytes = require('bytes');
 const sails = require('sails');
 
 const version = require('../version');
+const { parseAllowedExtensions } = require('../utils/attachment-files');
 
 const envToNumber = (value) => {
   if (!value) {
@@ -45,6 +46,8 @@ module.exports.custom = {
   baseUrlSecure: parsedBasedUrl.protocol === 'https:',
 
   maxUploadFileSize: envToBytes(process.env.MAX_UPLOAD_FILE_SIZE),
+  // null means any file type is allowed
+  allowedAttachmentExtensions: parseAllowedExtensions(process.env.ALLOWED_ATTACHMENT_EXTENSIONS),
   tokenExpiresIn: (parseInt(process.env.TOKEN_EXPIRES_IN, 10) || 365) * 24 * 60 * 60,
 
   storageLimit: envToBytes(process.env.STORAGE_LIMIT),

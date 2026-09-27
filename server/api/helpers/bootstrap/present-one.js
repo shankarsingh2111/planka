@@ -26,6 +26,13 @@ module.exports = {
       version: sails.config.custom.version,
     };
 
+    if (inputs.user) {
+      Object.assign(data, {
+        maxUploadFileSize: sails.config.custom.maxUploadFileSize,
+        allowedAttachmentExtensions: sails.config.custom.allowedAttachmentExtensions,
+      });
+    }
+
     if (inputs.user && inputs.user.role === User.Roles.ADMIN) {
       Object.assign(data, {
         activeUsersLimit: inputs.internalConfig.activeUsersLimit,
