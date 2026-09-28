@@ -399,9 +399,24 @@
     white-space: nowrap;
   }
 
+  // Name on the first line, member avatars on the second (see BAR_WITH_AVATARS_HEIGHT)
+  .barWithAvatars {
+    align-items: stretch;
+    flex-direction: column;
+    justify-content: center;
+
+    .barLabel {
+      line-height: 16px;
+    }
+  }
+
+  // Clipped rather than spilling out of a bar too narrow to hold every circle; the vertical
+  // padding keeps the circles' white rings inside the clip
   .barAvatars {
-    margin-left: auto;
-    padding-right: 6px;
+    align-self: flex-start;
+    max-width: 100%;
+    overflow: hidden;
+    padding: 1px 8px;
     position: relative;
     z-index: 1;
   }

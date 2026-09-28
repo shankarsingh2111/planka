@@ -21,6 +21,10 @@ import {
   getItemRange,
   getViewRange,
   packRows,
+  getRowOffsets,
+  ROW_HEIGHT,
+  ROW_GAP,
+  BAR_WITH_AVATARS_HEIGHT,
   startOfDay,
 } from './utils';
 import findCriticalPath from './find-critical-path';
@@ -243,6 +247,34 @@ describe('packRows', () => {
     const rowIndexById = Object.fromEntries(rows.map((row) => [row.id, row.rowIndex]));
 
     expect(rowIndexById).toEqual({ a: 0, c: 1, b: 1 });
+  });
+});
+
+describe('getRowOffsets', () => {
+  const plain = { memberIds: [] };
+  const withMembers = { memberIds: ['1'] };
+
+  test('keeps the standard row height when no card has members', () => {
+    const { rowTops, totalHeight } = getRowOffsets([
+      { item: plain, rowIndex: 0 },
+      { item: plain, rowIndex: 1 },
+    ]);
+
+    expect(rowTops).toEqual([0, ROW_HEIGHT]);
+    expect(totalHeight).toBe(ROW_HEIGHT * 2);
+  });
+
+  test('grows only the rows holding a card with members', () => {
+    const tallRowHeight = BAR_WITH_AVATARS_HEIGHT + ROW_GAP;
+
+    const { rowTops, totalHeight } = getRowOffsets([
+      { item: plain, rowIndex: 0 },
+      { item: withMembers, rowIndex: 0 },
+      { item: plain, rowIndex: 1 },
+    ]);
+
+    expect(rowTops).toEqual([0, tallRowHeight]);
+    expect(totalHeight).toBe(tallRowHeight + ROW_HEIGHT);
   });
 });
 

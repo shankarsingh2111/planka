@@ -34,6 +34,9 @@ export const SLOTS_PER_DAY = WORK_DAY_HOURS / HOUR_TICK_STEP;
 export const LANE_HEADER_WIDTH = 220;
 export const ROW_HEIGHT = 36;
 export const BAR_HEIGHT = 26;
+// A card with members gets a second line under its name for their avatars
+export const BAR_WITH_AVATARS_HEIGHT = 44;
+export const ROW_GAP = ROW_HEIGHT - BAR_HEIGHT;
 export const LANE_PADDING = 6;
 export const MIN_LANE_HEIGHT = ROW_HEIGHT + LANE_PADDING * 2;
 export const OPEN_ENDED_DURATION_DAYS = 7;
@@ -262,6 +265,36 @@ export const packRows = (entries) => {
         rowIndex,
       };
     });
+};
+
+export const hasAvatars = (item) => !!item.memberIds && item.memberIds.length > 0;
+
+export const getBarHeight = (item) => (hasAvatars(item) ? BAR_WITH_AVATARS_HEIGHT : BAR_HEIGHT);
+
+// Each row is as tall as its tallest bar, so only rows holding cards with members take the
+// extra space. Returns the offset of every row from the top of the lane's content.
+export const getRowOffsets = (entries) => {
+  const rowHeights = [];
+
+  entries.forEach(({ item, rowIndex }) => {
+    rowHeights[rowIndex] = Math.max(
+      rowHeights[rowIndex] || ROW_HEIGHT,
+      getBarHeight(item) + ROW_GAP,
+    );
+  });
+
+  const rowTops = [];
+  let totalHeight = 0;
+
+  for (let rowIndex = 0; rowIndex < rowHeights.length; rowIndex += 1) {
+    rowTops.push(totalHeight);
+    totalHeight += rowHeights[rowIndex] || ROW_HEIGHT;
+  }
+
+  return {
+    rowTops,
+    totalHeight,
+  };
 };
 
 export const getHeaderColumns = (viewStart, totalDays, zoomLevel, formatDate) => {

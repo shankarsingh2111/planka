@@ -175,6 +175,8 @@ docker compose start planka
 
 ## Uploads and file storage
 
+How storage, the export and the upload rules work is described in `S3_STORAGE.md`.
+
 **Limits.** `MAX_UPLOAD_FILE_SIZE` (e.g. `100MB`) caps every uploaded file. Card attachments
 are also limited to common image, video, audio, PDF, Office/OpenDocument, text and zip
 types; override the list with `ALLOWED_ATTACHMENT_EXTENSIONS` (comma-separated, or `*` for

@@ -15,6 +15,7 @@ import {
   LANE_HEADER_WIDTH,
   ROW_HEIGHT,
   BAR_HEIGHT,
+  ROW_GAP,
   LANE_PADDING,
   MIN_LANE_HEIGHT,
   diffInDays,
@@ -26,6 +27,8 @@ import {
   getViewRange,
   getDropRange,
   packRows,
+  getBarHeight,
+  getRowOffsets,
   getHeaderColumns,
   buildArrowPath,
 } from './utils';
@@ -145,10 +148,18 @@ const TimelineChart = React.memo(
 
         // A collapsed lane keeps every bar but squashes them onto one row, so it stays a
         // drop target and still shows where its work sits on the scale
-        const entries = isCollapsed ? packed.map((entry) => ({ ...entry, rowIndex: 0 })) : packed;
+        const rowEntries = isCollapsed
+          ? packed.map((entry) => ({ ...entry, rowIndex: 0 }))
+          : packed;
 
-        const rowsTotal = entries.reduce((max, entry) => Math.max(max, entry.rowIndex + 1), 0);
-        const height = Math.max(MIN_LANE_HEIGHT, rowsTotal * ROW_HEIGHT + LANE_PADDING * 2);
+        const { rowTops, totalHeight: rowsHeight } = getRowOffsets(rowEntries);
+
+        const entries = rowEntries.map((entry) => ({
+          ...entry,
+          rowTop: rowTops[entry.rowIndex],
+        }));
+
+        const height = Math.max(MIN_LANE_HEIGHT, rowsHeight + LANE_PADDING * 2);
 
         const laneLayout = {
           lane,
@@ -238,7 +249,7 @@ const TimelineChart = React.memo(
     const bars = useMemo(
       () =>
         layout.lanes.flatMap(({ lane, top, entries }) =>
-          entries.map(({ item, rowIndex, range: committedRange }) => {
+          entries.map(({ item, rowTop, range: committedRange }) => {
             const range = getRenderRange(item.id, committedRange);
             const left = getOffsetX(viewStart, range.start, zoomLevel);
             const width = Math.max(
@@ -253,7 +264,8 @@ const TimelineChart = React.memo(
               range,
               left,
               width,
-              top: top + LANE_PADDING + rowIndex * ROW_HEIGHT + (ROW_HEIGHT - BAR_HEIGHT) / 2,
+              top: top + LANE_PADDING + rowTop + ROW_GAP / 2,
+              height: getBarHeight(item),
             };
           }),
         ),
@@ -306,8 +318,8 @@ const TimelineChart = React.memo(
         range,
         left,
         width: Math.max(getOffsetX(viewStart, range.end, zoomLevel) + unitWidth - left, 8),
-        top:
-          target.top + LANE_PADDING + (entry ? entry.rowIndex : 0) * ROW_HEIGHT + (ROW_HEIGHT - BAR_HEIGHT) / 2,
+        top: target.top + LANE_PADDING + (entry ? entry.rowTop : 0) + ROW_GAP / 2,
+        height: getBarHeight(item),
         laneTop: target.top,
         laneHeight: target.height,
         isLaneChange,
@@ -350,12 +362,12 @@ const TimelineChart = React.memo(
 
           const startPoint = {
             x: from.left + from.width,
-            y: from.top + BAR_HEIGHT / 2,
+            y: from.top + from.height / 2,
           };
 
           const endPoint = {
             x: to.left,
-            y: to.top + BAR_HEIGHT / 2,
+            y: to.top + to.height / 2,
           };
 
           return {
@@ -766,7 +778,7 @@ const TimelineChart = React.memo(
                         d={buildArrowPath(
                           {
                             x: linkingFrom.left + linkingFrom.width,
-                            y: linkingFrom.top + BAR_HEIGHT / 2,
+                            y: linkingFrom.top + linkingFrom.height / 2,
                           },
                           linking.point,
                         )}
@@ -774,7 +786,7 @@ const TimelineChart = React.memo(
                       />
                     )}
                   </svg>
-                  {bars.map(({ key, item, laneKey, range, left, width, top }) => (
+                  {bars.map(({ key, item, laneKey, range, left, width, top, height }) => (
                     <Bar
                       key={key}
                       item={item}
@@ -783,6 +795,7 @@ const TimelineChart = React.memo(
                       left={left}
                       width={width}
                       top={top}
+                      height={height}
                       isEditable={isEditable && item.isEditable !== false}
                       isLinkable={isLinkable && item.isEditable !== false}
                       isCritical={criticalPath.itemIds.has(item.id)}
@@ -810,7 +823,7 @@ const TimelineChart = React.memo(
                           left: dragGhost.left,
                           width: dragGhost.width,
                           top: dragGhost.top,
-                          height: BAR_HEIGHT,
+                          height: dragGhost.height,
                         }}
                       >
                         <span className={styles.ghostBarLabel}>{dragGhost.item.name}</span>
@@ -844,7 +857,7 @@ const TimelineChart = React.memo(
                       className={styles.tooltip}
                       style={{
                         left: Math.max(0, Math.min(hoveredBar.left, totalWidth - 260)),
-                        top: hoveredBar.top + BAR_HEIGHT + 6,
+                        top: hoveredBar.top + hoveredBar.height + 6,
                       }}
                     >
                       <div className={styles.tooltipTitle}>{hoveredBar.item.name}</div>

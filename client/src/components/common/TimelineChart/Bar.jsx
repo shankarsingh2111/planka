@@ -7,13 +7,11 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 
-import { BAR_HEIGHT } from './utils';
+import { hasAvatars } from './utils';
 import { DragModes } from './use-bar-drag';
 import Avatars from './Avatars';
 
 import styles from './TimelineChart.module.scss';
-
-const MIN_WIDTH_FOR_AVATARS = 70;
 
 const Bar = React.memo(
   ({
@@ -23,6 +21,7 @@ const Bar = React.memo(
     left,
     width,
     top,
+    height,
     isEditable,
     isLinkable,
     isCritical,
@@ -40,8 +39,8 @@ const Bar = React.memo(
         ? item.progress.completed / item.progress.total
         : null;
 
-    // Below this the bar has no room left for the name once circles are in it
-    const withAvatars = width >= MIN_WIDTH_FOR_AVATARS && item.memberIds;
+    // Members sit on their own line under the name, so the two never compete for width
+    const withAvatars = hasAvatars(item);
 
     return (
       <div
@@ -55,8 +54,9 @@ const Bar = React.memo(
           [styles.barCritical]: isCritical,
           [styles.barDragging]: isDragging,
           [styles.barEditable]: isEditable,
+          [styles.barWithAvatars]: withAvatars,
         })}
-        style={{ left, width, top, height: BAR_HEIGHT }}
+        style={{ left, width, top, height }}
         onPointerDown={(event) => onPointerDown(event, item.id, DragModes.MOVE, laneKey)}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -109,6 +109,7 @@ Bar.propTypes = {
   left: PropTypes.number.isRequired,
   width: PropTypes.number.isRequired,
   top: PropTypes.number.isRequired,
+  height: PropTypes.number.isRequired,
   isEditable: PropTypes.bool,
   isLinkable: PropTypes.bool,
   isCritical: PropTypes.bool,
