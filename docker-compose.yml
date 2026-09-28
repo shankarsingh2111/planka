@@ -13,10 +13,15 @@ services:
     # tmpfs:
     #   - /app/.tmp:mode=770,uid=1000,gid=1000
     ports:
-      - 6161:1337
+      - 6160:1337
     environment:
-      - BASE_URL=https://auto-node-test.jugnoo.in
+      - BASE_URL=${BASE_URL}
       - DATABASE_URL=postgresql://postgres@postgres/planka
+
+      - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD}
+      - DEFAULT_ADMIN_NAME=${DEFAULT_ADMIN_NAME}
+      - DEFAULT_ADMIN_USERNAME=${DEFAULT_ADMIN_USERNAME}
 
       # Optionally store the database password in secrets:
       # - DATABASE_URL=postgresql://postgres:$${DATABASE_PASSWORD}@postgres/planka
@@ -36,7 +41,7 @@ services:
       # Required: the app sits behind the nginx/HTTPS reverse proxy
       - TRUST_PROXY=true
       # Keep nginx's client_max_body_size a little above this (e.g. 110m)
-      - MAX_UPLOAD_FILE_SIZE=100MB
+      - MAX_UPLOAD_FILE_SIZE=${MAX_UPLOAD_FILE_SIZE}
       # - TOKEN_EXPIRES_IN=365 # In days
 
       # Comma-separated file extensions allowed for card attachments. Defaults to common image,
@@ -82,12 +87,12 @@ services:
       # With an AWS instance role (e.g. on EC2), set only S3_REGION and S3_BUCKET
       # and leave the access keys unset.
       # - S3_ENDPOINT=
-      # - S3_REGION=
+      - S3_REGION=${S3_REGION}
       # - S3_ACCESS_KEY_ID=
       # - S3_SECRET_ACCESS_KEY=
       # Optionally store in secrets - then S3_SECRET_ACCESS_KEY should not be set
       # - S3_SECRET_ACCESS_KEY__FILE=/run/secrets/s3_secret_access_key
-      # - S3_BUCKET=
+      - S3_BUCKET=${S3_BUCKET}
       # - S3_FORCE_PATH_STYLE=true
       # - S3_REQUEST_CHECKSUM_CALCULATION=
 

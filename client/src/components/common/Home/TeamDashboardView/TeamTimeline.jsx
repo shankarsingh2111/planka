@@ -3,7 +3,7 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
@@ -35,6 +35,7 @@ const TeamTimeline = React.memo(
   ({
     entries,
     cardDependencies,
+    users,
     userById,
     onCardClick,
     onCardDatesChange,
@@ -55,27 +56,34 @@ const TeamTimeline = React.memo(
       [entries],
     );
 
+    const activeUserIds = useMemo(() => new Set(users.map((user) => user.id)), [users]);
+
+    // Deactivated users get no lane, so a card held only by them counts as unassigned
+    const getMemberLaneKeys = useCallback(
+      (entry) => {
+        const laneKeys = entry.userIds.filter((userId) => activeUserIds.has(userId));
+        return laneKeys.length > 0 ? laneKeys : [UNASSIGNED_KEY];
+      },
+      [activeUserIds],
+    );
+
     const lanes = useMemo(() => {
+      if (groupBy === GroupByOptions.MEMBER) {
+        const memberLanes = users.map((user) => ({ key: user.id, label: user.name }));
+
+        const hasUnassigned = scheduledEntries.some((entry) =>
+          getMemberLaneKeys(entry).includes(UNASSIGNED_KEY),
+        );
+
+        return hasUnassigned
+          ? [...memberLanes, { key: UNASSIGNED_KEY, label: t('common.unassigned_title') }]
+          : memberLanes;
+      }
+
       const laneByKey = {};
 
       scheduledEntries.forEach((entry) => {
-        if (groupBy === GroupByOptions.MEMBER) {
-          if (entry.userIds.length === 0) {
-            laneByKey[UNASSIGNED_KEY] = {
-              key: UNASSIGNED_KEY,
-              label: t('common.unassigned_title'),
-              order: '￿',
-            };
-          }
-
-          entry.userIds.forEach((userId) => {
-            const user = userById[userId];
-
-            if (user) {
-              laneByKey[userId] = { key: userId, label: user.name, order: user.name };
-            }
-          });
-        } else if (groupBy === GroupByOptions.PROJECT) {
+        if (groupBy === GroupByOptions.PROJECT) {
           const key = entry.project ? entry.project.id : entry.board.projectId;
 
           laneByKey[key] = {
@@ -93,7 +101,7 @@ const TeamTimeline = React.memo(
       });
 
       return Object.values(laneByKey).sort((a, b) => a.order.localeCompare(b.order));
-    }, [scheduledEntries, groupBy, userById, t]);
+    }, [scheduledEntries, groupBy, users, getMemberLaneKeys, t]);
 
     const items = useMemo(
       () =>
@@ -102,7 +110,7 @@ const TeamTimeline = React.memo(
 
           let laneKeys;
           if (groupBy === GroupByOptions.MEMBER) {
-            laneKeys = entry.userIds.length > 0 ? entry.userIds : [UNASSIGNED_KEY];
+            laneKeys = getMemberLaneKeys(entry);
           } else if (groupBy === GroupByOptions.PROJECT) {
             laneKeys = [entry.project ? entry.project.id : entry.board.projectId];
           } else {
@@ -148,7 +156,7 @@ const TeamTimeline = React.memo(
             ].filter(Boolean),
           };
         }),
-      [scheduledEntries, groupBy, colorBy, userById],
+      [scheduledEntries, groupBy, colorBy, userById, getMemberLaneKeys],
     );
 
     const dependencies = useMemo(() => {
@@ -219,6 +227,7 @@ TeamTimeline.propTypes = {
   /* eslint-disable react/forbid-prop-types */
   entries: PropTypes.array.isRequired,
   cardDependencies: PropTypes.array.isRequired,
+  users: PropTypes.array.isRequired,
   userById: PropTypes.object.isRequired,
   /* eslint-enable react/forbid-prop-types */
   onCardClick: PropTypes.func.isRequired,

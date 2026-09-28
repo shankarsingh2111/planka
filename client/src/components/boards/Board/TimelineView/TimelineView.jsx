@@ -162,6 +162,17 @@ const TimelineView = React.memo(({ cardIds }) => {
     [memberships],
   );
 
+  // Deactivated users keep their board membership, but they no longer get a member lane
+  const activeMemberships = useMemo(
+    () => memberships.filter((membership) => !membership.user.isDeactivated),
+    [memberships],
+  );
+
+  const activeMemberUserIds = useMemo(
+    () => new Set(activeMemberships.map((membership) => membership.user.id)),
+    [activeMemberships],
+  );
+
   const labelById = useMemo(
     () =>
       labels.reduce(
@@ -206,7 +217,7 @@ const TimelineView = React.memo(({ cardIds }) => {
         }));
       case GroupByOptions.MEMBER:
         return [
-          ...memberships.map((membership) => ({
+          ...activeMemberships.map((membership) => ({
             key: membership.user.id,
             label: membership.user.name,
           })),
@@ -234,7 +245,7 @@ const TimelineView = React.memo(({ cardIds }) => {
           },
         ];
     }
-  }, [groupBy, sortedLists, memberships, labels, board.name, t]);
+  }, [groupBy, sortedLists, activeMemberships, labels, board.name, t]);
 
   const lanes = useMemo(
     () => allLanes.filter((lane) => !hiddenLaneKeys.includes(lane.key)),
@@ -253,10 +264,13 @@ const TimelineView = React.memo(({ cardIds }) => {
             laneKeys = [card.listId];
 
             break;
-          case GroupByOptions.MEMBER:
-            laneKeys = card.userIds.length > 0 ? card.userIds : [NO_VALUE_KEY];
+          case GroupByOptions.MEMBER: {
+            // A card held only by deactivated users falls back to the unassigned lane
+            const activeUserIds = card.userIds.filter((userId) => activeMemberUserIds.has(userId));
+            laneKeys = activeUserIds.length > 0 ? activeUserIds : [NO_VALUE_KEY];
 
             break;
+          }
           case GroupByOptions.LABEL:
             laneKeys = card.labelIds.length > 0 ? card.labelIds : [NO_VALUE_KEY];
 
@@ -314,7 +328,7 @@ const TimelineView = React.memo(({ cardIds }) => {
           ].filter(Boolean),
         };
       }),
-    [scheduledCards, groupBy, colorBy, labelById, userById],
+    [scheduledCards, groupBy, colorBy, labelById, userById, activeMemberUserIds],
   );
 
   const dependencies = useMemo(

@@ -122,6 +122,35 @@ const TeamDashboardView = React.memo(() => {
     [model],
   );
 
+  // Member lanes cover every active user invited to a board in scope, not just those who already
+  // hold a scheduled card, so an idle teammate still gets a row
+  const timelineUsers = useMemo(() => {
+    if (!model) {
+      return [];
+    }
+
+    const filterUserIdsSet = new Set(filters.userIds);
+    const filterProjectIdsSet = new Set(filters.projectIds);
+
+    const boardUserIds = new Set(
+      model.boardMemberships.flatMap((boardMembership) => {
+        const board = model.boardById[boardMembership.boardId];
+
+        return board &&
+          (filterProjectIdsSet.size === 0 || filterProjectIdsSet.has(board.projectId))
+          ? boardMembership.userId
+          : [];
+      }),
+    );
+
+    return sortedUsers.filter(
+      (user) =>
+        !user.isDeactivated &&
+        boardUserIds.has(user.id) &&
+        (filterUserIdsSet.size === 0 || filterUserIdsSet.has(user.id)),
+    );
+  }, [model, sortedUsers, filters.userIds, filters.projectIds]);
+
   const sortedProjects = useMemo(
     () => (model ? model.projects.slice().sort((a, b) => a.name.localeCompare(b.name)) : []),
     [model],
@@ -205,6 +234,7 @@ const TeamDashboardView = React.memo(() => {
               <TeamTimeline
                 entries={visibleEntries}
                 cardDependencies={model.cardDependencies}
+                users={timelineUsers}
                 userById={model.userById}
                 onCardClick={handleCardClick}
                 onCardDatesChange={updateCardDates}

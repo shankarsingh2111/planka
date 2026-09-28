@@ -152,6 +152,7 @@ export const buildDashboardModel = (data, currentUserId, now = new Date()) => {
     projects: data.projects,
     boards: data.boards,
     users: data.users,
+    boardMemberships: data.boardMemberships || [],
     projectById,
     boardById,
     userById,
