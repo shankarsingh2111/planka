@@ -89,6 +89,14 @@ export const CardTypes = {
   STORY: 'story',
 };
 
+// Which cards of a series an edit reaches: FOLLOWING and ALL are the server's scopes, THIS is
+// an ordinary edit of the card alone
+export const CardRecurrenceScopes = {
+  THIS: 'this',
+  FOLLOWING: 'following',
+  ALL: 'all',
+};
+
 export const AttachmentTypes = {
   FILE: 'file',
   LINK: 'link',
@@ -101,6 +109,8 @@ export const ActivityTypes = {
   REMOVE_MEMBER_FROM_CARD: 'removeMemberFromCard',
   COMPLETE_TASK: 'completeTask',
   UNCOMPLETE_TASK: 'uncompleteTask',
+  CREATE_CARD_RECURRENCE: 'createCardRecurrence',
+  UPDATE_CARD_RECURRENCE: 'updateCardRecurrence',
 };
 
 export const NotificationTypes = {

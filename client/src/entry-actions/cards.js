@@ -46,13 +46,14 @@ const createCardInCurrentList = (data, autoOpen = false) => ({
 });
 
 // Members and labels ride along for the create dialog; they are attached once the card exists
-const createCardWithDetails = (listId, data, { userIds, labelIds }) => ({
+const createCardWithDetails = (listId, data, { userIds, labelIds, recurrence }) => ({
   type: EntryActionTypes.CARD_WITH_DETAILS_CREATE,
   payload: {
     listId,
     data,
     userIds,
     labelIds,
+    recurrence,
   },
 });
 

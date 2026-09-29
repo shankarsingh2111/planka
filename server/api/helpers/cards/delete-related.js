@@ -21,6 +21,30 @@ module.exports = {
       cardIdOrIds = sails.helpers.utils.mapRecords(inputs.recordOrRecords);
     }
 
+    // A card of a series deleted on its own takes its day out of the series for good, so that
+    // changing the series later doesn't bring it back
+    const records = _.isPlainObject(inputs.recordOrRecords)
+      ? [inputs.recordOrRecords]
+      : inputs.recordOrRecords;
+
+    const occurrenceDatesByRecurrenceId = records.reduce((result, record) => {
+      if (_.isPlainObject(record) && record.recurrenceId && record.occurrenceDate) {
+        // eslint-disable-next-line no-param-reassign
+        result[record.recurrenceId] = [
+          ...(result[record.recurrenceId] || []),
+          record.occurrenceDate,
+        ];
+      }
+
+      return result;
+    }, {});
+
+    await Promise.all(
+      Object.entries(occurrenceDatesByRecurrenceId).map(([recurrenceId, occurrenceDates]) =>
+        CardRecurrence.qm.addExcludedDates(recurrenceId, occurrenceDates),
+      ),
+    );
+
     await CardSubscription.qm.delete({
       cardId: cardIdOrIds,
     });

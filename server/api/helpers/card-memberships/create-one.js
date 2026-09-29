@@ -25,6 +25,14 @@ module.exports = {
       type: 'ref',
       required: true,
     },
+    webhooks: {
+      type: 'ref',
+    },
+    // A change across a card series logs and notifies once, on the edited card
+    skipAction: {
+      type: 'boolean',
+      defaultsTo: false,
+    },
     request: {
       type: 'ref',
     },
@@ -61,7 +69,7 @@ module.exports = {
       inputs.request,
     );
 
-    const webhooks = await Webhook.qm.getAll();
+    const { webhooks = await Webhook.qm.getAll() } = inputs;
 
     sails.helpers.utils.sendWebhooks.with({
       webhooks,
@@ -108,21 +116,23 @@ module.exports = {
       // TODO: send webhooks
     }
 
-    await sails.helpers.actions.createOne.with({
-      webhooks,
-      values: {
-        type: Action.Types.ADD_MEMBER_TO_CARD,
-        data: {
-          user: _.pick(values.user, ['id', 'name']),
-          card: _.pick(values.card, ['name']),
+    if (!inputs.skipAction) {
+      await sails.helpers.actions.createOne.with({
+        webhooks,
+        values: {
+          type: Action.Types.ADD_MEMBER_TO_CARD,
+          data: {
+            user: _.pick(values.user, ['id', 'name']),
+            card: _.pick(values.card, ['name']),
+          },
+          user: inputs.actorUser,
+          card: values.card,
         },
-        user: inputs.actorUser,
-        card: values.card,
-      },
-      project: inputs.project,
-      board: inputs.board,
-      list: inputs.list,
-    });
+        project: inputs.project,
+        board: inputs.board,
+        list: inputs.list,
+      });
+    }
 
     return cardMembership;
   },

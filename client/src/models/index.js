@@ -15,6 +15,7 @@ import Label from './Label';
 import List from './List';
 import Card from './Card';
 import CardDependency from './CardDependency';
+import CardRecurrence from './CardRecurrence';
 import TaskList from './TaskList';
 import Task from './Task';
 import Attachment from './Attachment';
@@ -39,6 +40,7 @@ export {
   List,
   Card,
   CardDependency,
+  CardRecurrence,
   TaskList,
   Task,
   Attachment,

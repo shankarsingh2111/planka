@@ -19,12 +19,15 @@ const Toolbar = React.memo(
     unscheduledCount,
     withCriticalPath,
     isCriticalPathShown,
+    withRepeatsCollapse,
+    isRepeatsCollapsed,
     leadingChildren,
     actionChildren,
     children,
     onZoomLevelChange,
     onScrollToToday,
     onCriticalPathToggle,
+    onRepeatsCollapseToggle,
   }) => {
     const [t] = useTranslation();
 
@@ -53,6 +56,18 @@ const Toolbar = React.memo(
               {t('common.criticalPath')}
             </Button>
           )}
+          {withRepeatsCollapse && (
+            <Button
+              size="mini"
+              basic
+              active={isRepeatsCollapsed}
+              title={t('common.collapseRepeatsHint')}
+              onClick={onRepeatsCollapseToggle}
+            >
+              <Icon name="sync alternate" />
+              {t('common.collapseRepeats')}
+            </Button>
+          )}
           {/* Set apart from the view controls: these change the board, not how it is shown */}
           {actionChildren && <div className={styles.toolbarActions}>{actionChildren}</div>}
         </div>
@@ -76,21 +91,27 @@ Toolbar.propTypes = {
   unscheduledCount: PropTypes.number,
   withCriticalPath: PropTypes.bool,
   isCriticalPathShown: PropTypes.bool,
+  withRepeatsCollapse: PropTypes.bool,
+  isRepeatsCollapsed: PropTypes.bool,
   leadingChildren: PropTypes.node,
   actionChildren: PropTypes.node,
   children: PropTypes.node,
   onZoomLevelChange: PropTypes.func.isRequired,
   onScrollToToday: PropTypes.func.isRequired,
   onCriticalPathToggle: PropTypes.func.isRequired,
+  onRepeatsCollapseToggle: PropTypes.func,
 };
 
 Toolbar.defaultProps = {
   unscheduledCount: 0,
   withCriticalPath: false,
   isCriticalPathShown: false,
+  withRepeatsCollapse: false,
+  isRepeatsCollapsed: false,
   leadingChildren: undefined,
   actionChildren: undefined,
   children: undefined,
+  onRepeatsCollapseToggle: undefined,
 };
 
 export default Toolbar;

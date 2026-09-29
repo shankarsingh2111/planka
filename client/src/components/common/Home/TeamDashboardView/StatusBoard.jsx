@@ -3,12 +3,13 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
 import { Icon } from 'semantic-ui-react';
 
+import { foldCardSeries, getSeriesRepresentatives } from '../../../../utils/card-series';
 import { Statuses } from './build-dashboard-model';
 
 import styles from './TeamDashboardView.module.scss';
@@ -40,6 +41,8 @@ const COLUMNS = [
     icon: 'calendar alternate outline',
     className: 'columnUpcoming',
     sort: byDateAsc((entry) => entry.card.startDate || entry.card.dueDate),
+    // A recurring series has all its cards up front: upcoming work shows only its next one
+    foldsSeries: true,
   },
   {
     status: Statuses.DONE,
@@ -103,7 +106,34 @@ const StatusColumn = React.memo(({ column, entries, userById, onCardClick }) => 
   const [t] = useTranslation();
   const [limit, setLimit] = useState(PAGE_SIZE);
 
+  const [unfoldedSeriesIds, setUnfoldedSeriesIds] = useState([]);
+
   const sortedEntries = useMemo(() => entries.slice().sort(column.sort), [entries, column]);
+
+  const { shownEntries, representativeBySeriesId } = useMemo(() => {
+    if (!column.foldsSeries) {
+      return {
+        shownEntries: sortedEntries,
+        representativeBySeriesId: {},
+      };
+    }
+
+    const cards = sortedEntries.map((entry) => entry.card);
+    const shownCardIds = new Set(foldCardSeries(cards, { unfoldedSeriesIds }).map(({ id }) => id));
+
+    return {
+      shownEntries: sortedEntries.filter((entry) => shownCardIds.has(entry.card.id)),
+      representativeBySeriesId: getSeriesRepresentatives(cards),
+    };
+  }, [column, sortedEntries, unfoldedSeriesIds]);
+
+  const handleSeriesFoldToggle = useCallback((seriesId) => {
+    setUnfoldedSeriesIds((prevSeriesIds) =>
+      prevSeriesIds.includes(seriesId)
+        ? prevSeriesIds.filter((id) => id !== seriesId)
+        : [...prevSeriesIds, seriesId],
+    );
+  }, []);
 
   return (
     <div className={classNames(styles.statusColumn, styles[column.className])}>
@@ -113,19 +143,39 @@ const StatusColumn = React.memo(({ column, entries, userById, onCardClick }) => 
         <span className={styles.statusColumnCount}>{entries.length}</span>
       </div>
       <div className={styles.statusColumnBody}>
-        {sortedEntries.slice(0, limit).map((entry) => (
-          <StatusCard key={entry.card.id} entry={entry} userById={userById} onClick={onCardClick} />
-        ))}
+        {shownEntries.slice(0, limit).map((entry) => {
+          const { recurrenceId } = entry.card;
+          const representative = recurrenceId && representativeBySeriesId[recurrenceId];
+          const isRepresentative = !!representative && representative.card.id === entry.card.id;
+
+          return (
+            <React.Fragment key={entry.card.id}>
+              <StatusCard entry={entry} userById={userById} onClick={onCardClick} />
+              {isRepresentative && (
+                <button
+                  type="button"
+                  className={styles.seriesFoldButton}
+                  onClick={() => handleSeriesFoldToggle(recurrenceId)}
+                >
+                  <Icon name="sync alternate" />
+                  {unfoldedSeriesIds.includes(recurrenceId)
+                    ? t('action.showLess')
+                    : t('common.moreCardsInSeries', { count: representative.cards.length - 1 })}
+                </button>
+              )}
+            </React.Fragment>
+          );
+        })}
         {entries.length === 0 && (
           <div className={styles.statusColumnEmpty}>{t('common.noCards')}</div>
         )}
-        {entries.length > limit && (
+        {shownEntries.length > limit && (
           <button
             type="button"
             className={styles.showMoreButton}
             onClick={() => setLimit(limit + PAGE_SIZE)}
           >
-            {t('common.showMoreCards', { count: entries.length - limit })}
+            {t('common.showMoreCards', { count: shownEntries.length - limit })}
           </button>
         )}
       </div>

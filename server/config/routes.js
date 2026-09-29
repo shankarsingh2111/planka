@@ -190,6 +190,11 @@ module.exports.routes = {
   'POST /api/cards/:cardId/card-dependencies': 'card-dependencies/create',
   'DELETE /api/card-dependencies/:id': 'card-dependencies/delete',
 
+  'GET /api/boards/:boardId/card-recurrences': 'card-recurrences/index',
+  'POST /api/cards/:cardId/card-recurrence': 'card-recurrences/create',
+  'PATCH /api/cards/:cardId/card-recurrence': 'card-recurrences/update',
+  'DELETE /api/cards/:cardId/card-recurrence': 'card-recurrences/delete',
+
   'GET /api/dashboard': 'dashboard/show',
 
   'POST /api/cards/:cardId/task-lists': 'task-lists/create',

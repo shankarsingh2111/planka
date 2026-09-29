@@ -3,10 +3,11 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-import React from 'react';
-import { useSelector } from 'react-redux';
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 
 import selectors from '../../../selectors';
+import entryActions from '../../../entry-actions';
 import ModalTypes from '../../../constants/ModalTypes';
 import { BoardContexts, BoardViews } from '../../../constants/Enums';
 import KanbanContent from './KanbanContent';
@@ -20,6 +21,13 @@ const Board = React.memo(() => {
   const board = useSelector(selectors.selectCurrentBoard);
   const modal = useSelector(selectors.selectCurrentModal);
   const isCardModalOpened = useSelector((state) => !!selectors.selectPath(state).cardId);
+
+  const dispatch = useDispatch();
+
+  // Card series aren't part of the board payload, but every view shows which cards repeat
+  useEffect(() => {
+    dispatch(entryActions.fetchCardRecurrencesInCurrentBoard());
+  }, [board.id, dispatch]);
 
   let Content;
   if (board.view === BoardViews.KANBAN) {

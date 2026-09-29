@@ -88,6 +88,43 @@
     text-decoration: line-through;
   }
 
+  // Shows or hides the other cards of a folded series; red when any of them is overdue
+  .seriesFoldButton {
+    background: #dce0e4;
+    border: none;
+    border-radius: 3px;
+    color: #6a808b;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 20px;
+    outline: none;
+    padding: 0 6px;
+    transition: background 0.3s ease;
+    white-space: nowrap;
+
+    i.icon {
+      margin-right: 3px;
+    }
+
+    &:hover,
+    &:focus-visible {
+      background: #d2d8dc;
+      color: #17394d;
+    }
+  }
+
+  .seriesFoldButtonOverdue {
+    background: #db2828;
+    color: #fff;
+
+    &:hover,
+    &:focus-visible {
+      background: #c21e1e;
+      color: #fff;
+    }
+  }
+
   .notification {
     background: #eb5a46;
     color: #fff;

@@ -15,6 +15,8 @@ const defaultFind = (criteria, { sort = 'id', limit } = {}) =>
 
 /* Query methods */
 
+const create = (arrayOfValues) => Card.createEach(arrayOfValues).fetch();
+
 const createOne = (values) => Card.create({ ...values }).fetch();
 
 const getByIds = (ids) => defaultFind(ids);
@@ -23,6 +25,19 @@ const getByBoardId = (boardId) =>
   defaultFind({
     boardId,
   });
+
+// A card moved to another board with its list keeps the series id, so the board narrows it down
+const getByRecurrenceId = (recurrenceId, { boardId } = {}) => {
+  const criteria = {
+    recurrenceId,
+  };
+
+  if (boardId) {
+    criteria.boardId = boardId;
+  }
+
+  return defaultFind(criteria, { sort: ['occurrenceDate', 'id'] });
+};
 
 const getByListId = async (listId, { exceptIdOrIds, sort = ['position', 'id'] } = {}) => {
   const criteria = {
@@ -239,9 +254,11 @@ const delete_ = (criteria) => Card.destroy(criteria).fetch();
 const deleteOne = (criteria) => Card.destroyOne(criteria);
 
 module.exports = {
+  create,
   createOne,
   getByIds,
   getByBoardId,
+  getByRecurrenceId,
   getByListId,
   getByEndlessListId,
   getByListIds,

@@ -20,6 +20,11 @@ import LIST_TYPE_STATE_BY_TYPE from '../../../constants/ListTypeStateByType';
 import { CardTypeIcons } from '../../../constants/Icons';
 import { ClosableContext } from '../../../contexts';
 import { areDatesInOrder, buildCardData } from './card-data';
+import {
+  buildOccurrenceDates,
+  fromDateString,
+  getSeriesStartDate,
+} from '../../../utils/recurrence';
 import DueDateChip from '../DueDateChip';
 import StartDateChip from '../StartDateChip';
 import EditDueDateStep from '../EditDueDateStep';
@@ -31,6 +36,8 @@ import BoardMembershipsStep from '../../board-memberships/BoardMembershipsStep';
 import LabelChip from '../../labels/LabelChip';
 import LabelsStep from '../../labels/LabelsStep';
 import ListsStep from '../../lists/ListsStep';
+import EditRecurrenceStep from '../../card-recurrences/EditRecurrenceStep';
+import RecurrenceChip from '../../card-recurrences/RecurrenceChip';
 
 import cardStyles from '../CardModal/ProjectContent.module.scss';
 import nameFieldStyles from '../CardModal/NameField.module.scss';
@@ -55,6 +62,7 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
     dueDate: defaultData.dueDate || null,
     userIds: defaultData.userIds || [],
     labelIds: defaultData.labelIds || [],
+    recurrence: null,
   }));
 
   const [nameFieldRef, handleNameFieldRef] = useNestedRef();
@@ -78,7 +86,20 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
 
   const isClosed = !!list && LIST_TYPE_STATE_BY_TYPE[list.type] === ListTypeStates.CLOSED;
   const isDatesOrderValid = areDatesInOrder(data.startDate, data.dueDate);
-  const canCreate = !!list && isDatesOrderValid;
+
+  // A repeat needs the due date it takes its times from, and, since the dates may have changed
+  // after it was picked, a day left to land on
+  const recurrence = data.dueDate ? data.recurrence : null;
+
+  const isRecurrenceValid =
+    !recurrence ||
+    buildOccurrenceDates(
+      recurrence.weekdays,
+      getSeriesStartDate(data),
+      fromDateString(recurrence.endsOn),
+    ).length > 0;
+
+  const canCreate = !!list && isDatesOrderValid && isRecurrenceValid;
 
   // Edits build on the previous state, so quick successive picks in a popup never undo each other
   const setField = useCallback(
@@ -128,6 +149,8 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
 
   const handleStartDateUpdate = useCallback((value) => setField('startDate', value), [setField]);
   const handleDueDateUpdate = useCallback((value) => setField('dueDate', value), [setField]);
+  const handleRecurrenceUpdate = useCallback((value) => setField('recurrence', value), [setField]);
+  const handleRecurrenceRemove = useCallback(() => setField('recurrence', null), [setField]);
 
   const handleDescriptionUpdate = useCallback(
     (description) => setField('description', description),
@@ -166,6 +189,7 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
       {
         userIds,
         labelIds,
+        recurrence: recurrence || undefined,
       },
     );
 
@@ -178,6 +202,7 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
     list,
     userIds,
     labelIds,
+    recurrence,
     canCreate,
     nameFieldRef,
   ]);
@@ -205,6 +230,7 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
   const ListsPopup = usePopupInClosableContext(ListsStep);
   const EditStartDatePopup = usePopupInClosableContext(EditStartDateStep);
   const EditDueDatePopup = usePopupInClosableContext(EditDueDateStep);
+  const EditRecurrencePopup = usePopupInClosableContext(EditRecurrenceStep);
 
   return (
     <Grid className={cardStyles.wrapper}>
@@ -332,8 +358,27 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
                   </span>
                 </div>
               )}
+              {recurrence && (
+                <div className={cardStyles.attachments}>
+                  <div className={cardStyles.text}>{t('common.repeats')}</div>
+                  <span className={classNames(cardStyles.attachment, cardStyles.attachmentDueDate)}>
+                    <EditRecurrencePopup
+                      startDate={data.startDate}
+                      dueDate={data.dueDate}
+                      defaultValue={recurrence}
+                      onUpdate={handleRecurrenceUpdate}
+                      onRemove={handleRecurrenceRemove}
+                    >
+                      <RecurrenceChip weekdays={recurrence.weekdays} endsOn={recurrence.endsOn} />
+                    </EditRecurrencePopup>
+                  </span>
+                </div>
+              )}
               {!isDatesOrderValid && (
                 <div className={styles.error}>{t('common.startDateMustNotBeAfterDueDate')}</div>
+              )}
+              {!isRecurrenceValid && (
+                <div className={styles.error}>{t('common.noDaysToRepeatOn')}</div>
               )}
             </div>
           )}
@@ -438,6 +483,18 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
                   })}
                 </Button>
               </EditDueDatePopup>
+              <EditRecurrencePopup
+                startDate={data.startDate}
+                dueDate={data.dueDate}
+                defaultValue={recurrence || undefined}
+                onUpdate={handleRecurrenceUpdate}
+                onRemove={recurrence ? handleRecurrenceRemove : undefined}
+              >
+                <Button fluid className={classNames(cardStyles.actionButton, cardStyles.hidable)}>
+                  <Icon name="sync alternate" className={cardStyles.actionIcon} />
+                  {t('action.repeat')}
+                </Button>
+              </EditRecurrencePopup>
             </div>
             <div className={cardStyles.actions}>
               <Button

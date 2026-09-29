@@ -37,6 +37,9 @@ export const BAR_HEIGHT = 26;
 // A card with members gets a second line under its name for their avatars
 export const BAR_WITH_AVATARS_HEIGHT = 44;
 export const ROW_GAP = ROW_HEIGHT - BAR_HEIGHT;
+// A collapsed series row: a thin strip with a mark per card
+export const COMPACT_ROW_HEIGHT = 20;
+export const COMPACT_BAR_HEIGHT = 10;
 export const LANE_PADDING = 6;
 export const MIN_LANE_HEIGHT = ROW_HEIGHT + LANE_PADDING * 2;
 export const OPEN_ENDED_DURATION_DAYS = 7;
@@ -267,20 +270,63 @@ export const packRows = (entries) => {
     });
 };
 
+/**
+ * Like packRows, except that the cards of each recurring series get a row of their own under the
+ * lane's other cards, in the order the series start. A series then reads as one line, and never
+ * splits across rows or pushes other cards around. A lane holding only series keeps its first row
+ * free, since the lane's name sits there in the column beside it.
+ */
+export const packRowsWithSeries = (entries) => {
+  const packed = packRows(entries.filter(({ item }) => !item.seriesId));
+  const seriesEntries = entries.filter(({ item }) => item.seriesId);
+
+  if (seriesEntries.length === 0) {
+    return packed;
+  }
+
+  const firstRowIndex = Math.max(1, ...packed.map(({ rowIndex }) => rowIndex + 1));
+
+  const startBySeriesId = {};
+  seriesEntries.forEach(({ item, range }) => {
+    const start = range.start.getTime();
+
+    if (!(item.seriesId in startBySeriesId) || start < startBySeriesId[item.seriesId]) {
+      startBySeriesId[item.seriesId] = start;
+    }
+  });
+
+  const rowIndexBySeriesId = {};
+  Object.keys(startBySeriesId)
+    .sort((a, b) => startBySeriesId[a] - startBySeriesId[b] || a.localeCompare(b))
+    .forEach((seriesId, index) => {
+      rowIndexBySeriesId[seriesId] = firstRowIndex + index;
+    });
+
+  return [
+    ...packed,
+    ...seriesEntries.map((entry) => ({
+      ...entry,
+      rowIndex: rowIndexBySeriesId[entry.item.seriesId],
+    })),
+  ];
+};
+
 export const hasAvatars = (item) => !!item.memberIds && item.memberIds.length > 0;
 
 export const getBarHeight = (item) => (hasAvatars(item) ? BAR_WITH_AVATARS_HEIGHT : BAR_HEIGHT);
 
 // Each row is as tall as its tallest bar, so only rows holding cards with members take the
-// extra space. Returns the offset of every row from the top of the lane's content.
+// extra space, and a collapsed series row takes less. Returns the offset of every row from the
+// top of the lane's content.
 export const getRowOffsets = (entries) => {
   const rowHeights = [];
 
-  entries.forEach(({ item, rowIndex }) => {
-    rowHeights[rowIndex] = Math.max(
-      rowHeights[rowIndex] || ROW_HEIGHT,
-      getBarHeight(item) + ROW_GAP,
-    );
+  entries.forEach(({ item, rowIndex, isCompact }) => {
+    const height = isCompact
+      ? COMPACT_ROW_HEIGHT
+      : Math.max(ROW_HEIGHT, getBarHeight(item) + ROW_GAP);
+
+    rowHeights[rowIndex] = Math.max(rowHeights[rowIndex] || 0, height);
   });
 
   const rowTops = [];

@@ -11,9 +11,11 @@ import { Comment } from 'semantic-ui-react';
 
 import selectors from '../../../selectors';
 import { isUserStatic } from '../../../utils/record-helpers';
+import { fromDateString } from '../../../utils/recurrence';
 import { ActivityTypes } from '../../../constants/Enums';
 import TimeAgo from '../../common/TimeAgo';
 import UserAvatar from '../../users/UserAvatar';
+import { formatWeekdays } from '../../card-recurrences/weekdays';
 
 import styles from './Item.module.scss';
 
@@ -24,7 +26,7 @@ const Item = React.memo(({ id }) => {
   const activity = useSelector((state) => selectActivityById(state, id));
   const user = useSelector((state) => selectUserById(state, activity.userId));
 
-  const [t] = useTranslation();
+  const [t, i18n] = useTranslation();
 
   const userName = isUserStatic(user)
     ? t(`common.${user.name}`, {
@@ -165,6 +167,47 @@ const Item = React.memo(({ id }) => {
           {' marked '}
           {activity.data.task.name}
           {' incomplete on this card'}
+        </Trans>
+      );
+
+      break;
+    case ActivityTypes.CREATE_CARD_RECURRENCE: {
+      const { cardRecurrence, cardsTotal } = activity.data;
+
+      const days = formatWeekdays(t, i18n, cardRecurrence.weekdays);
+      const date = t('format:longDate', {
+        value: fromDateString(cardRecurrence.endsOn),
+        postProcess: 'formatDate',
+      });
+
+      contentNode = (
+        <Trans
+          i18nKey="common.userMadeThisCardRepeat"
+          count={cardsTotal}
+          values={{
+            user: userName,
+            days,
+            date,
+          }}
+        >
+          <span className={styles.author}>{userName}</span>
+          {` made this card repeat: ${days}, until ${date} (${cardsTotal} cards)`}
+        </Trans>
+      );
+
+      break;
+    }
+    case ActivityTypes.UPDATE_CARD_RECURRENCE:
+      contentNode = (
+        <Trans
+          i18nKey="common.userUpdatedCardsOfThisSeries"
+          count={activity.data.cardsTotal}
+          values={{
+            user: userName,
+          }}
+        >
+          <span className={styles.author}>{userName}</span>
+          {` updated ${activity.data.cardsTotal} cards of this series`}
         </Trans>
       );
 

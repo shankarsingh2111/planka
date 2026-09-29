@@ -193,6 +193,7 @@
     display: flex;
     gap: 6px;
     padding: 10px 10px 0 12px;
+    position: relative;
   }
 
   .laneHeaderToggleable {
@@ -397,6 +398,13 @@
     text-overflow: ellipsis;
     text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
     white-space: nowrap;
+  }
+
+  // Marks a card of a recurring series
+  .barRecurringIcon {
+    font-size: 10px;
+    margin: 0 4px 0 0;
+    opacity: 0.85;
   }
 
   // Name on the first line, member avatars on the second (see BAR_WITH_AVATARS_HEIGHT)
@@ -606,5 +614,94 @@
   .tooltipLine {
     color: rgba(255, 255, 255, 0.8);
     line-height: 1.5;
+  }
+
+  /* Recurring series */
+
+  // Names a series row, level with it in the lane column
+  .seriesLabel {
+    align-items: center;
+    border-radius: 4px;
+    color: #17394d;
+    display: flex;
+    font-size: 12px;
+    gap: 6px;
+    left: 8px;
+    line-height: 15px;
+    overflow: hidden;
+    padding: 0 6px 0 4px;
+    position: absolute;
+    right: 6px;
+    transition: background 0.1s ease;
+  }
+
+  .seriesLabelCompact {
+    font-size: 11px;
+
+    .seriesLabelText {
+      align-items: baseline;
+      display: flex;
+      gap: 6px;
+    }
+  }
+
+  .seriesLabelHighlighted {
+    background: rgba(33, 133, 208, 0.12);
+  }
+
+  .seriesLabelIcon {
+    color: #2185d0;
+    flex-shrink: 0;
+    margin: 0 !important;
+  }
+
+  .seriesLabelText {
+    display: grid;
+    min-width: 0;
+  }
+
+  .seriesLabelName,
+  .seriesLabelMeta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .seriesLabelName {
+    font-weight: bold;
+  }
+
+  .seriesLabelMeta {
+    color: #6b808c;
+    font-size: 11px;
+  }
+
+  // Joins the marks of a collapsed series, from its first card to its last
+  .seriesTrack {
+    background: rgba(9, 30, 66, 0.2);
+    border-radius: 1px;
+    height: 2px;
+    pointer-events: none;
+    position: absolute;
+    z-index: 1;
+  }
+
+  .seriesTrackHighlighted {
+    background: #17394d;
+  }
+
+  .barCompact {
+    border-radius: 3px;
+    box-shadow: none;
+  }
+
+  .barDimmed {
+    opacity: 0.25;
+  }
+
+  .barSeriesHighlighted {
+    outline: 2px solid #17394d;
+    outline-offset: 1px;
+    z-index: 3;
   }
 }

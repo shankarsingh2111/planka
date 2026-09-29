@@ -35,6 +35,10 @@ export default [
   'cardDependencyCreate',
   'cardDependencyDelete',
 
+  'cardRecurrenceCreate',
+  'cardRecurrenceUpdate',
+  'cardRecurrenceDelete',
+
   'cardMembershipCreate',
   'cardMembershipDelete',
 

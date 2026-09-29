@@ -132,6 +132,17 @@
  *           nullable: true
  *           description: When the card was last moved between lists
  *           example: 2024-01-01T00:00:00.000Z
+ *         recurrenceId:
+ *           type: string
+ *           nullable: true
+ *           description: ID of the recurring series the card is part of
+ *           example: "1357158568008091270"
+ *         occurrenceDate:
+ *           type: string
+ *           format: date
+ *           nullable: true
+ *           description: Date of the series slot the card fills, in the series' time zone
+ *           example: 2026-09-28
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -207,6 +218,13 @@ module.exports = {
       type: 'ref',
       columnName: 'list_changed_at',
     },
+    // The series slot the card fills. It stays put when only this card is moved, so "this and
+    // following" keeps meaning the same cards.
+    occurrenceDate: {
+      type: 'string',
+      allowNull: true,
+      columnName: 'occurrence_date',
+    },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
@@ -238,6 +256,10 @@ module.exports = {
     coverAttachmentId: {
       model: 'Attachment',
       columnName: 'cover_attachment_id',
+    },
+    recurrenceId: {
+      model: 'CardRecurrence',
+      columnName: 'recurrence_id',
     },
     subscriptionUsers: {
       collection: 'User',

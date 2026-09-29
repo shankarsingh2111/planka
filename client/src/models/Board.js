@@ -36,6 +36,10 @@ export default class extends BaseModel {
     context: attr(),
     view: attr(),
     search: attr(),
+    // Recurring series whose every card the lists show, instead of just the next one
+    unfoldedRecurrenceIds: attr({
+      getDefault: () => [],
+    }),
     isSubscribed: attr({
       getDefault: () => false,
     }),
@@ -232,6 +236,21 @@ export default class extends BaseModel {
         });
 
         break;
+      case ActionTypes.CARD_RECURRENCE_FOLD_TOGGLE: {
+        const boardModel = Board.withId(payload.boardId);
+
+        if (boardModel) {
+          const unfoldedRecurrenceIds = boardModel.unfoldedRecurrenceIds || [];
+
+          boardModel.update({
+            unfoldedRecurrenceIds: unfoldedRecurrenceIds.includes(payload.recurrenceId)
+              ? unfoldedRecurrenceIds.filter((id) => id !== payload.recurrenceId)
+              : [...unfoldedRecurrenceIds, payload.recurrenceId],
+          });
+        }
+
+        break;
+      }
       case ActionTypes.BOARD_DELETE:
         Board.withId(payload.id).deleteWithRelated();
 

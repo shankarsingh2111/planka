@@ -16,6 +16,8 @@ import {
   ROW_HEIGHT,
   BAR_HEIGHT,
   ROW_GAP,
+  COMPACT_ROW_HEIGHT,
+  COMPACT_BAR_HEIGHT,
   LANE_PADDING,
   MIN_LANE_HEIGHT,
   diffInDays,
@@ -26,7 +28,7 @@ import {
   getItemRange,
   getViewRange,
   getDropRange,
-  packRows,
+  packRowsWithSeries,
   getBarHeight,
   getRowOffsets,
   getHeaderColumns,
@@ -37,12 +39,70 @@ import useDropTarget from './use-drop-target';
 import findCriticalPath from './find-critical-path';
 import Toolbar from './Toolbar';
 import Bar from './Bar';
+import { formatWeekdays } from '../../card-recurrences/weekdays';
 
 import styles from './TimelineChart.module.scss';
 
 const NOW_TICK_INTERVAL = 60 * 1000;
 
 const DEFAULT_ZOOM_LEVELS = [ZoomLevels.DAY, ZoomLevels.WEEK, ZoomLevels.MONTH];
+
+// Remembered per browser: a view choice rather than something about the board
+const REPEATS_COLLAPSED_STORAGE_KEY = 'timeline.isRepeatsCollapsed';
+
+const readIsRepeatsCollapsed = () => {
+  try {
+    return window.localStorage.getItem(REPEATS_COLLAPSED_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * The rows of a lane that belong to a recurring series, with what their label in the lane column
+ * shows: the name of the series' first card, the weekdays its cards fall on and how many there are.
+ */
+const getSeriesRows = (entries, rowTops, rowsHeight) => {
+  const seriesRowById = {};
+
+  entries.forEach(({ item, range, rowIndex }) => {
+    if (!item.seriesId) {
+      return;
+    }
+
+    const weekday = range.start.getDay();
+    const seriesRow = seriesRowById[item.seriesId];
+
+    if (!seriesRow) {
+      const nextRowTop = rowIndex + 1 < rowTops.length ? rowTops[rowIndex + 1] : rowsHeight;
+
+      seriesRowById[item.seriesId] = {
+        seriesId: item.seriesId,
+        top: rowTops[rowIndex],
+        height: nextRowTop - rowTops[rowIndex],
+        name: item.name,
+        start: range.start,
+        total: 1,
+        weekdays: [weekday],
+      };
+
+      return;
+    }
+
+    seriesRow.total += 1;
+
+    if (!seriesRow.weekdays.includes(weekday)) {
+      seriesRow.weekdays.push(weekday);
+    }
+
+    if (range.start < seriesRow.start) {
+      seriesRow.start = range.start;
+      seriesRow.name = item.name;
+    }
+  });
+
+  return Object.values(seriesRowById);
+};
 
 const TimelineChart = React.memo(
   ({
@@ -77,6 +137,7 @@ const TimelineChart = React.memo(
     const [linking, setLinking] = useState(null);
     const [hoveredItemId, setHoveredItemId] = useState(null);
     const [isCriticalPathShown, setIsCriticalPathShown] = useState(false);
+    const [isRepeatsCollapsed, setIsRepeatsCollapsed] = useState(readIsRepeatsCollapsed);
     const [now, setNow] = useState(() => new Date());
 
     // Keeps the current-time marker moving; a minute is well under a pixel at every zoom level
@@ -130,6 +191,20 @@ const TimelineChart = React.memo(
 
     const totalWidth = totalDays * pixelsPerDay;
 
+    const hasSeries = useMemo(() => items.some((item) => item.seriesId), [items]);
+
+    useEffect(() => {
+      try {
+        window.localStorage.setItem(REPEATS_COLLAPSED_STORAGE_KEY, String(isRepeatsCollapsed));
+      } catch {
+        // Only a convenience: the choice then lasts until the page is reloaded
+      }
+    }, [isRepeatsCollapsed]);
+
+    const handleRepeatsCollapseToggle = useCallback(() => {
+      setIsRepeatsCollapsed((prevIsRepeatsCollapsed) => !prevIsRepeatsCollapsed);
+    }, []);
+
     // Rows are packed from committed dates only, so bars don't jump between rows mid-drag
     const layout = useMemo(() => {
       let top = 0;
@@ -137,7 +212,7 @@ const TimelineChart = React.memo(
       const laneLayouts = lanes.map((lane) => {
         const isCollapsed = collapsedLaneKeys.includes(lane.key);
 
-        const packed = packRows(
+        const packed = packRowsWithSeries(
           items
             .filter((item) => rangeById[item.id] && item.laneKeys.includes(lane.key))
             .map((item) => ({
@@ -150,7 +225,14 @@ const TimelineChart = React.memo(
         // drop target and still shows where its work sits on the scale
         const rowEntries = isCollapsed
           ? packed.map((entry) => ({ ...entry, rowIndex: 0 }))
-          : packed;
+          : packed.map((entry) =>
+              isRepeatsCollapsed && entry.item.seriesId
+                ? {
+                    ...entry,
+                    isCompact: true,
+                  }
+                : entry,
+            );
 
         const { rowTops, totalHeight: rowsHeight } = getRowOffsets(rowEntries);
 
@@ -167,6 +249,7 @@ const TimelineChart = React.memo(
           height,
           entries,
           isCollapsed,
+          seriesRows: isCollapsed ? [] : getSeriesRows(entries, rowTops, rowsHeight),
         };
 
         top += height;
@@ -177,7 +260,7 @@ const TimelineChart = React.memo(
         lanes: laneLayouts,
         totalHeight: top,
       };
-    }, [lanes, items, rangeById, collapsedLaneKeys]);
+    }, [lanes, items, rangeById, collapsedLaneKeys, isRepeatsCollapsed]);
 
     const getLaneKeyAtClientY = useCallback(
       (clientY) => {
@@ -249,13 +332,15 @@ const TimelineChart = React.memo(
     const bars = useMemo(
       () =>
         layout.lanes.flatMap(({ lane, top, entries }) =>
-          entries.map(({ item, rowTop, range: committedRange }) => {
+          entries.map(({ item, rowTop, range: committedRange, isCompact }) => {
             const range = getRenderRange(item.id, committedRange);
             const left = getOffsetX(viewStart, range.start, zoomLevel);
             const width = Math.max(
               getOffsetX(viewStart, range.end, zoomLevel) + unitWidth - left,
               8,
             );
+
+            const rowGap = isCompact ? COMPACT_ROW_HEIGHT - COMPACT_BAR_HEIGHT : ROW_GAP;
 
             return {
               key: `${lane.key}:${item.id}`,
@@ -264,13 +349,75 @@ const TimelineChart = React.memo(
               range,
               left,
               width,
-              top: top + LANE_PADDING + rowTop + ROW_GAP / 2,
-              height: getBarHeight(item),
+              top: top + LANE_PADDING + rowTop + rowGap / 2,
+              height: isCompact ? COMPACT_BAR_HEIGHT : getBarHeight(item),
+              isCompact: !!isCompact,
             };
           }),
         ),
       [layout, getRenderRange, viewStart, zoomLevel, unitWidth],
     );
+
+    // A collapsed series row gets a strip joining its marks, from the first card to the last
+    const seriesTracks = useMemo(() => {
+      if (!isRepeatsCollapsed) {
+        return [];
+      }
+
+      const trackByKey = {};
+
+      bars.forEach(({ item, laneKey, left, width, top, height, isCompact }) => {
+        if (!isCompact) {
+          return;
+        }
+
+        const key = `${laneKey}:${item.seriesId}`;
+        const track = trackByKey[key];
+
+        if (!track) {
+          trackByKey[key] = {
+            key,
+            seriesId: item.seriesId,
+            left,
+            right: left + width,
+            top: top + height / 2,
+          };
+
+          return;
+        }
+
+        track.left = Math.min(track.left, left);
+        track.right = Math.max(track.right, left + width);
+      });
+
+      return Object.values(trackByKey);
+    }, [bars, isRepeatsCollapsed]);
+
+    // Where each card of a series falls in it, for the tooltip
+    const seriesPositionById = useMemo(() => {
+      const itemIdsBySeriesId = {};
+
+      items.forEach((item) => {
+        if (item.seriesId && rangeById[item.id]) {
+          itemIdsBySeriesId[item.seriesId] = [...(itemIdsBySeriesId[item.seriesId] || []), item.id];
+        }
+      });
+
+      const positionById = {};
+
+      Object.values(itemIdsBySeriesId).forEach((itemIds) => {
+        itemIds
+          .sort((a, b) => rangeById[a].start - rangeById[b].start)
+          .forEach((itemId, index) => {
+            positionById[itemId] = {
+              index: index + 1,
+              total: itemIds.length,
+            };
+          });
+      });
+
+      return positionById;
+    }, [items, rangeById]);
 
     /**
      * The bar being dragged stays put and a ghost carries the movement instead, so the original
@@ -552,6 +699,9 @@ const TimelineChart = React.memo(
 
     const hoveredBar = hoveredItemId && !drag && !linking ? anchorById[hoveredItemId] : null;
 
+    // Hovering a card of a series brings out the whole series and fades everything else
+    const hoveredSeriesId = hoveredBar ? hoveredBar.item.seriesId || null : null;
+
     // Weekend columns are shaded with a repeating gradient rather than extra elements
     const backgroundLayers = [];
 
@@ -576,11 +726,14 @@ const TimelineChart = React.memo(
           unscheduledCount={unscheduledCount}
           withCriticalPath={dependencies.length > 0}
           isCriticalPathShown={isCriticalPathShown}
+          withRepeatsCollapse={hasSeries}
+          isRepeatsCollapsed={isRepeatsCollapsed}
           leadingChildren={leadingToolbarChildren}
           actionChildren={toolbarActionChildren}
           onZoomLevelChange={handleZoomLevelChange}
           onScrollToToday={scrollToToday}
           onCriticalPathToggle={() => setIsCriticalPathShown(!isCriticalPathShown)}
+          onRepeatsCollapseToggle={handleRepeatsCollapseToggle}
         >
           {toolbarChildren}
         </Toolbar>
@@ -647,7 +800,7 @@ const TimelineChart = React.memo(
             ) : (
               <div className={styles.body}>
                 <div className={styles.laneHeaders} style={{ width: LANE_HEADER_WIDTH }}>
-                  {layout.lanes.map(({ lane, height, entries, isCollapsed }) => (
+                  {layout.lanes.map(({ lane, height, entries, isCollapsed, seriesRows }) => (
                     <div
                       key={lane.key}
                       className={classNames(
@@ -679,6 +832,28 @@ const TimelineChart = React.memo(
                         {lane.label}
                       </span>
                       <span className={styles.laneCount}>{entries.length}</span>
+                      {seriesRows.map((seriesRow) => (
+                        <div
+                          key={seriesRow.seriesId}
+                          className={classNames(styles.seriesLabel, {
+                            [styles.seriesLabelCompact]: seriesRow.height < ROW_HEIGHT,
+                            [styles.seriesLabelHighlighted]:
+                              seriesRow.seriesId === hoveredSeriesId,
+                          })}
+                          style={{ top: LANE_PADDING + seriesRow.top, height: seriesRow.height }}
+                          title={seriesRow.name}
+                        >
+                          <Icon name="sync alternate" className={styles.seriesLabelIcon} />
+                          <span className={styles.seriesLabelText}>
+                            <span className={styles.seriesLabelName}>{seriesRow.name}</span>
+                            <span className={styles.seriesLabelMeta}>
+                              {formatWeekdays(t, i18n, seriesRow.weekdays)}
+                              {' · '}
+                              {t('common.cardsInSeries', { count: seriesRow.total })}
+                            </span>
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
@@ -786,7 +961,20 @@ const TimelineChart = React.memo(
                       />
                     )}
                   </svg>
-                  {bars.map(({ key, item, laneKey, range, left, width, top, height }) => (
+                  {seriesTracks.map((track) => (
+                    <div
+                      key={track.key}
+                      className={classNames(styles.seriesTrack, {
+                        [styles.seriesTrackHighlighted]: track.seriesId === hoveredSeriesId,
+                      })}
+                      style={{
+                        left: track.left,
+                        width: track.right - track.left,
+                        top: track.top - 1,
+                      }}
+                    />
+                  ))}
+                  {bars.map(({ key, item, laneKey, range, left, width, top, height, isCompact }) => (
                     <Bar
                       key={key}
                       item={item}
@@ -796,6 +984,9 @@ const TimelineChart = React.memo(
                       width={width}
                       top={top}
                       height={height}
+                      isCompact={isCompact}
+                      isDimmed={!!hoveredSeriesId && item.seriesId !== hoveredSeriesId}
+                      isSeriesHighlighted={!!hoveredSeriesId && item.seriesId === hoveredSeriesId}
                       isEditable={isEditable && item.isEditable !== false}
                       isLinkable={isLinkable && item.isEditable !== false}
                       isCritical={criticalPath.itemIds.has(item.id)}
@@ -885,6 +1076,13 @@ const TimelineChart = React.memo(
                           })}
                         </div>
                       )}
+                      {seriesPositionById[hoveredBar.item.id] && (
+                        <div className={styles.tooltipLine}>
+                          {t('common.recurringCard')}
+                          {' · '}
+                          {t('common.cardOfSeries', seriesPositionById[hoveredBar.item.id])}
+                        </div>
+                      )}
                       {(hoveredBar.item.details || []).map((detail) => (
                         <div key={detail} className={styles.tooltipLine}>
                           {detail}
@@ -914,6 +1112,7 @@ TimelineChart.propTypes = {
       isCompleted: PropTypes.bool,
       isOverdue: PropTypes.bool,
       isEditable: PropTypes.bool,
+      seriesId: PropTypes.string,
       progress: PropTypes.shape({
         completed: PropTypes.number.isRequired,
         total: PropTypes.number.isRequired,

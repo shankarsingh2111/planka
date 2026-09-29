@@ -29,8 +29,8 @@ export default function* cardsWatchers() {
     ),
     takeEvery(
       EntryActionTypes.CARD_WITH_DETAILS_CREATE,
-      ({ payload: { listId, data, userIds, labelIds } }) =>
-        services.createCardWithDetails(listId, data, { userIds, labelIds }),
+      ({ payload: { listId, data, userIds, labelIds, recurrence } }) =>
+        services.createCardWithDetails(listId, data, { userIds, labelIds, recurrence }),
     ),
     takeEvery(EntryActionTypes.CARD_CREATE_HANDLE, ({ payload: { card } }) =>
       services.handleCardCreate(card),

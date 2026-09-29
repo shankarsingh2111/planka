@@ -12,10 +12,12 @@ import { Comment } from 'semantic-ui-react';
 
 import selectors from '../../../selectors';
 import { isUserStatic } from '../../../utils/record-helpers';
+import { fromDateString } from '../../../utils/recurrence';
 import Paths from '../../../constants/Paths';
 import { ActivityTypes } from '../../../constants/Enums';
 import TimeAgo from '../../common/TimeAgo';
 import UserAvatar from '../../users/UserAvatar';
+import { formatWeekdays } from '../../card-recurrences/weekdays';
 
 import styles from './Item.module.scss';
 
@@ -28,7 +30,7 @@ const Item = React.memo(({ id }) => {
   const user = useSelector((state) => selectUserById(state, activity.userId));
   const card = useSelector((state) => selectCardById(state, activity.cardId));
 
-  const [t] = useTranslation();
+  const [t, i18n] = useTranslation();
 
   const userName = isUserStatic(user)
     ? t(`common.${user.name}`, {
@@ -189,6 +191,53 @@ const Item = React.memo(({ id }) => {
           {activity.data.task.name}
           {' incomplete on '}
           <Link to={Paths.CARDS.replace(':id', activity.cardId)}>{cardName}</Link>
+        </Trans>
+      );
+
+      break;
+    case ActivityTypes.CREATE_CARD_RECURRENCE: {
+      const { cardRecurrence, cardsTotal } = activity.data;
+
+      const days = formatWeekdays(t, i18n, cardRecurrence.weekdays);
+      const date = t('format:longDate', {
+        value: fromDateString(cardRecurrence.endsOn),
+        postProcess: 'formatDate',
+      });
+
+      contentNode = (
+        <Trans
+          i18nKey="common.userMadeCardRepeat"
+          count={cardsTotal}
+          values={{
+            user: userName,
+            card: cardName,
+            days,
+            date,
+          }}
+        >
+          <span className={styles.author}>{userName}</span>
+          {' made '}
+          <Link to={Paths.CARDS.replace(':id', activity.cardId)}>{cardName}</Link>
+          {` repeat: ${days}, until ${date} (${cardsTotal} cards)`}
+        </Trans>
+      );
+
+      break;
+    }
+    case ActivityTypes.UPDATE_CARD_RECURRENCE:
+      contentNode = (
+        <Trans
+          i18nKey="common.userUpdatedCardsOfCardSeries"
+          count={activity.data.cardsTotal}
+          values={{
+            user: userName,
+            card: cardName,
+          }}
+        >
+          <span className={styles.author}>{userName}</span>
+          {` updated ${activity.data.cardsTotal} cards of the `}
+          <Link to={Paths.CARDS.replace(':id', activity.cardId)}>{cardName}</Link>
+          {' series'}
         </Trans>
       );
 

@@ -3,6 +3,8 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
+import omit from 'lodash/omit';
+import pick from 'lodash/pick';
 import { all, call, fork, join, put, race, select, take } from 'redux-saga/effects';
 import toast from 'react-hot-toast';
 import { LOCATION_CHANGE_HANDLE } from '../../../lib/redux-router';
@@ -10,6 +12,12 @@ import { LOCATION_CHANGE_HANDLE } from '../../../lib/redux-router';
 import { goToBoard, goToCard } from './router';
 import { addUserToCard } from './users';
 import { addLabelToCard } from './labels';
+import {
+  CARD_RECURRENCE_FIELD_NAMES,
+  createCardRecurrence,
+  getCardRecurrenceScope,
+  updateCardRecurrence,
+} from './card-recurrences';
 import request from '../request';
 import selectors from '../../../selectors';
 import actions from '../../../actions';
@@ -179,9 +187,10 @@ export function* createCard(listId, data, index, autoOpen) {
 /**
  * The API only takes members and labels on a card that already exists, so they follow the create
  * instead of riding along with it, addressed by the server's id rather than the local one the
- * store showed in the meantime. Each attach rolls itself back if it fails.
+ * store showed in the meantime. Each attach rolls itself back if it fails. A repeat comes last,
+ * since every card of the series is a copy of this one, members and labels included.
  */
-export function* createCardWithDetails(listId, data, { userIds, labelIds }) {
+export function* createCardWithDetails(listId, data, { userIds, labelIds, recurrence }) {
   const card = yield call(createCard, listId, data);
 
   if (!card) {
@@ -192,6 +201,10 @@ export function* createCardWithDetails(listId, data, { userIds, labelIds }) {
     ...userIds.map((userId) => call(addUserToCard, userId, card.id)),
     ...labelIds.map((labelId) => call(addLabelToCard, labelId, card.id)),
   ]);
+
+  if (recurrence) {
+    yield call(createCardRecurrence, card.id, recurrence);
+  }
 }
 
 export function* createCardInCurrentContext(data, index, autoOpen) {
@@ -253,6 +266,25 @@ export function* handleCardCreate(card) {
 }
 
 export function* updateCard(id, data) {
+  const recurrenceScope = yield call(getCardRecurrenceScope, id);
+
+  // The series times come from the due date, so removing it only ever concerns the card itself
+  if (recurrenceScope && data.dueDate !== null) {
+    const recurrenceData = pick(data, CARD_RECURRENCE_FIELD_NAMES);
+
+    if (Object.keys(recurrenceData).length > 0) {
+      yield call(updateCardRecurrence, id, recurrenceScope, recurrenceData);
+
+      const cardData = omit(data, CARD_RECURRENCE_FIELD_NAMES);
+
+      if (Object.keys(cardData).length > 0) {
+        yield call(updateCard, id, cardData);
+      }
+
+      return;
+    }
+  }
+
   let prevListId;
   let isClosed;
 

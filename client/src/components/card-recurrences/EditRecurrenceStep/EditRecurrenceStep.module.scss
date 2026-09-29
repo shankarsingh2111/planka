@@ -1,0 +1,98 @@
+/*!
+ * Copyright (c) 2024 PLANKA Software GmbH
+ * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
+ */
+
+:global(#app) {
+  .hint {
+    color: #6b808c;
+    font-size: 12px;
+    line-height: 16px;
+    padding-bottom: 12px;
+  }
+
+  .preset {
+    background: transparent;
+    border: none;
+    color: #6b808c;
+    cursor: pointer;
+    font-size: 12px;
+    outline: none;
+    padding: 0;
+    text-decoration: underline;
+
+    &:hover {
+      color: #17394d;
+    }
+  }
+
+  .presets {
+    display: flex;
+    gap: 12px;
+    padding: 0 2px 12px;
+  }
+
+  .preview {
+    color: #212121;
+    font-size: 13px;
+    padding: 4px 2px 12px;
+  }
+
+  .scope {
+    display: block;
+    padding-bottom: 6px;
+  }
+
+  .scopes {
+    padding: 0 2px 6px;
+  }
+
+  .secondaryButton {
+    box-shadow: 0 1px 0 #cbcccc;
+    margin-top: 8px;
+    width: 100%;
+  }
+
+  .text {
+    color: #444444;
+    font-size: 12px;
+    font-weight: bold;
+    padding-bottom: 4px;
+    padding-left: 2px;
+  }
+
+  .weekday {
+    background: #dce0e4;
+    border: none;
+    border-radius: 3px;
+    color: #6a808b;
+    cursor: pointer;
+    flex: 1;
+    font-size: 12px;
+    line-height: 28px;
+    outline: none;
+    padding: 0;
+    transition: background 0.3s ease;
+
+    &:hover {
+      background: #d2d8dc;
+      color: #17394d;
+    }
+  }
+
+  .weekdayActive {
+    background: #2185d0;
+    color: #fff;
+
+    &:hover {
+      background: #1678c2;
+      color: #fff;
+    }
+  }
+
+  .weekdays {
+    display: flex;
+    gap: 4px;
+    padding-bottom: 6px;
+  }
+}

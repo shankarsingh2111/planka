@@ -7,6 +7,7 @@ import React, { useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import { shallowEqual, useDispatch, useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { Icon } from 'semantic-ui-react';
 
 import selectors from '../../../selectors';
@@ -52,6 +53,11 @@ const ProjectContent = React.memo(({ cardId }) => {
 
   const selectAttachmentById = useMemo(() => selectors.makeSelectAttachmentById(), []);
 
+  const selectCardSeriesFoldByCardId = useMemo(
+    () => selectors.makeSelectCardSeriesFoldByCardId(),
+    [],
+  );
+
   const card = useSelector((state) => selectCardById(state, cardId));
   const list = useSelector((state) => selectListById(state, card.listId));
   const userIds = useSelector((state) => selectUserIdsByCardId(state, cardId));
@@ -69,6 +75,11 @@ const ProjectContent = React.memo(({ cardId }) => {
 
   const notificationsTotal = useSelector((state) =>
     selectNotificationsTotalByCardId(state, cardId),
+  );
+
+  const seriesFold = useSelector(
+    (state) => selectCardSeriesFoldByCardId(state, cardId),
+    shallowEqual,
   );
 
   const coverUrl = useSelector((state) => {
@@ -96,6 +107,7 @@ const ProjectContent = React.memo(({ cardId }) => {
   });
 
   const dispatch = useDispatch();
+  const [t] = useTranslation();
 
   const handleToggleStopwatchClick = useCallback(
     (event) => {
@@ -112,9 +124,33 @@ const ProjectContent = React.memo(({ cardId }) => {
     [cardId, card.stopwatch, dispatch],
   );
 
+  // The card stands for its series in the list: the chip shows or hides the series' other cards
+  const handleSeriesFoldClick = useCallback(
+    (event) => {
+      event.stopPropagation();
+      dispatch(entryActions.toggleCardRecurrenceFoldInCurrentBoard(card.recurrenceId));
+    },
+    [card.recurrenceId, dispatch],
+  );
+
+  let seriesFoldTitle;
+  if (seriesFold) {
+    if (seriesFold.isUnfolded) {
+      seriesFoldTitle = t('common.showOnlyNextCardOfSeries');
+    } else {
+      seriesFoldTitle = t(
+        seriesFold.hasOverdue ? 'common.moreCardsInSeriesSomeOverdue' : 'common.moreCardsInSeries',
+        {
+          count: seriesFold.hiddenTotal,
+        },
+      );
+    }
+  }
+
   const hasInformation =
     card.description ||
     card.dueDate ||
+    card.recurrenceId ||
     card.stopwatch ||
     card.commentsTotal > 0 ||
     withAge ||
@@ -196,6 +232,30 @@ const ProjectContent = React.memo(({ cardId }) => {
                 isCompleted={card.isDueCompleted}
                 withStatus={!card.isClosed}
               />
+            </span>
+          )}
+          {card.recurrenceId && (
+            <span className={classNames(styles.attachment, styles.attachmentLeft)}>
+              {seriesFold ? (
+                <button
+                  type="button"
+                  title={seriesFoldTitle}
+                  className={classNames(
+                    styles.seriesFoldButton,
+                    !seriesFold.isUnfolded &&
+                      seriesFold.hasOverdue &&
+                      styles.seriesFoldButtonOverdue,
+                  )}
+                  onClick={handleSeriesFoldClick}
+                >
+                  <Icon name="sync alternate" />
+                  {seriesFold.isUnfolded ? t('action.showLess') : `+${seriesFold.hiddenTotal}`}
+                </button>
+              ) : (
+                <span className={styles.attachmentContent} title={t('common.recurringCard')}>
+                  <Icon name="sync alternate" />
+                </span>
+              )}
             </span>
           )}
           {card.stopwatch && (

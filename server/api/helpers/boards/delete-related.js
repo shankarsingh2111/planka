@@ -35,6 +35,10 @@ module.exports = {
 
     await sails.helpers.lists.deleteRelated(lists);
 
+    await CardRecurrence.qm.delete({
+      boardId: boardIdOrIds,
+    });
+
     await Action.qm.update(
       {
         boardId: boardIdOrIds,
