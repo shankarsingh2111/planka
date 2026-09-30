@@ -443,6 +443,62 @@ export const selectActivityIdsForCurrentCard = createSelector(
   },
 );
 
+export const selectCommunicationItemsForCurrentCard = createSelector(
+  orm,
+  (state) => selectPath(state).cardId,
+  ({ Card }, id) => {
+    if (!id) {
+      return id;
+    }
+
+    const cardModel = Card.withId(id);
+
+    if (!cardModel) {
+      return cardModel;
+    }
+
+    if (cardModel.isAllCommentsFetched === null || cardModel.isAllActivitiesFetched === null) {
+      return [];
+    }
+
+    const commentModels = cardModel.getCommentsModelArray();
+    const activityModels = cardModel.getActivitiesModelArray();
+
+    // Both lists are paginated newest-first, so anything older than the oldest loaded item of a
+    // partially fetched list could still be missing its neighbours from that list - hide it until
+    // that list is fetched further.
+    let cutoffDate = null;
+
+    [
+      [commentModels, cardModel.isAllCommentsFetched],
+      [activityModels, cardModel.isAllActivitiesFetched],
+    ].forEach(([models, isAllFetched]) => {
+      if (!isAllFetched && models.length > 0) {
+        const { createdAt } = models[models.length - 1];
+
+        if (!cutoffDate || createdAt > cutoffDate) {
+          cutoffDate = createdAt;
+        }
+      }
+    });
+
+    return [
+      ...commentModels.map((commentModel) => ({
+        type: 'comment',
+        id: commentModel.id,
+        createdAt: commentModel.createdAt,
+      })),
+      ...activityModels.map((activityModel) => ({
+        type: 'activity',
+        id: activityModel.id,
+        createdAt: activityModel.createdAt,
+      })),
+    ]
+      .filter((item) => !cutoffDate || item.createdAt >= cutoffDate)
+      .sort((a, b) => b.createdAt - a.createdAt);
+  },
+);
+
 export const selectIsCurrentUserInCurrentCard = createSelector(
   orm,
   (state) => selectPath(state).cardId,
@@ -534,6 +590,7 @@ export default {
   selectCustomFieldGroupIdsForCurrentCard,
   selectCommentIdsForCurrentCard,
   selectActivityIdsForCurrentCard,
+  selectCommunicationItemsForCurrentCard,
   selectIsCurrentUserInCurrentCard,
   selectTimelineCardsByIds,
 };

@@ -9,6 +9,7 @@ import { Menu, Tab } from 'semantic-ui-react';
 
 import Comments from '../../comments/Comments';
 import CardActivities from '../../activities/CardActivities';
+import CommentsAndActivities from './CommentsAndActivities';
 
 import styles from './Communication.module.scss';
 
@@ -16,6 +17,16 @@ const Communication = React.memo(() => {
   const [t] = useTranslation();
 
   const panes = [
+    {
+      menuItem: (
+        <Menu.Item key="all" className={styles.menuItem}>
+          {t('common.all', {
+            context: 'title',
+          })}
+        </Menu.Item>
+      ),
+      render: () => <CommentsAndActivities />,
+    },
     {
       menuItem: (
         <Menu.Item key="comments" className={styles.menuItem}>

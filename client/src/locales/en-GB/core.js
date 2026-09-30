@@ -301,6 +301,7 @@ export default {
       seconds: 'Seconds',
       selectAssignee_title: 'Select Assignee',
       selectBoard: 'Select board',
+      selectDate: 'Select date',
       selectList: 'Select list',
       selectListToRestoreThisCard: 'Select list to restore this card',
       selectOrder_title: 'Select Order',

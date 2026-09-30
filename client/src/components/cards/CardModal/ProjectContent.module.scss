@@ -120,6 +120,27 @@
     }
   }
 
+  .datePlaceholder {
+    background: rgba(9, 30, 66, 0.04);
+    border: 1px dashed rgba(9, 30, 66, 0.2);
+    border-radius: 3px;
+    color: #8c9ba5;
+    cursor: pointer;
+    line-height: 20px;
+    outline: none;
+    padding: 5px 12px;
+    transition: background 0.3s ease;
+
+    &:hover {
+      background: rgba(9, 30, 66, 0.08);
+      color: #17394d;
+    }
+  }
+
+  .datePlaceholderIcon {
+    margin-right: 6px;
+  }
+
   .descriptionButton {
     background: rgba(9, 30, 66, 0.04);
     border: none;

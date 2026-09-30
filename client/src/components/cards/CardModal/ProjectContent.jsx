@@ -397,7 +397,10 @@ const ProjectContent = React.memo(() => {
       </Grid.Row>
       <Grid.Row className={styles.modalPadding}>
         <Grid.Column width={12} className={styles.contentPadding}>
-          {(card.dueDate ||
+          {(card.startDate ||
+            card.dueDate ||
+            canEditStartDate ||
+            canEditDueDate ||
             card.stopwatch ||
             cardRecurrence ||
             board.alwaysDisplayCardCreator ||
@@ -496,7 +499,7 @@ const ProjectContent = React.memo(() => {
                   )}
                 </div>
               )}
-              {card.startDate && (
+              {card.startDate ? (
                 <div className={styles.attachments}>
                   <div className={styles.text}>
                     {t('common.startDate', {
@@ -512,6 +515,43 @@ const ProjectContent = React.memo(() => {
                       <StartDateChip value={card.startDate} />
                     )}
                   </span>
+                </div>
+              ) : (
+                canEditStartDate && (
+                  <div className={styles.attachments}>
+                    <div className={styles.text}>
+                      {t('common.startDate', {
+                        context: 'title',
+                      })}
+                    </div>
+                    <EditStartDatePopup cardId={card.id}>
+                      <button
+                        type="button"
+                        className={classNames(styles.attachment, styles.datePlaceholder)}
+                      >
+                        <Icon name="calendar outline" className={styles.datePlaceholderIcon} />
+                        {t('common.selectDate')}
+                      </button>
+                    </EditStartDatePopup>
+                  </div>
+                )
+              )}
+              {!card.dueDate && canEditDueDate && (
+                <div className={styles.attachments}>
+                  <div className={styles.text}>
+                    {t('common.dueDate', {
+                      context: 'title',
+                    })}
+                  </div>
+                  <EditDueDatePopup cardId={card.id}>
+                    <button
+                      type="button"
+                      className={classNames(styles.attachment, styles.datePlaceholder)}
+                    >
+                      <Icon name="calendar check outline" className={styles.datePlaceholderIcon} />
+                      {t('common.selectDate')}
+                    </button>
+                  </EditDueDatePopup>
                 </div>
               )}
               {card.dueDate && (
