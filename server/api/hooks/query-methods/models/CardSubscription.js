@@ -7,6 +7,8 @@ const defaultFind = (criteria) => CardSubscription.find(criteria).sort('id');
 
 /* Query methods */
 
+const create = (arrayOfValues) => CardSubscription.createEach(arrayOfValues).fetch();
+
 const createOne = (values) => CardSubscription.create({ ...values }).fetch();
 
 const getByIds = (ids) => defaultFind(ids);
@@ -43,6 +45,7 @@ const delete_ = (criteria) => CardSubscription.destroy(criteria).fetch();
 const deleteOne = (criteria) => CardSubscription.destroyOne(criteria);
 
 module.exports = {
+  create,
   createOne,
   getByIds,
   getByCardId,

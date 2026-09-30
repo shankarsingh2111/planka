@@ -5,6 +5,7 @@
 
 import { call, put, select } from 'redux-saga/effects';
 
+import { getCardRecurrenceScope, updateCardRecurrence } from './card-recurrences';
 import request from '../request';
 import selectors from '../../../selectors';
 import actions from '../../../actions';
@@ -149,8 +150,15 @@ export function* addLabelToCard(id, cardId) {
 
 export function* addLabelToCurrentCard(id) {
   const { cardId } = yield select(selectors.selectPath);
+  const recurrenceScope = yield call(getCardRecurrenceScope, cardId);
 
-  yield call(addLabelToCard, id, cardId);
+  if (recurrenceScope) {
+    yield call(updateCardRecurrence, cardId, recurrenceScope, {
+      addLabelId: id,
+    });
+  } else {
+    yield call(addLabelToCard, id, cardId);
+  }
 }
 
 export function* handleLabelToCardAdd(cardLabel) {
@@ -173,8 +181,15 @@ export function* removeLabelFromCard(id, cardId) {
 
 export function* removeLabelFromCurrentCard(id) {
   const { cardId } = yield select(selectors.selectPath);
+  const recurrenceScope = yield call(getCardRecurrenceScope, cardId);
 
-  yield call(removeLabelFromCard, id, cardId);
+  if (recurrenceScope) {
+    yield call(updateCardRecurrence, cardId, recurrenceScope, {
+      removeLabelId: id,
+    });
+  } else {
+    yield call(removeLabelFromCard, id, cardId);
+  }
 }
 
 export function* handleLabelFromCardRemove(cardLabel) {

@@ -187,6 +187,10 @@ module.exports = {
           cardId: inputs.record.id,
         });
 
+        // Series are board-scoped too: the card leaves its series
+        values.recurrenceId = null;
+        values.occurrenceDate = null;
+
         // Dependencies are board-scoped, so they don't survive a move to another board
         await CardDependency.qm.delete({
           or: [

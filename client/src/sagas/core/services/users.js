@@ -6,6 +6,7 @@
 import { call, put, select } from 'redux-saga/effects';
 
 import { changeCoreLanguage, logout } from './core';
+import { getCardRecurrenceScope, updateCardRecurrence } from './card-recurrences';
 import request from '../request';
 import requests from '../requests';
 import selectors from '../../../selectors';
@@ -433,8 +434,15 @@ export function* addUserToCard(id, cardId) {
 
 export function* addUserToCurrentCard(id) {
   const { cardId } = yield select(selectors.selectPath);
+  const recurrenceScope = yield call(getCardRecurrenceScope, cardId);
 
-  yield call(addUserToCard, id, cardId);
+  if (recurrenceScope) {
+    yield call(updateCardRecurrence, cardId, recurrenceScope, {
+      addUserId: id,
+    });
+  } else {
+    yield call(addUserToCard, id, cardId);
+  }
 }
 
 export function* addCurrentUserToCurrentCard() {
@@ -463,8 +471,15 @@ export function* removeUserFromCard(id, cardId) {
 
 export function* removeUserFromCurrentCard(id) {
   const { cardId } = yield select(selectors.selectPath);
+  const recurrenceScope = yield call(getCardRecurrenceScope, cardId);
 
-  yield call(removeUserFromCard, id, cardId);
+  if (recurrenceScope) {
+    yield call(updateCardRecurrence, cardId, recurrenceScope, {
+      removeUserId: id,
+    });
+  } else {
+    yield call(removeUserFromCard, id, cardId);
+  }
 }
 
 export function* removeCurrentUserFromCurrentCard() {

@@ -24,6 +24,12 @@ export default class extends BaseModel {
     isDueCompleted: attr(),
     stopwatch: attr(),
     isClosed: attr(),
+    recurrenceId: attr({
+      getDefault: () => null,
+    }),
+    occurrenceDate: attr({
+      getDefault: () => null,
+    }),
     commentsTotal: attr({
       getDefault: () => 0,
     }),

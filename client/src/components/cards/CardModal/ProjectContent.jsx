@@ -7,7 +7,7 @@ import React, { useCallback, useContext, useMemo, useState } from 'react';
 import classNames from 'classnames';
 import { shallowEqual, useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
-import { Button, Checkbox, Grid, Icon } from 'semantic-ui-react';
+import { Button, Checkbox, Dropdown, Grid, Icon } from 'semantic-ui-react';
 import { useDidUpdate } from '../../../lib/hooks';
 
 import selectors from '../../../selectors';
@@ -15,7 +15,12 @@ import entryActions from '../../../entry-actions';
 import { usePopupInClosableContext } from '../../../hooks';
 import { startStopwatch, stopStopwatch } from '../../../utils/stopwatch';
 import { isUsableMarkdownElement } from '../../../utils/element-helpers';
-import { BoardMembershipRoles, CardTypes, ListTypes } from '../../../constants/Enums';
+import {
+  BoardMembershipRoles,
+  CardRecurrenceScopes,
+  CardTypes,
+  ListTypes,
+} from '../../../constants/Enums';
 import { CardTypeIcons } from '../../../constants/Icons';
 import { ClosableContext } from '../../../contexts';
 import NameField from './NameField';
@@ -42,14 +47,37 @@ import AddTaskListStep from '../../task-lists/AddTaskListStep';
 import Attachments from '../../attachments/Attachments';
 import AddAttachmentStep from '../../attachments/AddAttachmentStep';
 import AddCustomFieldGroupStep from '../../custom-field-groups/AddCustomFieldGroupStep';
+import EditRecurrenceStep from '../../card-recurrences/EditRecurrenceStep';
+import RecurrenceChip from '../../card-recurrences/RecurrenceChip';
+import SelectRecurrenceScopeStep from '../../card-recurrences/SelectRecurrenceScopeStep';
 
 import styles from './ProjectContent.module.scss';
+
+const DELETE_BUTTON_CONTENT_BY_RECURRENCE_SCOPE = {
+  [CardRecurrenceScopes.THIS]: 'action.deleteThisCard',
+  [CardRecurrenceScopes.FOLLOWING]: 'action.deleteThisAndFollowingCards',
+  [CardRecurrenceScopes.ALL]: 'action.deleteAllCards',
+};
 
 const ProjectContent = React.memo(() => {
   const selectListById = useMemo(() => selectors.makeSelectListById(), []);
   const selectPrevListById = useMemo(() => selectors.makeSelectListById(), []);
 
+  const selectCardRecurrencePositionByCardId = useMemo(
+    () => selectors.makeSelectCardRecurrencePositionByCardId(),
+    [],
+  );
+
   const card = useSelector(selectors.selectCurrentCard);
+  const cardRecurrence = useSelector(selectors.selectCardRecurrenceForCurrentCard);
+
+  const cardRecurrencePosition = useSelector((state) =>
+    selectCardRecurrencePositionByCardId(state, card.id),
+  );
+
+  const cardRecurrenceScope = useSelector((state) =>
+    selectors.selectCardRecurrenceScopeByCardId(state, card.id),
+  );
   const board = useSelector(selectors.selectCurrentBoard);
   const userIds = useSelector(selectors.selectUserIdsForCurrentCard);
   const labelIds = useSelector(selectors.selectLabelIdsForCurrentCard);
@@ -214,6 +242,48 @@ const ProjectContent = React.memo(() => {
     }
   }, [isInTrashList, dispatch]);
 
+  // This card alone goes the usual way, to the trash; the following or all open cards of the
+  // series are deleted for good
+  const handleRecurringCardDeleteSelect = useCallback(
+    (scope) => {
+      if (scope === CardRecurrenceScopes.THIS) {
+        handleDeleteConfirm();
+      } else {
+        dispatch(entryActions.deleteCardRecurrence(card.id, scope));
+      }
+    },
+    [card.id, handleDeleteConfirm, dispatch],
+  );
+
+  const handleRecurrenceCreate = useCallback(
+    (data) => {
+      dispatch(entryActions.createCardRecurrence(card.id, data));
+    },
+    [card.id, dispatch],
+  );
+
+  const handleRecurrenceUpdate = useCallback(
+    (data, scope) => {
+      dispatch(entryActions.updateCardRecurrence(card.id, scope, data));
+    },
+    [card.id, dispatch],
+  );
+
+  const handleRecurrenceEnd = useCallback(() => {
+    dispatch(
+      entryActions.updateCardRecurrence(card.id, CardRecurrenceScopes.FOLLOWING, {
+        endsOn: card.occurrenceDate,
+      }),
+    );
+  }, [card.id, card.occurrenceDate, dispatch]);
+
+  const handleRecurrenceScopeChange = useCallback(
+    (_, { value }) => {
+      dispatch(entryActions.setCardRecurrenceScope(card.id, value));
+    },
+    [card.id, dispatch],
+  );
+
   const handleUserSelect = useCallback(
     (userId) => {
       dispatch(entryActions.addUserToCurrentCard(userId));
@@ -300,6 +370,14 @@ const ProjectContent = React.memo(() => {
   const AddCustomFieldGroupPopup = usePopupInClosableContext(AddCustomFieldGroupStep);
   const MoreActionsPopup = usePopupInClosableContext(MoreActionsStep);
   const ConfirmationPopup = usePopupInClosableContext(ConfirmationStep);
+  const EditRecurrencePopup = usePopupInClosableContext(EditRecurrenceStep);
+  const SelectRecurrenceScopePopup = usePopupInClosableContext(SelectRecurrenceScopeStep);
+
+  const recurrenceScopeOptions = [
+    { value: CardRecurrenceScopes.THIS, text: t('common.thisCard') },
+    { value: CardRecurrenceScopes.FOLLOWING, text: t('common.thisAndFollowingCards') },
+    { value: CardRecurrenceScopes.ALL, text: t('common.allCards') },
+  ];
 
   return (
     <Grid className={styles.wrapper}>
@@ -321,6 +399,7 @@ const ProjectContent = React.memo(() => {
         <Grid.Column width={12} className={styles.contentPadding}>
           {(card.dueDate ||
             card.stopwatch ||
+            cardRecurrence ||
             board.alwaysDisplayCardCreator ||
             userIds.length > 0 ||
             labelIds.length > 0) && (
@@ -470,6 +549,48 @@ const ProjectContent = React.memo(() => {
                       />
                     )}
                   </span>
+                </div>
+              )}
+              {cardRecurrence && (
+                <div className={styles.attachments}>
+                  <div className={styles.text}>{t('common.repeats')}</div>
+                  <span className={classNames(styles.attachment, styles.attachmentDueDate)}>
+                    {canEditDueDate ? (
+                      <EditRecurrencePopup
+                        startDate={card.startDate}
+                        dueDate={card.dueDate}
+                        occurrenceDate={card.occurrenceDate}
+                        defaultValue={cardRecurrence}
+                        onUpdate={handleRecurrenceUpdate}
+                        onEnd={handleRecurrenceEnd}
+                      >
+                        <RecurrenceChip
+                          weekdays={cardRecurrence.weekdays}
+                          endsOn={cardRecurrence.endsOn}
+                          position={cardRecurrencePosition}
+                        />
+                      </EditRecurrencePopup>
+                    ) : (
+                      <RecurrenceChip
+                        weekdays={cardRecurrence.weekdays}
+                        endsOn={cardRecurrence.endsOn}
+                        position={cardRecurrencePosition}
+                      />
+                    )}
+                  </span>
+                  {canEditName && (
+                    <span className={styles.attachment}>
+                      <span className={styles.recurrenceScope}>
+                        {t('common.editsApplyTo')}{' '}
+                        <Dropdown
+                          inline
+                          options={recurrenceScopeOptions}
+                          value={cardRecurrenceScope}
+                          onChange={handleRecurrenceScopeChange}
+                        />
+                      </span>
+                    </span>
+                  )}
                 </div>
               )}
               {card.stopwatch && (
@@ -649,6 +770,18 @@ const ProjectContent = React.memo(() => {
                     </Button>
                   </EditDueDatePopup>
                 )}
+                {canEditDueDate && !card.recurrenceId && (
+                  <EditRecurrencePopup
+                    startDate={card.startDate}
+                    dueDate={card.dueDate}
+                    onUpdate={handleRecurrenceCreate}
+                  >
+                    <Button fluid className={classNames(styles.actionButton, styles.hidable)}>
+                      <Icon name="sync alternate" className={styles.actionIcon} />
+                      {t('action.repeat')}
+                    </Button>
+                  </EditRecurrencePopup>
+                )}
                 {canEditStopwatch && (
                   <EditStopwatchPopup cardId={card.id}>
                     <Button fluid className={classNames(styles.actionButton, styles.hidable)}>
@@ -761,7 +894,21 @@ const ProjectContent = React.memo(() => {
                     </Button>
                   </ConfirmationPopup>
                 )}
-                {canDelete && (
+                {canDelete && cardRecurrence && !isInTrashList && (
+                  <SelectRecurrenceScopePopup
+                    isNegative
+                    title="common.deleteRecurringCard"
+                    content="common.whichCardsShouldBeDeleted"
+                    buttonContents={DELETE_BUTTON_CONTENT_BY_RECURRENCE_SCOPE}
+                    onSelect={handleRecurringCardDeleteSelect}
+                  >
+                    <Button fluid className={classNames(styles.actionButton, styles.hidable)}>
+                      <Icon name="trash alternate outline" className={styles.actionIcon} />
+                      {t('action.delete')}
+                    </Button>
+                  </SelectRecurrenceScopePopup>
+                )}
+                {canDelete && !(cardRecurrence && !isInTrashList) && (
                   <ConfirmationPopup
                     title={isInTrashList ? 'common.deleteCardForever' : 'common.deleteCard'}
                     content={

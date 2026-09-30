@@ -5,6 +5,7 @@
 
 import { call, put, select } from 'redux-saga/effects';
 
+import { fetchCardRecurrences } from './card-recurrences';
 import request from '../request';
 import requests from '../requests';
 import selectors from '../../../selectors';
@@ -113,6 +114,11 @@ export function* handleSocketReconnect() {
 
   if (!isAvailableForCurrentUser) {
     yield put(actions.closeModal());
+  }
+
+  // Card series aren't part of the core data, and were cleared along with the rest
+  if (boardId) {
+    yield call(fetchCardRecurrences, boardId);
   }
 }
 

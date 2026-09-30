@@ -26,6 +26,8 @@ const initialState = {
   projectsSearch: '',
   projectsOrder: ProjectOrders.BY_DEFAULT,
   isHiddenProjectsVisible: false, // TODO: refactor?
+  // Which cards of its series an edit of the open card reaches, as picked in the card modal
+  cardRecurrenceScope: null,
 };
 
 // eslint-disable-next-line default-param-last
@@ -64,6 +66,11 @@ export default (state = initialState, { type, payload }) => {
 
       if (payload.isEditModeEnabled !== undefined) {
         nextState.isEditModeEnabled = payload.isEditModeEnabled;
+      }
+
+      // Every card opens with edits reaching it alone
+      if (nextState.cardId !== state.cardId) {
+        nextState.cardRecurrenceScope = null;
       }
 
       return nextState;
@@ -215,6 +222,14 @@ export default (state = initialState, { type, payload }) => {
       return {
         ...state,
         clipboard: null,
+      };
+    case ActionTypes.CARD_RECURRENCE_SCOPE_SET:
+      return {
+        ...state,
+        cardRecurrenceScope: {
+          cardId: payload.cardId,
+          value: payload.scope,
+        },
       };
     default:
       return state;

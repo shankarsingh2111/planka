@@ -14,13 +14,14 @@ import { usePopup } from '../../../../lib/popup';
 import selectors from '../../../../selectors';
 import entryActions from '../../../../entry-actions';
 import Paths from '../../../../constants/Paths';
-import { BoardMembershipRoles } from '../../../../constants/Enums';
+import { BoardMembershipRoles, CardRecurrenceScopes } from '../../../../constants/Enums';
 import { GroupByOptions, NO_VALUE_KEY } from './constants';
 import { getAddCardDefaults } from './add-card-defaults';
 import useTimelinePreferences from './use-timeline-preferences';
 import LanesFilterStep from './LanesFilterStep';
 import UnscheduledSidebar from './UnscheduledSidebar';
 import AddCardModal from '../../../cards/AddCardModal';
+import RecurrenceScopeModal from '../../../card-recurrences/RecurrenceScopeModal';
 import TimelineChart, {
   ColorByOptions,
   getZoomLevels,
@@ -90,6 +91,9 @@ const TimelineView = React.memo(({ cardIds }) => {
 
   // What the add card dialog opens with; null while it is closed
   const [addCardDefaultData, setAddCardDefaultData] = useState(null);
+
+  // A drag of a recurring card waiting for which cards of its series it reaches
+  const [pendingRecurrenceChange, setPendingRecurrenceChange] = useState(null);
 
   const handleUnscheduledCardDragStart = useCallback(
     (event, card) => {
@@ -317,6 +321,7 @@ const TimelineView = React.memo(({ cardIds }) => {
           colorClassName: getColorClassName(color),
           isCompleted: isDone || !!card.isDueCompleted,
           isOverdue,
+          seriesId: card.recurrenceId || undefined,
           progress:
             card.tasksTotal > 0
               ? { completed: card.tasksCompleted, total: card.tasksTotal }
@@ -349,17 +354,92 @@ const TimelineView = React.memo(({ cardIds }) => {
     [navigate],
   );
 
+  const recurringCardById = useMemo(
+    () =>
+      cards.reduce(
+        (result, card) =>
+          card.recurrenceId
+            ? {
+                ...result,
+                [card.id]: card,
+              }
+            : result,
+        {},
+      ),
+    [cards],
+  );
+
+  // A series takes its times from the due date, so a bar left without one only concerns its card
+  const isRecurrenceChange = useCallback(
+    (cardId, dueDate) => !!recurringCardById[cardId] && !!dueDate,
+    [recurringCardById],
+  );
+
   const handleItemDatesChange = useCallback(
     (id, { startDate, dueDate }) => {
+      const data = {
+        startDate: startDate || null,
+        dueDate: dueDate || null,
+      };
+
+      if (isRecurrenceChange(id, data.dueDate)) {
+        setPendingRecurrenceChange({
+          ...data,
+          cardId: id,
+        });
+
+        return;
+      }
+
+      dispatch(entryActions.updateCard(id, data));
+    },
+    [isRecurrenceChange, dispatch],
+  );
+
+  const handleRecurrenceScopeSelect = useCallback(
+    (scope) => {
+      const { cardId, listId, startDate, dueDate } = pendingRecurrenceChange;
+      setPendingRecurrenceChange(null);
+
+      if (scope === CardRecurrenceScopes.THIS) {
+        if (listId) {
+          dispatch(
+            entryActions.scheduleCard(cardId, {
+              listId,
+              startDate,
+              dueDate,
+            }),
+          );
+        } else {
+          dispatch(
+            entryActions.updateCard(cardId, {
+              startDate,
+              dueDate,
+            }),
+          );
+        }
+
+        return;
+      }
+
       dispatch(
-        entryActions.updateCard(id, {
-          startDate: startDate || null,
-          dueDate: dueDate || null,
+        entryActions.updateCardRecurrence(cardId, scope, {
+          startDate,
+          dueDate,
         }),
       );
+
+      // Only the dragged card changes lane: a list is where a card is, not part of the series
+      if (listId && listId !== recurringCardById[cardId].listId) {
+        dispatch(entryActions.moveCard(cardId, listId));
+      }
     },
-    [dispatch],
+    [pendingRecurrenceChange, recurringCardById, dispatch],
   );
+
+  const handleRecurrenceScopeClose = useCallback(() => {
+    setPendingRecurrenceChange(null);
+  }, []);
 
   const handleDependencyCreate = useCallback(
     (predecessorId, successorId) => {
@@ -409,6 +489,17 @@ const TimelineView = React.memo(({ cardIds }) => {
   // lane is not somewhere a card can be moved to
   const handleItemLaneChange = useCallback(
     (cardId, laneKey, { startDate, dueDate }) => {
+      if (isRecurrenceChange(cardId, dueDate)) {
+        setPendingRecurrenceChange({
+          cardId,
+          listId: laneKey,
+          startDate: startDate || null,
+          dueDate,
+        });
+
+        return;
+      }
+
       dispatch(
         entryActions.scheduleCard(cardId, {
           listId: laneKey,
@@ -417,7 +508,7 @@ const TimelineView = React.memo(({ cardIds }) => {
         }),
       );
     },
-    [dispatch],
+    [isRecurrenceChange, dispatch],
   );
 
   // The card shown in the sidebar while a bar is held over it, before the dates are actually
@@ -597,6 +688,12 @@ const TimelineView = React.memo(({ cardIds }) => {
           defaultData={addCardDefaultData}
           onCreate={handleCardCreate}
           onClose={handleAddCardClose}
+        />
+      )}
+      {pendingRecurrenceChange && (
+        <RecurrenceScopeModal
+          onSelect={handleRecurrenceScopeSelect}
+          onClose={handleRecurrenceScopeClose}
         />
       )}
     </div>

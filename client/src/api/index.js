@@ -24,6 +24,7 @@ import cards from './cards';
 import cardMemberships from './card-memberships';
 import cardLabels from './card-labels';
 import cardDependencies from './card-dependencies';
+import cardRecurrences from './card-recurrences';
 import dashboard from './dashboard';
 import taskLists from './task-lists';
 import tasks from './tasks';
@@ -58,6 +59,7 @@ export default {
   ...cardMemberships,
   ...cardLabels,
   ...cardDependencies,
+  ...cardRecurrences,
   ...dashboard,
   ...taskLists,
   ...tasks,

@@ -7,7 +7,8 @@ import { attr, fk } from 'redux-orm';
 
 import BaseModel from './BaseModel';
 import buildSearchParts from '../utils/build-search-parts';
-import { isListFinite } from '../utils/record-helpers';
+import { foldCardSeries } from '../utils/card-series';
+import { isListFinite, isListKanban } from '../utils/record-helpers';
 import ActionTypes from '../constants/ActionTypes';
 import Config from '../constants/Config';
 import { ListSortFieldNames, ListTypes, ListTypeStates, SortOrders } from '../constants/Enums';
@@ -320,7 +321,25 @@ export default class extends BaseModel {
     return cardModels;
   }
 
+  /**
+   * The cards shown in the list. A recurring series shows one card per list unless it was
+   * unfolded, so its cards don't swamp the list; a search shows everything it matches. Archive
+   * and trash lists always show every card.
+   */
   getFilteredCardsModelArray() {
+    const cardModels = this.getCardsModelArrayMatchingFilters();
+
+    if (!isListKanban(this) || this.board.search) {
+      return cardModels;
+    }
+
+    return foldCardSeries(cardModels, {
+      isDoneList: this.type === ListTypes.CLOSED,
+      unfoldedSeriesIds: this.board.unfoldedRecurrenceIds,
+    });
+  }
+
+  getCardsModelArrayMatchingFilters() {
     let cardModels = this.getCardsModelArray();
 
     if (cardModels.length === 0) {

@@ -6,6 +6,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
+import { Icon } from 'semantic-ui-react';
 
 import { hasAvatars } from './utils';
 import { DragModes } from './use-bar-drag';
@@ -26,6 +27,9 @@ const Bar = React.memo(
     isLinkable,
     isCritical,
     isDragging,
+    isCompact,
+    isDimmed,
+    isSeriesHighlighted,
     onPointerDown,
     onPointerMove,
     onPointerUp,
@@ -39,8 +43,10 @@ const Bar = React.memo(
         ? item.progress.completed / item.progress.total
         : null;
 
-    // Members sit on their own line under the name, so the two never compete for width
-    const withAvatars = hasAvatars(item);
+    // Members sit on their own line under the name, so the two never compete for width. A
+    // compact bar is only a mark on its series' strip, with the details left to the tooltip.
+    const withAvatars = !isCompact && hasAvatars(item);
+    const withHandles = !isCompact && isEditable;
 
     return (
       <div
@@ -55,6 +61,9 @@ const Bar = React.memo(
           [styles.barDragging]: isDragging,
           [styles.barEditable]: isEditable,
           [styles.barWithAvatars]: withAvatars,
+          [styles.barCompact]: isCompact,
+          [styles.barDimmed]: isDimmed,
+          [styles.barSeriesHighlighted]: isSeriesHighlighted,
         })}
         style={{ left, width, top, height }}
         onPointerDown={(event) => onPointerDown(event, item.id, DragModes.MOVE, laneKey)}
@@ -64,14 +73,19 @@ const Bar = React.memo(
         onPointerLeave={() => onPointerLeave(null)}
         onKeyDown={(event) => onKeyDown(event, item.id)}
       >
-        {progress !== null && (
+        {!isCompact && progress !== null && (
           <span className={styles.barProgress} style={{ width: `${progress * 100}%` }} />
         )}
         {/* No start date yet: the bar only stands in for the due day until one is set */}
-        {range.isStartMissing && <span className={styles.startMissingDot} />}
-        <span className={styles.barLabel}>{item.name}</span>
+        {!isCompact && range.isStartMissing && <span className={styles.startMissingDot} />}
+        {!isCompact && (
+          <span className={styles.barLabel}>
+            {item.seriesId && <Icon name="sync alternate" className={styles.barRecurringIcon} />}
+            {item.name}
+          </span>
+        )}
         {withAvatars && <Avatars userIds={item.memberIds} className={styles.barAvatars} />}
-        {isEditable && (
+        {withHandles && (
           <>
             <span
               className={classNames(styles.barHandle, styles.barHandleStart)}
@@ -89,7 +103,7 @@ const Bar = React.memo(
             />
           </>
         )}
-        {isLinkable && (
+        {!isCompact && isLinkable && (
           <span
             className={styles.linkDot}
             onPointerDown={(event) => onLinkPointerDown(event, item.id)}
@@ -114,6 +128,9 @@ Bar.propTypes = {
   isLinkable: PropTypes.bool,
   isCritical: PropTypes.bool,
   isDragging: PropTypes.bool,
+  isCompact: PropTypes.bool,
+  isDimmed: PropTypes.bool,
+  isSeriesHighlighted: PropTypes.bool,
   onPointerDown: PropTypes.func.isRequired,
   onPointerMove: PropTypes.func.isRequired,
   onPointerUp: PropTypes.func.isRequired,
@@ -128,6 +145,9 @@ Bar.defaultProps = {
   isLinkable: false,
   isCritical: false,
   isDragging: false,
+  isCompact: false,
+  isDimmed: false,
+  isSeriesHighlighted: false,
 };
 
 export default Bar;

@@ -195,6 +195,18 @@ const createSocketEventsChannel = () =>
       emit(entryActions.handleCardDependencyDelete(item));
     };
 
+    const handleCardRecurrenceCreate = ({ item }) => {
+      emit(entryActions.handleCardRecurrenceCreate(item));
+    };
+
+    const handleCardRecurrenceUpdate = ({ item }) => {
+      emit(entryActions.handleCardRecurrenceUpdate(item));
+    };
+
+    const handleCardRecurrenceDelete = ({ item }) => {
+      emit(entryActions.handleCardRecurrenceDelete(item));
+    };
+
     const handleTaskListCreate = ({ item }) => {
       emit(entryActions.handleTaskListCreate(item));
     };
@@ -364,6 +376,10 @@ const createSocketEventsChannel = () =>
     socket.on('cardDependencyCreate', handleCardDependencyCreate);
     socket.on('cardDependencyDelete', handleCardDependencyDelete);
 
+    socket.on('cardRecurrenceCreate', handleCardRecurrenceCreate);
+    socket.on('cardRecurrenceUpdate', handleCardRecurrenceUpdate);
+    socket.on('cardRecurrenceDelete', handleCardRecurrenceDelete);
+
     socket.on('taskListCreate', handleTaskListCreate);
     socket.on('taskListUpdate', handleTaskListUpdate);
     socket.on('taskListDelete', handleTaskListDelete);
@@ -463,6 +479,10 @@ const createSocketEventsChannel = () =>
 
       socket.off('cardDependencyCreate', handleCardDependencyCreate);
       socket.off('cardDependencyDelete', handleCardDependencyDelete);
+
+      socket.off('cardRecurrenceCreate', handleCardRecurrenceCreate);
+      socket.off('cardRecurrenceUpdate', handleCardRecurrenceUpdate);
+      socket.off('cardRecurrenceDelete', handleCardRecurrenceDelete);
 
       socket.off('taskListCreate', handleTaskListCreate);
       socket.off('taskListUpdate', handleTaskListUpdate);

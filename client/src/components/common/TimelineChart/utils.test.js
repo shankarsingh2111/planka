@@ -21,9 +21,11 @@ import {
   getItemRange,
   getViewRange,
   packRows,
+  packRowsWithSeries,
   getRowOffsets,
   ROW_HEIGHT,
   ROW_GAP,
+  COMPACT_ROW_HEIGHT,
   BAR_WITH_AVATARS_HEIGHT,
   startOfDay,
 } from './utils';
@@ -438,5 +440,69 @@ describe('getDropRange', () => {
 
       expect(getOffsetX(viewStart, startDate, zoomLevel)).toBeCloseTo(x, 6);
     });
+  });
+});
+
+describe('packRowsWithSeries', () => {
+  const entry = (id, start, end, seriesId) => ({
+    item: { id, seriesId },
+    range: { start: new Date(start), end: new Date(end) },
+  });
+
+  const rowOf = (entries, id) => entries.find(({ item }) => item.id === id).rowIndex;
+
+  test('gives each series its own row under the other cards', () => {
+    const entries = packRowsWithSeries([
+      entry('long', '2026-09-28T10:00', '2026-10-16T18:00'),
+      entry('r1', '2026-09-30T16:00', '2026-09-30T18:00', 's1'),
+      entry('bug', '2026-10-02T10:00', '2026-10-05T18:00'),
+      entry('r2', '2026-10-01T16:00', '2026-10-01T18:00', 's1'),
+      entry('f1', '2026-09-29T15:00', '2026-09-29T17:00', 's2'),
+    ]);
+
+    expect(rowOf(entries, 'long')).toBe(0);
+    expect(rowOf(entries, 'bug')).toBe(1);
+    expect(rowOf(entries, 'f1')).toBe(2);
+    expect(rowOf(entries, 'r1')).toBe(3);
+    expect(rowOf(entries, 'r2')).toBe(3);
+  });
+
+  test('keeps the first row free in a lane holding only a series', () => {
+    const entries = packRowsWithSeries([
+      entry('r1', '2026-09-30T16:00', '2026-09-30T18:00', 's1'),
+      entry('r2', '2026-10-01T16:00', '2026-10-01T18:00', 's1'),
+    ]);
+
+    expect(entries.map(({ rowIndex }) => rowIndex)).toEqual([1, 1]);
+  });
+
+  test('packs like packRows when there is no series', () => {
+    const plainEntries = [
+      entry('a', '2026-09-28T10:00', '2026-09-30T18:00'),
+      entry('b', '2026-09-29T10:00', '2026-10-01T18:00'),
+    ];
+
+    expect(packRowsWithSeries(plainEntries)).toEqual(packRows(plainEntries));
+  });
+});
+
+describe('getRowOffsets with collapsed series', () => {
+  test('gives a collapsed series row the compact height', () => {
+    const { rowTops, totalHeight } = getRowOffsets([
+      { item: { memberIds: [] }, rowIndex: 0 },
+      { item: { memberIds: ['1'] }, rowIndex: 1, isCompact: true },
+    ]);
+
+    expect(rowTops).toEqual([0, ROW_HEIGHT]);
+    expect(totalHeight).toBe(ROW_HEIGHT + COMPACT_ROW_HEIGHT);
+  });
+
+  test('leaves an empty row at the standard height', () => {
+    const { rowTops, totalHeight } = getRowOffsets([
+      { item: { memberIds: [] }, rowIndex: 1, isCompact: true },
+    ]);
+
+    expect(rowTops).toEqual([0, ROW_HEIGHT]);
+    expect(totalHeight).toBe(ROW_HEIGHT + COMPACT_ROW_HEIGHT);
   });
 });

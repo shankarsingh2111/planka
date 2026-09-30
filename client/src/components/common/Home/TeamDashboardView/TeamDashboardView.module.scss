@@ -327,6 +327,24 @@
     padding: 6px;
   }
 
+  // Shows or hides the other upcoming cards of a recurring series, under its next card
+  .seriesFoldButton {
+    align-self: flex-start;
+    background: none;
+    border: none;
+    color: #6a808b;
+    cursor: pointer;
+    font-size: 12px;
+    margin-top: -2px;
+    padding: 0 4px 2px;
+
+    &:hover,
+    &:focus-visible {
+      color: #17394d;
+      text-decoration: underline;
+    }
+  }
+
   /* Timeline */
 
   .timelineWrapper {
