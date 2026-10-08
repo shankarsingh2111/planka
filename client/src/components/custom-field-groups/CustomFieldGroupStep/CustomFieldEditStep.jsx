@@ -14,7 +14,9 @@ import { Popup } from '../../../lib/custom-ui';
 import selectors from '../../../selectors';
 import entryActions from '../../../entry-actions';
 import { useForm, useSteps } from '../../../hooks';
-import CustomFieldEditor from './CustomFieldEditor';
+import { buildCustomFieldData, isCustomFieldDataComplete } from '../../../utils/custom-fields';
+import { CustomFieldTypes } from '../../../constants/Enums';
+import CustomFieldEditor from '../../custom-fields/CustomFieldEditor';
 import ConfirmationStep from '../../common/ConfirmationStep';
 
 import styles from './CustomFieldEditStep.module.scss';
@@ -35,13 +37,17 @@ const CustomFieldEditStep = React.memo(({ id, onBack }) => {
     () => ({
       name: customField.name,
       showOnFrontOfCard: customField.showOnFrontOfCard,
+      type: customField.type || CustomFieldTypes.TEXT,
+      options: customField.options || [],
     }),
-    [customField.name, customField.showOnFrontOfCard],
+    [customField.name, customField.showOnFrontOfCard, customField.type, customField.options],
   );
 
   const [data, handleFieldChange] = useForm(() => ({
     name: '',
     showOnFrontOfCard: false,
+    type: CustomFieldTypes.TEXT,
+    options: [],
     ...defaultData,
   }));
 
@@ -50,17 +56,17 @@ const CustomFieldEditStep = React.memo(({ id, onBack }) => {
   const customFieldEditorRef = useRef(null);
 
   const handleSubmit = useCallback(() => {
-    const cleanData = {
-      ...data,
-      name: data.name.trim() || null,
-    };
+    const cleanData = buildCustomFieldData(data);
 
-    if (!cleanData.name) {
-      customFieldEditorRef.current.selectNameField();
+    if (!isCustomFieldDataComplete(cleanData)) {
+      if (!cleanData.name) {
+        customFieldEditorRef.current.selectNameField();
+      }
+
       return;
     }
 
-    if (!dequal(cleanData, defaultData)) {
+    if (!dequal(cleanData, buildCustomFieldData(defaultData))) {
       dispatch(entryActions.updateCustomField(id, cleanData));
     }
 

@@ -16,6 +16,30 @@
     width: 100%;
   }
 
+  .hint {
+    color: #6b808c;
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  .option {
+    align-items: center;
+    display: flex;
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+
+  .optionButton {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 8px;
+  }
+
+  .optionField {
+    flex: 1;
+    min-width: 0;
+  }
+
   .text {
     color: #444444;
     font-size: 12px;

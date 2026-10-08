@@ -12,7 +12,9 @@ import { Popup } from '../../../lib/custom-ui';
 
 import entryActions from '../../../entry-actions';
 import { useForm } from '../../../hooks';
-import CustomFieldEditor from './CustomFieldEditor';
+import { buildCustomFieldData, isCustomFieldDataComplete } from '../../../utils/custom-fields';
+import { CustomFieldTypes } from '../../../constants/Enums';
+import CustomFieldEditor from '../../custom-fields/CustomFieldEditor';
 
 import styles from './CustomFieldAddStep.module.scss';
 
@@ -23,19 +25,21 @@ const CustomFieldAddStep = React.memo(({ baseCustomFieldGroupId, defaultData, on
   const [data, handleFieldChange] = useForm(() => ({
     name: '',
     showOnFrontOfCard: false,
+    type: CustomFieldTypes.TEXT,
+    options: [],
     ...defaultData,
   }));
 
   const customFieldEditorRef = useRef(null);
 
   const handleSubmit = useCallback(() => {
-    const cleanData = {
-      ...data,
-      name: data.name.trim() || null,
-    };
+    const cleanData = buildCustomFieldData(data);
 
-    if (!cleanData.name) {
-      customFieldEditorRef.current.selectNameField();
+    if (!isCustomFieldDataComplete(cleanData)) {
+      if (!cleanData.name) {
+        customFieldEditorRef.current.selectNameField();
+      }
+
       return;
     }
 

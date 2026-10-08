@@ -89,6 +89,11 @@ export const CardTypes = {
   STORY: 'story',
 };
 
+export const CustomFieldTypes = {
+  TEXT: 'text',
+  DROPDOWN: 'dropdown',
+};
+
 // Which cards of a series an edit reaches: FOLLOWING and ALL are the server's scopes, THIS is
 // an ordinary edit of the card alone
 export const CardRecurrenceScopes = {

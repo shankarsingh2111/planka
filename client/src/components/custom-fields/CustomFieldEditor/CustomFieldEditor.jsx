@@ -7,13 +7,16 @@ import React, { useCallback, useEffect, useImperativeHandle } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
-import { Radio } from 'semantic-ui-react';
+import { Dropdown, Radio } from 'semantic-ui-react';
 import { Input } from '../../../lib/custom-ui';
 
 import { useNestedRef } from '../../../hooks';
+import { CustomFieldTypes } from '../../../constants/Enums';
+import OptionsEditor from './OptionsEditor';
 
 import styles from './CustomFieldEditor.module.scss';
 
+// Shared by the board/card group and base group popups, which used to carry identical copies
 const CustomFieldEditor = React.forwardRef(({ data, onFieldChange }, ref) => {
   const [t] = useTranslation();
 
@@ -29,6 +32,16 @@ const CustomFieldEditor = React.forwardRef(({ data, onFieldChange }, ref) => {
       selectNameField,
     }),
     [selectNameField],
+  );
+
+  const handleOptionsChange = useCallback(
+    (options) => {
+      onFieldChange(null, {
+        name: 'options',
+        value: options,
+      });
+    },
+    [onFieldChange],
   );
 
   useEffect(() => {
@@ -47,6 +60,31 @@ const CustomFieldEditor = React.forwardRef(({ data, onFieldChange }, ref) => {
         className={styles.fieldName}
         onChange={onFieldChange}
       />
+      <div className={styles.text}>{t('common.type')}</div>
+      <Dropdown
+        fluid
+        selection
+        name="type"
+        options={[
+          {
+            text: t('common.text'),
+            value: CustomFieldTypes.TEXT,
+          },
+          {
+            text: t('common.dropdown'),
+            value: CustomFieldTypes.DROPDOWN,
+          },
+        ]}
+        value={data.type}
+        className={styles.field}
+        onChange={onFieldChange}
+      />
+      {data.type === CustomFieldTypes.DROPDOWN && (
+        <>
+          <div className={styles.text}>{t('common.options')}</div>
+          <OptionsEditor value={data.options} onChange={handleOptionsChange} />
+        </>
+      )}
       <Radio
         toggle
         name="showOnFrontOfCard"
