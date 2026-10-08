@@ -312,18 +312,6 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
 
   return (
     <Grid className={cardStyles.wrapper}>
-      {isHippoConfigured && (
-        <Grid.Row className={cardStyles.headerPadding}>
-          <Grid.Column width={16} className={cardStyles.headerPadding}>
-            <HippoImportField
-              boardId={boardId}
-              projectId={projectId}
-              autoFocus={!!defaultData.focusHippoImport}
-              onFetch={handleHippoTicketFetch}
-            />
-          </Grid.Column>
-        </Grid.Row>
-      )}
       <Grid.Row className={cardStyles.headerPadding}>
         <Grid.Column width={16} className={cardStyles.headerPadding}>
           <div className={cardStyles.headerWrapper}>
@@ -346,6 +334,14 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
       </Grid.Row>
       <Grid.Row className={cardStyles.modalPadding}>
         <Grid.Column width={12} className={cardStyles.contentPadding}>
+          {isHippoConfigured && (
+            <HippoImportField
+              boardId={boardId}
+              projectId={projectId}
+              autoFocus={!!defaultData.focusHippoImport}
+              onFetch={handleHippoTicketFetch}
+            />
+          )}
           {(userIds.length > 0 || labelIds.length > 0 || data.startDate || data.dueDate) && (
             <div className={cardStyles.moduleWrapper}>
               {userIds.length > 0 && (

@@ -5,6 +5,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
+import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
 import { Button, Form, Icon } from 'semantic-ui-react';
 import { Input } from '../../../lib/custom-ui';
@@ -20,12 +21,14 @@ import {
 import { readTicketUrlPattern, writeTicketUrlPattern } from './ticket-url-pattern-storage';
 import useHippoTicketLookup from './use-hippo-ticket-lookup';
 
+import cardStyles from '../CardModal/ProjectContent.module.scss';
 import styles from './HippoImportField.module.scss';
 
 const HippoImportField = React.memo(({ boardId, projectId, autoFocus, onFetch }) => {
   const [t] = useTranslation();
   const [value, setValue] = useState('');
   const [inputErrorText, setInputErrorText] = useState(null);
+  const [isOpened, setIsOpened] = useState(autoFocus);
   const [fetchTicket, isFetching, fetchError] = useHippoTicketLookup(boardId);
 
   const [fieldRef, handleFieldRef] = useNestedRef('inputRef');
@@ -67,34 +70,53 @@ const HippoImportField = React.memo(({ boardId, projectId, autoFocus, onFetch })
     onFetch(ticket, ticketUrl);
   }, [value, projectId, fetchTicket, onFetch, fieldRef, t]);
 
+  const handleToggleClick = useCallback(() => {
+    setIsOpened((prevIsOpened) => !prevIsOpened);
+  }, []);
+
+  // Opening it, whether by a click or from a list's Hippo button, puts the cursor in the field
   useEffect(() => {
-    if (autoFocus) {
+    if (isOpened) {
       fieldRef.current.focus();
     }
-  }, [autoFocus, fieldRef]);
+  }, [isOpened, fieldRef]);
 
   const errorText = inputErrorText || (fetchError && getHippoErrorText(fetchError, t));
 
   return (
-    <Form className={styles.wrapper} onSubmit={handleSubmit}>
-      <Icon name="ticket alternate" className={styles.icon} />
-      <Input
-        ref={handleFieldRef}
-        value={value}
-        placeholder={t('common.ticketNumberOrUrl')}
-        maxLength={1024}
-        className={styles.field}
-        onChange={handleChange}
-      />
-      <Button
-        type="submit"
-        loading={isFetching}
-        disabled={isFetching}
-        content={t('action.fetch')}
-        className={styles.button}
-      />
-      {errorText && <div className={styles.error}>{errorText}</div>}
-    </Form>
+    <div className={cardStyles.contentModule}>
+      <div className={cardStyles.moduleWrapper}>
+        <Icon name="ticket alternate" className={cardStyles.moduleIcon} />
+        <button
+          type="button"
+          className={classNames(cardStyles.moduleHeader, styles.toggleButton)}
+          onClick={handleToggleClick}
+        >
+          {t('action.importFromHippo')}
+          <Icon name={isOpened ? 'chevron up' : 'chevron down'} className={styles.toggleIcon} />
+        </button>
+        {isOpened && (
+          <Form className={styles.wrapper} onSubmit={handleSubmit}>
+            <Input
+              ref={handleFieldRef}
+              value={value}
+              placeholder={t('common.ticketNumberOrUrl')}
+              maxLength={1024}
+              className={styles.field}
+              onChange={handleChange}
+            />
+            <Button
+              type="submit"
+              loading={isFetching}
+              disabled={isFetching}
+              content={t('action.fetch')}
+              className={styles.button}
+            />
+            {errorText && <div className={styles.error}>{errorText}</div>}
+          </Form>
+        )}
+      </div>
+    </div>
   );
 });
 
