@@ -31,6 +31,7 @@ import comments from './comments';
 import activities from './activities';
 import notifications from './notifications';
 import notificationServices from './notification-services';
+import hippo from './hippo';
 
 export default {
   ...router,
@@ -61,4 +62,5 @@ export default {
   ...activities,
   ...notifications,
   ...notificationServices,
+  ...hippo,
 };

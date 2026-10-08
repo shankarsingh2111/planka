@@ -19,6 +19,9 @@ export default class extends BaseModel {
     backgroundType: attr(),
     backgroundGradient: attr(),
     isHidden: attr(),
+    isHippoConfigured: attr({
+      getDefault: () => false,
+    }),
     isFavorite: attr({
       getDefault: () => false,
     }),
