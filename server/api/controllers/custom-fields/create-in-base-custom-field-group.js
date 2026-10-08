@@ -44,6 +44,17 @@
  *                 type: boolean
  *                 description: Whether to show the field on the front of cards
  *                 example: false
+ *               type:
+ *                 type: string
+ *                 enum: [text, dropdown]
+ *                 description: Kind of value the field holds (text when omitted)
+ *                 example: dropdown
+ *               options:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Values a dropdown field offers; required for dropdown fields
+ *                 example: [New, Pending from Dev, Closed]
  *     responses:
  *       200:
  *         description: Custom field created successfully
@@ -62,13 +73,19 @@
  *         $ref: '#/components/responses/Unauthorized'
  *       404:
  *         $ref: '#/components/responses/NotFound'
+ *       422:
+ *         $ref: '#/components/responses/UnprocessableEntity'
  */
 
 const { idInput } = require('../../../utils/inputs');
+const { normalizeTypeValues } = require('../../../utils/custom-fields');
 
 const Errors = {
   BASE_CUSTOM_FIELD_GROUP_NOT_FOUND: {
     baseCustomFieldGroupNotFound: 'Base custom field group not found',
+  },
+  OPTIONS_MUST_BE_PRESENT: {
+    optionsMustBePresent: 'Options must be present',
   },
 };
 
@@ -91,11 +108,21 @@ module.exports = {
     showOnFrontOfCard: {
       type: 'boolean',
     },
+    type: {
+      type: 'string',
+      isIn: Object.values(CustomField.Types),
+    },
+    options: {
+      type: 'json',
+    },
   },
 
   exits: {
     baseCustomFieldGroupNotFound: {
       responseType: 'notFound',
+    },
+    optionsMustBePresent: {
+      responseType: 'unprocessableEntity',
     },
   },
 
@@ -112,7 +139,16 @@ module.exports = {
       throw Errors.BASE_CUSTOM_FIELD_GROUP_NOT_FOUND; // Forbidden
     }
 
-    const values = _.pick(inputs, ['position', 'name', 'showOnFrontOfCard']);
+    const typeValues = normalizeTypeValues(inputs);
+
+    if (!typeValues) {
+      throw Errors.OPTIONS_MUST_BE_PRESENT;
+    }
+
+    const values = {
+      ..._.pick(inputs, ['position', 'name', 'showOnFrontOfCard']),
+      ...typeValues,
+    };
 
     const customField = await sails.helpers.customFields.createOneInBaseCustomFieldGroup.with({
       project,

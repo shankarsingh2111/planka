@@ -41,6 +41,17 @@
  *                 type: boolean
  *                 description: Whether to show the field on the front of cards
  *                 example: false
+ *               type:
+ *                 type: string
+ *                 enum: [text, dropdown]
+ *                 description: Kind of value the field holds (text when omitted)
+ *                 example: dropdown
+ *               options:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Values a dropdown field offers; required for dropdown fields
+ *                 example: [New, Pending from Dev, Closed]
  *     responses:
  *       200:
  *         description: Custom field updated successfully
@@ -61,9 +72,12 @@
  *         $ref: '#/components/responses/Forbidden'
  *       404:
  *         $ref: '#/components/responses/NotFound'
+ *       422:
+ *         $ref: '#/components/responses/UnprocessableEntity'
  */
 
 const { idInput } = require('../../../utils/inputs');
+const { normalizeTypeValues } = require('../../../utils/custom-fields');
 
 const Errors = {
   NOT_ENOUGH_RIGHTS: {
@@ -71,6 +85,9 @@ const Errors = {
   },
   CUSTOM_FIELD_NOT_FOUND: {
     customFieldNotFound: 'Custom field not found',
+  },
+  OPTIONS_MUST_BE_PRESENT: {
+    optionsMustBePresent: 'Options must be present',
   },
 };
 
@@ -92,6 +109,13 @@ module.exports = {
     showOnFrontOfCard: {
       type: 'boolean',
     },
+    type: {
+      type: 'string',
+      isIn: Object.values(CustomField.Types),
+    },
+    options: {
+      type: 'json',
+    },
   },
 
   exits: {
@@ -100,6 +124,9 @@ module.exports = {
     },
     customFieldNotFound: {
       responseType: 'notFound',
+    },
+    optionsMustBePresent: {
+      responseType: 'unprocessableEntity',
     },
   },
 
@@ -114,6 +141,17 @@ module.exports = {
     const { customFieldGroup, card, list, board, baseCustomFieldGroup, project } = pathToProject;
 
     const values = _.pick(inputs, ['position', 'name', 'showOnFrontOfCard']);
+
+    // Whatever the update leaves out of the type/options pair comes from the field as it is
+    if (!_.isUndefined(inputs.type) || !_.isUndefined(inputs.options)) {
+      const typeValues = normalizeTypeValues(inputs, customField);
+
+      if (!typeValues) {
+        throw Errors.OPTIONS_MUST_BE_PRESENT;
+      }
+
+      Object.assign(values, typeValues);
+    }
 
     if (customField.baseCustomFieldGroupId) {
       const isProjectManager = await sails.helpers.users.isProjectManager(

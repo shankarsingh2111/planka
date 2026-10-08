@@ -122,7 +122,7 @@ module.exports = {
       nextCustomFieldIdByCustomFieldId[customField.id] = id;
 
       return {
-        ..._.pick(customField, ['position', 'name', 'showOnFrontOfCard']),
+        ..._.pick(customField, ['position', 'name', 'showOnFrontOfCard', 'type', 'options']),
         id,
         customFieldGroupId:
           nextCustomFieldGroupIdByCustomFieldGroupId[customField.customFieldGroupId],

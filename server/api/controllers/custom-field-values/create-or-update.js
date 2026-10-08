@@ -68,9 +68,12 @@
  *         $ref: '#/components/responses/Forbidden'
  *       404:
  *         $ref: '#/components/responses/NotFound'
+ *       422:
+ *         $ref: '#/components/responses/UnprocessableEntity'
  */
 
 const { idInput } = require('../../../utils/inputs');
+const { isValueAllowed } = require('../../../utils/custom-fields');
 
 const Errors = {
   NOT_ENOUGH_RIGHTS: {
@@ -84,6 +87,9 @@ const Errors = {
   },
   CUSTOM_FIELD_NOT_FOUND: {
     customFieldNotFound: 'Custom field not found',
+  },
+  VALUE_NOT_IN_OPTIONS: {
+    valueNotInOptions: 'Value not in options',
   },
 };
 
@@ -120,6 +126,9 @@ module.exports = {
     },
     customFieldNotFound: {
       responseType: 'notFound',
+    },
+    valueNotInOptions: {
+      responseType: 'unprocessableEntity',
     },
   },
 
@@ -171,6 +180,10 @@ module.exports = {
       }
     } else if (customField.customFieldGroupId !== customFieldGroup.id) {
       throw Errors.CUSTOM_FIELD_NOT_FOUND;
+    }
+
+    if (!isValueAllowed(customField, inputs.content)) {
+      throw Errors.VALUE_NOT_IN_OPTIONS;
     }
 
     const values = _.pick(inputs, ['content']);
