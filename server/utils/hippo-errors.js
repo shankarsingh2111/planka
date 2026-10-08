@@ -17,8 +17,9 @@ const forwardHippoExits = (deferred) =>
     .intercept('hippoUnauthorized', 'hippoUnauthorized')
     .intercept('hippoTicketNotFound', 'hippoTicketNotFound')
     .intercept('hippoUnavailable', 'hippoUnavailable')
-    .intercept('hippoRejected', (message) => ({
-      hippoRejected: message,
+    // An intercept handler gets the exit as an error; its raw output is Hippo's message
+    .intercept('hippoRejected', (error) => ({
+      hippoRejected: error.raw,
     }));
 
 // How controllers report a failed Hippo call. None answers 401, which would sign the Planka user
@@ -61,8 +62,9 @@ const interceptHippoExits = (deferred) =>
     .intercept('hippoUnauthorized', () => HippoErrors.HIPPO_KEY_INVALID)
     .intercept('hippoTicketNotFound', () => HippoErrors.HIPPO_TICKET_NOT_FOUND)
     .intercept('hippoUnavailable', () => HippoErrors.HIPPO_UNAVAILABLE)
-    .intercept('hippoRejected', (message) => ({
-      hippoRejected: message,
+    // An intercept handler gets the exit as an error; its raw output is Hippo's message
+    .intercept('hippoRejected', (error) => ({
+      hippoRejected: error.raw,
     }));
 
 module.exports = {
