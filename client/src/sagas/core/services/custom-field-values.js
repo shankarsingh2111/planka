@@ -10,8 +10,15 @@ import actions from '../../../actions';
 import api from '../../../api';
 import { buildCustomFieldValueId } from '../../../models/CustomFieldValue';
 import { createLocalId } from '../../../utils/local-id';
+import { syncTicketStateToHippo } from './hippo-sync';
 
-export function* updateCustomFieldValue(cardId, customFieldGroupId, customFieldId, data) {
+export function* updateCustomFieldValue(
+  cardId,
+  customFieldGroupId,
+  customFieldId,
+  data,
+  { syncToHippo = false } = {},
+) {
   const localId = yield call(createLocalId);
 
   yield put(
@@ -35,10 +42,16 @@ export function* updateCustomFieldValue(cardId, customFieldGroupId, customFieldI
     ));
   } catch (error) {
     yield put(actions.updateCustomFieldValue.failure(localId, error));
-    return;
+    return null;
   }
 
   yield put(actions.updateCustomFieldValue.success(localId, customFieldValue));
+
+  if (syncToHippo) {
+    yield call(syncTicketStateToHippo, cardId);
+  }
+
+  return customFieldValue;
 }
 
 export function* handleCustomFieldValueUpdate(customFieldValue) {

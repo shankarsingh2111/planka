@@ -12,8 +12,10 @@ export default function* customFieldValuessWatchers() {
   yield all([
     takeEvery(
       EntryActionTypes.CUSTOM_FIELD_VALUE_UPDATE,
-      ({ payload: { cardId, customFieldGroupId, customFieldId, data } }) =>
-        services.updateCustomFieldValue(cardId, customFieldGroupId, customFieldId, data),
+      ({ payload: { cardId, customFieldGroupId, customFieldId, data, syncToHippo } }) =>
+        services.updateCustomFieldValue(cardId, customFieldGroupId, customFieldId, data, {
+          syncToHippo,
+        }),
     ),
     takeEvery(
       EntryActionTypes.CUSTOM_FIELD_VALUE_UPDATE_HANDLE,

@@ -13,8 +13,10 @@ export default function* commentsWatchers() {
     takeEvery(EntryActionTypes.COMMENTS_IN_CURRENT_CARD_FETCH, () =>
       services.fetchCommentsInCurrentCard(),
     ),
-    takeEvery(EntryActionTypes.COMMENT_IN_CURRENT_CARD_CREATE, ({ payload: { data } }) =>
-      services.createCommentInCurrentCard(data),
+    takeEvery(
+      EntryActionTypes.COMMENT_IN_CURRENT_CARD_CREATE,
+      ({ payload: { data, syncToHippo } }) =>
+        services.createCommentInCurrentCard(data, { syncToHippo }),
     ),
     takeEvery(EntryActionTypes.COMMENT_CREATE_HANDLE, ({ payload: { comment, users } }) =>
       services.handleCommentCreate(comment, users),

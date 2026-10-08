@@ -45,8 +45,9 @@ const createCardInCurrentList = (data, autoOpen = false) => ({
   },
 });
 
-// Members and labels ride along for the create dialog; they are attached once the card exists
-const createCardWithDetails = (listId, data, { userIds, labelIds, recurrence }) => ({
+// Members, labels and an imported Hippo ticket ride along for the create dialog; they are
+// attached once the card exists
+const createCardWithDetails = (listId, data, { userIds, labelIds, recurrence, hippo }) => ({
   type: EntryActionTypes.CARD_WITH_DETAILS_CREATE,
   payload: {
     listId,
@@ -54,6 +55,7 @@ const createCardWithDetails = (listId, data, { userIds, labelIds, recurrence }) 
     userIds,
     labelIds,
     recurrence,
+    hippo,
   },
 });
 

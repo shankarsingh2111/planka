@@ -14,6 +14,8 @@ import NotEnoughStorageToast from './NotEnoughStorageToast';
 import EmptyTrashToast from './EmptyTrashToast';
 import SourceCardNotCopyableToast from './SourceCardNotCopyableToast';
 import SourceCardNotMovableToast from './SourceCardNotMovableToast';
+import HippoSyncFailedToast from './HippoSyncFailedToast';
+import HippoImportIncompleteToast from './HippoImportIncompleteToast';
 
 const TOAST_BY_TYPE = {
   [ToastTypes.FILE_IS_TOO_BIG]: FileIsTooBigToast,
@@ -23,6 +25,8 @@ const TOAST_BY_TYPE = {
   [ToastTypes.EMPTY_TRASH]: EmptyTrashToast,
   [ToastTypes.SOURCE_CARD_NOT_COPYABLE]: SourceCardNotCopyableToast,
   [ToastTypes.SOURCE_CARD_NOT_MOVABLE]: SourceCardNotMovableToast,
+  [ToastTypes.HIPPO_SYNC_FAILED]: HippoSyncFailedToast,
+  [ToastTypes.HIPPO_IMPORT_INCOMPLETE]: HippoImportIncompleteToast,
 };
 
 const Toaster = React.memo(() => (

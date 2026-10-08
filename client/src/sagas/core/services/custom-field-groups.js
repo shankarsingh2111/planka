@@ -11,6 +11,7 @@ import actions from '../../../actions';
 import api from '../../../api';
 import { createLocalId } from '../../../utils/local-id';
 
+// Returns the group the server created, or null when it refused
 export function* createCustomFieldGroupInBoard(boardId, data) {
   const localId = yield call(createLocalId);
 
@@ -37,10 +38,12 @@ export function* createCustomFieldGroupInBoard(boardId, data) {
     ));
   } catch (error) {
     yield put(actions.createCustomFieldGroup.failure(localId, error));
-    return;
+    return null;
   }
 
   yield put(actions.createCustomFieldGroup.success(localId, customFieldGroup));
+
+  return customFieldGroup;
 }
 
 export function* createCustomFieldGroupInCurrentBoard(data) {

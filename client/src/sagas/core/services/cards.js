@@ -18,6 +18,7 @@ import {
   getCardRecurrenceScope,
   updateCardRecurrence,
 } from './card-recurrences';
+import { importHippoTicketToCard } from './hippo';
 import request from '../request';
 import selectors from '../../../selectors';
 import actions from '../../../actions';
@@ -187,10 +188,11 @@ export function* createCard(listId, data, index, autoOpen) {
 /**
  * The API only takes members and labels on a card that already exists, so they follow the create
  * instead of riding along with it, addressed by the server's id rather than the local one the
- * store showed in the meantime. Each attach rolls itself back if it fails. A repeat comes last,
- * since every card of the series is a copy of this one, members and labels included.
+ * store showed in the meantime. Each attach rolls itself back if it fails. A Hippo ticket the
+ * dialog imported is linked next. A repeat comes last, since every card of the series is a copy
+ * of this one, members, labels and Hippo fields included.
  */
-export function* createCardWithDetails(listId, data, { userIds, labelIds, recurrence }) {
+export function* createCardWithDetails(listId, data, { userIds, labelIds, recurrence, hippo }) {
   const card = yield call(createCard, listId, data);
 
   if (!card) {
@@ -201,6 +203,10 @@ export function* createCardWithDetails(listId, data, { userIds, labelIds, recurr
     ...userIds.map((userId) => call(addUserToCard, userId, card.id)),
     ...labelIds.map((labelId) => call(addLabelToCard, labelId, card.id)),
   ]);
+
+  if (hippo) {
+    yield call(importHippoTicketToCard, card, hippo);
+  }
 
   if (recurrence) {
     yield call(createCardRecurrence, card.id, recurrence);

@@ -10,6 +10,7 @@ import selectors from '../../../selectors';
 import actions from '../../../actions';
 import api from '../../../api';
 import { createLocalId } from '../../../utils/local-id';
+import { syncCommentToHippo } from './hippo-sync';
 
 export function* fetchComments(cardId) {
   const { lastCommentId } = yield select(selectors.selectCardById, cardId);
@@ -40,7 +41,9 @@ export function* fetchCommentsInCurrentCard() {
   yield call(fetchComments, cardId);
 }
 
-export function* createComment(cardId, data) {
+// Returns the comment the server created, or null when it refused. On a ticket card the user may
+// also have chosen to post it to Hippo, which happens once Planka has it.
+export function* createComment(cardId, data, { syncToHippo = false } = {}) {
   const localId = yield call(createLocalId);
   const currentUser = yield select(selectors.selectCurrentUser);
 
@@ -58,16 +61,22 @@ export function* createComment(cardId, data) {
     ({ item: comment } = yield call(request, api.createComment, cardId, data));
   } catch (error) {
     yield put(actions.createComment.failure(localId, error));
-    return;
+    return null;
   }
 
   yield put(actions.createComment.success(localId, comment));
+
+  if (syncToHippo) {
+    yield call(syncCommentToHippo, cardId, comment.id);
+  }
+
+  return comment;
 }
 
-export function* createCommentInCurrentCard(data) {
+export function* createCommentInCurrentCard(data, options) {
   const { cardId } = yield select(selectors.selectPath);
 
-  yield call(createComment, cardId, data);
+  yield call(createComment, cardId, data, options);
 }
 
 export function* handleCommentCreate(comment, users) {

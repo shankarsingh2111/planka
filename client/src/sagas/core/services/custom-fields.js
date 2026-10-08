@@ -72,10 +72,12 @@ export function* createCustomFieldInGroup(customFieldGroupId, data) {
     ));
   } catch (error) {
     yield put(actions.createCustomField.failure(localId, error));
-    return;
+    return null;
   }
 
   yield put(actions.createCustomField.success(localId, customField));
+
+  return customField;
 }
 
 export function* handleCustomFieldCreate(customField) {
@@ -90,10 +92,12 @@ export function* updateCustomField(id, data) {
     ({ item: customField } = yield call(request, api.updateCustomField, id, data));
   } catch (error) {
     yield put(actions.updateCustomField.failure(id, error));
-    return;
+    return null;
   }
 
   yield put(actions.updateCustomField.success(customField));
+
+  return customField;
 }
 
 export function* handleCustomFieldUpdate(customField) {

@@ -5,13 +5,20 @@
 
 import EntryActionTypes from '../constants/EntryActionTypes';
 
-const updateCustomFieldValue = (cardId, customFieldGroupId, customFieldId, data) => ({
+const updateCustomFieldValue = (
+  cardId,
+  customFieldGroupId,
+  customFieldId,
+  data,
+  { syncToHippo = false } = {},
+) => ({
   type: EntryActionTypes.CUSTOM_FIELD_VALUE_UPDATE,
   payload: {
     cardId,
     customFieldGroupId,
     customFieldId,
     data,
+    syncToHippo,
   },
 });
 

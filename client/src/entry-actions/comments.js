@@ -10,10 +10,11 @@ const fetchCommentsInCurrentCard = () => ({
   payload: {},
 });
 
-const createCommentInCurrentCard = (data) => ({
+const createCommentInCurrentCard = (data, { syncToHippo = false } = {}) => ({
   type: EntryActionTypes.COMMENT_IN_CURRENT_CARD_CREATE,
   payload: {
     data,
+    syncToHippo,
   },
 });
 
