@@ -25,6 +25,10 @@ module.exports = {
       projectId: projectIdOrIds,
     });
 
+    await ProjectHippoConfig.qm.delete({
+      projectId: projectIdOrIds,
+    });
+
     const projectManagers = await ProjectManager.qm.delete({
       projectId: projectIdOrIds,
     });

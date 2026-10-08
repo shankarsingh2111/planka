@@ -30,6 +30,14 @@ const getByBoardId = (boardId, { exceptIdOrIds, sort = ['position', 'id'] } = {}
     { exceptIdOrIds, sort },
   );
 
+const getByBoardIds = (boardIds, { sort = ['position', 'id'] } = {}) =>
+  defaultFind(
+    {
+      boardId: boardIds,
+    },
+    { sort },
+  );
+
 const getByCardId = (cardId, { exceptIdOrIds, sort = ['position', 'id'] } = {}) =>
   defaultFind(
     {
@@ -61,6 +69,7 @@ module.exports = {
   create,
   createOne,
   getByBoardId,
+  getByBoardIds,
   getByIds,
   getByCardId,
   getByCardIds,

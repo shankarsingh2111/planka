@@ -68,6 +68,11 @@
  *           default: false
  *           description: Whether the project is hidden
  *           example: false
+ *         isHippoConfigured:
+ *           type: boolean
+ *           default: false
+ *           description: Whether a Hippo app secret key is set for the project
+ *           example: false
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -155,6 +160,11 @@ module.exports = {
       type: 'boolean',
       defaultsTo: false, // TODO: implement via normalizeValues?
       columnName: 'is_hidden',
+    },
+    isHippoConfigured: {
+      type: 'boolean',
+      defaultsTo: false,
+      columnName: 'is_hippo_configured',
     },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗

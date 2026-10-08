@@ -53,6 +53,19 @@
  *           default: false
  *           description: Whether to show the field on the front of cards
  *           example: false
+ *         type:
+ *           type: string
+ *           enum: [text, dropdown]
+ *           default: text
+ *           description: Kind of value the field holds
+ *           example: dropdown
+ *         options:
+ *           type: array
+ *           nullable: true
+ *           items:
+ *             type: string
+ *           description: Values a dropdown field offers (null for text fields)
+ *           example: [New, Pending from Dev, Closed]
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -67,7 +80,14 @@
  *           example: 2024-01-01T00:00:00.000Z
  */
 
+const Types = {
+  TEXT: 'text',
+  DROPDOWN: 'dropdown',
+};
+
 module.exports = {
+  Types,
+
   attributes: {
     //  ╔═╗╦═╗╦╔╦╗╦╔╦╗╦╦  ╦╔═╗╔═╗
     //  ╠═╝╠╦╝║║║║║ ║ ║╚╗╔╝║╣ ╚═╗
@@ -85,6 +105,14 @@ module.exports = {
       type: 'boolean',
       defaultsTo: false,
       columnName: 'show_on_front_of_card',
+    },
+    type: {
+      type: 'string',
+      isIn: Object.values(Types),
+      defaultsTo: Types.TEXT,
+    },
+    options: {
+      type: 'json',
     },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
