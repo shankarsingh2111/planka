@@ -3,15 +3,17 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import { useSelector } from 'react-redux';
 import { Button, Icon } from 'semantic-ui-react';
+import { useDidUpdate } from '../../../../lib/hooks';
 
 import selectors from '../../../../selectors';
 import { usePopupInClosableContext } from '../../../../hooks';
 import { isListArchiveOrTrash } from '../../../../utils/record-helpers';
+import { HIPPO_GROUP_NAME } from '../../../../utils/hippo';
 import { BoardMembershipRoles } from '../../../../constants/Enums';
 import CustomFieldGroup from '../../../custom-field-groups/CustomFieldGroup';
 import CustomFieldGroupStep from '../../../custom-field-groups/CustomFieldGroupStep';
@@ -22,7 +24,13 @@ const Item = React.memo(({ id, dragHandleProps }) => {
   const selectCustomFieldGroupById = useMemo(() => selectors.makeSelectCustomFieldGroupById(), []);
   const selectListById = useMemo(() => selectors.makeSelectListById(), []);
 
+  const selectHasValues = useMemo(
+    () => selectors.makeSelectHasValuesInCustomFieldGroupForCurrentCard(),
+    [],
+  );
+
   const customFieldGroup = useSelector((state) => selectCustomFieldGroupById(state, id));
+  const hasValues = useSelector((state) => selectHasValues(state, id));
 
   const canEdit = useSelector((state) => {
     if (customFieldGroup.boardId) {
@@ -40,6 +48,21 @@ const Item = React.memo(({ id, dragHandleProps }) => {
     return !!boardMembership && boardMembership.role === BoardMembershipRoles.EDITOR;
   });
 
+  // A Hippo Ticket section on a card not linked to a ticket stays out of the way until opened
+  const isCollapsible = customFieldGroup.name === HIPPO_GROUP_NAME;
+  const [isOpened, setIsOpened] = useState(!isCollapsible || hasValues);
+
+  const handleToggleClick = useCallback(() => {
+    setIsOpened((prevIsOpened) => !prevIsOpened);
+  }, []);
+
+  // Values that arrive while the card is open, from an import or another user, show at once
+  useDidUpdate(() => {
+    if (hasValues) {
+      setIsOpened(true);
+    }
+  }, [hasValues]);
+
   const CustomFieldGroupPopup = usePopupInClosableContext(CustomFieldGroupStep);
 
   return (
@@ -56,10 +79,20 @@ const Item = React.memo(({ id, dragHandleProps }) => {
                 </Button>
               </CustomFieldGroupPopup>
             )}
-            <span className={styles.moduleHeaderTitle}>{customFieldGroup.name}</span>
+            {isCollapsible ? (
+              <button type="button" className={styles.toggleButton} onClick={handleToggleClick}>
+                <span className={styles.moduleHeaderTitle}>{customFieldGroup.name}</span>
+                <Icon
+                  name={isOpened ? 'chevron up' : 'chevron down'}
+                  className={styles.toggleIcon}
+                />
+              </button>
+            ) : (
+              <span className={styles.moduleHeaderTitle}>{customFieldGroup.name}</span>
+            )}
           </div>
         </div>
-        <CustomFieldGroup id={id} />
+        {isOpened && <CustomFieldGroup id={id} />}
       </div>
     </div>
   );

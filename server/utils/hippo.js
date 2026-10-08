@@ -197,6 +197,19 @@ const mapEntries = (items, kind, contentKey) =>
       markdown: htmlToMarkdown(item[contentKey]),
     }));
 
+// Hippo's sample shows only an empty list, so a tag may be plain text or an object naming it. A
+// comma would split it in the multi-select it goes into, so commas become spaces.
+const getTagName = (tag) => {
+  const name = typeof tag === 'string' ? tag : tag && (tag.name || tag.tag || tag.title);
+  return typeof name === 'string' ? name.replace(/,/g, ' ').replace(/\s+/g, ' ').trim() : '';
+};
+
+const mapTags = (tags) =>
+  (tags || []).reduce((result, tag) => {
+    const name = getTagName(tag);
+    return name && !result.includes(name) ? [...result, name] : result;
+  }, []);
+
 const mapTicket = (data, ticketNumber) => ({
   number: data.uid ? String(data.uid) : ticketNumber,
   subject: data.subject || '',
@@ -210,6 +223,7 @@ const mapTicket = (data, ticketNumber) => ({
     name: getPersonName(assignee),
     email: assignee.email || null,
   })),
+  tags: mapTags(data.tags),
   // Oldest first, the order they are posted to the card in
   entries: [
     ...mapEntries(data.notes, EntryKinds.NOTE, 'note'),

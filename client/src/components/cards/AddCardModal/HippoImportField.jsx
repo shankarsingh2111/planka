@@ -12,6 +12,7 @@ import { Input } from '../../../lib/custom-ui';
 
 import { useNestedRef } from '../../../hooks';
 import {
+  DEFAULT_TICKET_URL_PATTERN,
   buildTicketUrl,
   getHippoErrorText,
   isTicketUrl,
@@ -64,7 +65,10 @@ const HippoImportField = React.memo(({ boardId, projectId, autoFocus, onFetch })
         writeTicketUrlPattern(projectId, pattern);
       }
     } else {
-      ticketUrl = buildTicketUrl(readTicketUrlPattern(projectId), ticketNumber);
+      ticketUrl = buildTicketUrl(
+        readTicketUrlPattern(projectId) || DEFAULT_TICKET_URL_PATTERN,
+        ticketNumber,
+      );
     }
 
     onFetch(ticket, ticketUrl);

@@ -258,8 +258,30 @@ describe('hippo', () => {
         group: null,
         dueDate: null,
         assignees: [],
+        tags: [],
         entries: [],
       });
+    });
+
+    it('takes tag names whether Hippo sends them as text or as objects', () => {
+      const tags = [
+        'Backend',
+        { name: 'Apps' },
+        { tag: 'Frontend' },
+        { title: 'Integration' },
+        ' Backend ',
+        { name: 'Web, Mobile' },
+        { _id: 'no-name' },
+        '',
+      ];
+
+      expect(mapTicket({ tags }, '7').tags).to.deep.equal([
+        'Backend',
+        'Apps',
+        'Frontend',
+        'Integration',
+        'Web Mobile',
+      ]);
     });
   });
 

@@ -55,7 +55,7 @@
  *           example: false
  *         type:
  *           type: string
- *           enum: [text, dropdown]
+ *           enum: [text, dropdown, multiselect]
  *           default: text
  *           description: Kind of value the field holds
  *           example: dropdown
@@ -64,7 +64,7 @@
  *           nullable: true
  *           items:
  *             type: string
- *           description: Values a dropdown field offers (null for text fields)
+ *           description: Values a dropdown or multi-select field offers (null for text fields)
  *           example: [New, Pending from Dev, Closed]
  *         createdAt:
  *           type: string
@@ -83,6 +83,7 @@
 const Types = {
   TEXT: 'text',
   DROPDOWN: 'dropdown',
+  MULTISELECT: 'multiselect',
 };
 
 module.exports = {

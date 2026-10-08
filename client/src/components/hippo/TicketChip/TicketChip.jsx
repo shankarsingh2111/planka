@@ -7,14 +7,14 @@ import React, { useCallback } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 
-import { toSafeHttpUrl } from '../../../utils/hippo';
+import { getTicketUrl } from '../../../utils/hippo';
 
 import styles from './TicketChip.module.scss';
 
-// "#43886", linking to the ticket when its address is a web link. Following the link must not
-// also open the card the chip sits on.
+// "#43886", linking to the ticket: its own link when that is a web link, otherwise Hippo's page
+// for the number. Following the link must not also open the card the chip sits on.
 const TicketChip = React.memo(({ number, url, className }) => {
-  const safeUrl = toSafeHttpUrl(url);
+  const safeUrl = getTicketUrl(url, number);
 
   const handleLinkClick = useCallback((event) => {
     event.stopPropagation();

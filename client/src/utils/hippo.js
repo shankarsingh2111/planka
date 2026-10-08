@@ -4,6 +4,7 @@
  */
 
 import { CustomFieldTypes } from '../constants/Enums';
+import { joinMultiselectContent } from './custom-fields';
 
 // The server reads these same names (server/utils/hippo.js); the two must stay in step
 export const HIPPO_GROUP_NAME = 'Hippo Ticket';
@@ -13,14 +14,33 @@ export const HippoFieldNames = {
   TICKET_STATE: 'Ticket State',
   PRIORITY: 'Priority',
   TICKET_URL: 'Ticket URL',
+  TAGS: 'Tags',
 };
 
 // The ticket chip on the card front stands in for these
 export const TICKET_CHIP_FIELD_NAMES = [HippoFieldNames.TICKET_NUMBER, HippoFieldNames.TICKET_URL];
 
-export const DEFAULT_TICKET_STATES = ['New', 'Pending from Dev', 'Pending from CSM', 'Closed'];
+export const DEFAULT_TICKET_STATES = [
+  'New',
+  'Pending',
+  'Acknowledged',
+  'Pending from CSM',
+  'Pending from Client',
+  'Pending from Dev',
+  'Client not Responsive',
+  'In Progress',
+  'Integration in Progress',
+  'Feasibility Check',
+  'Pending from QA',
+  'Closed',
+];
 
-// What a board's "Hippo Ticket" group holds, in order
+export const DEFAULT_PRIORITIES = ['Normal', 'Urgent', 'Critical'];
+
+export const DEFAULT_TAGS = ['Apps', 'Backend', 'Frontend', 'Integration', 'Solutioning'];
+
+// What a board's "Hippo Ticket" group holds, in order. A board's own options are kept, and the
+// defaults join them.
 export const HIPPO_FIELD_DEFINITIONS = [
   {
     name: HippoFieldNames.TICKET_NUMBER,
@@ -31,11 +51,19 @@ export const HIPPO_FIELD_DEFINITIONS = [
     name: HippoFieldNames.TICKET_STATE,
     type: CustomFieldTypes.DROPDOWN,
     showOnFrontOfCard: true,
+    defaultOptions: DEFAULT_TICKET_STATES,
   },
   {
     name: HippoFieldNames.PRIORITY,
-    type: CustomFieldTypes.TEXT,
+    type: CustomFieldTypes.DROPDOWN,
     showOnFrontOfCard: false,
+    defaultOptions: DEFAULT_PRIORITIES,
+  },
+  {
+    name: HippoFieldNames.TAGS,
+    type: CustomFieldTypes.MULTISELECT,
+    showOnFrontOfCard: false,
+    defaultOptions: DEFAULT_TAGS,
   },
   {
     name: HippoFieldNames.TICKET_URL,
@@ -47,6 +75,9 @@ export const HIPPO_FIELD_DEFINITIONS = [
 const TICKET_NUMBER_REGEX = /^#?(\d{1,12})$/;
 const URL_REGEX = /^https?:\/\//i;
 const TICKET_NUMBER_PLACEHOLDER = '{ticketNumber}';
+
+// Where a ticket lives when no link to it was ever pasted
+export const DEFAULT_TICKET_URL_PATTERN = `https://hippochat.io/en/#/ticket/list/active/${TICKET_NUMBER_PLACEHOLDER}`;
 const MAX_TICKET_NUMBER_LENGTH = 12;
 
 const ENTRY_LABEL_BY_KIND = {
@@ -135,13 +166,19 @@ export const toSafeHttpUrl = (value) => {
   return url && (url.protocol === 'http:' || url.protocol === 'https:') ? url.href : null;
 };
 
-// The board's own options when it has some, plus the ticket's state when they lack it
-export const buildTicketStateOptions = (existingOptions, statusText) => {
-  const options =
-    existingOptions && existingOptions.length > 0 ? existingOptions : DEFAULT_TICKET_STATES;
+// A card's own link when it is a web link, otherwise Hippo's page for its number
+export const getTicketUrl = (url, ticketNumber) =>
+  toSafeHttpUrl(url) ||
+  (/^\d{1,12}$/.test(ticketNumber || '')
+    ? buildTicketUrl(DEFAULT_TICKET_URL_PATTERN, ticketNumber)
+    : null);
 
-  return statusText && !options.includes(statusText) ? [...options, statusText] : options;
-};
+// The board's own options first, then whichever defaults and ticket values they lack
+export const mergeFieldOptions = (existingOptions, defaultOptions, values) =>
+  [...(existingOptions || []), ...defaultOptions, ...values].reduce(
+    (result, option) => (option && !result.includes(option) ? [...result, option] : result),
+    [],
+  );
 
 export const getMatchedUserIds = (ticket) =>
   ticket ? ticket.assignees.flatMap((assignee) => (assignee.userId ? [assignee.userId] : [])) : [];
@@ -213,6 +250,10 @@ export const buildHippoImport = (
     {
       name: HippoFieldNames.PRIORITY,
       content: ticket.priority,
+    },
+    {
+      name: HippoFieldNames.TAGS,
+      content: joinMultiselectContent(ticket.tags || []),
     },
     {
       name: HippoFieldNames.TICKET_URL,

@@ -11,20 +11,30 @@ import { createCustomFieldInGroup, updateCustomField } from './custom-fields';
 import { updateCustomFieldValue } from './custom-field-values';
 import { createComment } from './comments';
 import selectors from '../../../selectors';
-import {
-  HIPPO_FIELD_DEFINITIONS,
-  HIPPO_GROUP_NAME,
-  buildTicketStateOptions,
-} from '../../../utils/hippo';
+import { HIPPO_FIELD_DEFINITIONS, HIPPO_GROUP_NAME, mergeFieldOptions } from '../../../utils/hippo';
+import { isChoiceFieldType, splitMultiselectContent } from '../../../utils/custom-fields';
 import { CustomFieldTypes } from '../../../constants/Enums';
 import ToastTypes from '../../../constants/ToastTypes';
 
+const getPicks = (definition, values) => {
+  const value = values.find(({ name }) => name === definition.name);
+
+  if (!value) {
+    return [];
+  }
+
+  return definition.type === CustomFieldTypes.MULTISELECT
+    ? splitMultiselectContent(value.content)
+    : [value.content];
+};
+
 /**
  * Finds the board's "Hippo Ticket" group, creating it and whichever of its fields are missing. A
- * state the Ticket State dropdown does not offer yet joins its options. Returns the ids to set the
- * values with, or null when the server refused any of it.
+ * choice field takes the type it is defined with, and any default option or imported value it
+ * does not offer yet joins its options. Returns the ids to set the values with, or null when the
+ * server refused any of it.
  */
-export function* ensureHippoFieldGroup(boardId, ticketState) {
+export function* ensureHippoFieldGroup(boardId, values) {
   const hippoFieldGroup = yield select(selectors.selectHippoFieldGroupByBoardId, boardId);
 
   let customFieldGroupId;
@@ -48,25 +58,33 @@ export function* ensureHippoFieldGroup(boardId, ticketState) {
   const customFieldIdByName = {};
 
   for (let i = 0; i < HIPPO_FIELD_DEFINITIONS.length; i += 1) {
-    const definition = HIPPO_FIELD_DEFINITIONS[i];
-    const isDropdown = definition.type === CustomFieldTypes.DROPDOWN;
+    const { defaultOptions, ...definition } = HIPPO_FIELD_DEFINITIONS[i];
+    const isChoice = isChoiceFieldType(definition.type);
+    const picks = isChoice ? getPicks(definition, values) : [];
 
     let customField = customFields.find(({ name }) => name === definition.name);
 
     if (!customField) {
       customField = yield call(createCustomFieldInGroup, customFieldGroupId, {
         ...definition,
-        options: isDropdown ? buildTicketStateOptions(null, ticketState) : null,
+        options: isChoice ? mergeFieldOptions(null, defaultOptions, picks) : null,
       });
-    } else if (
-      isDropdown &&
-      customField.type === CustomFieldTypes.DROPDOWN &&
-      ticketState &&
-      !(customField.options || []).includes(ticketState)
-    ) {
-      customField = yield call(updateCustomField, customField.id, {
-        options: [...(customField.options || []), ticketState],
-      });
+    } else if (isChoice) {
+      // A field made before it was a dropdown, such as Priority, turns into one
+      const isSameType = customField.type === definition.type;
+
+      const options = mergeFieldOptions(
+        isSameType ? customField.options : null,
+        defaultOptions,
+        picks,
+      );
+
+      if (!isSameType || options.length !== (customField.options || []).length) {
+        customField = yield call(updateCustomField, customField.id, {
+          type: definition.type,
+          options,
+        });
+      }
     }
 
     if (!customField) {
@@ -88,8 +106,8 @@ export function* ensureHippoFieldGroup(boardId, ticketState) {
  * step waits for the one before it, so the comments keep their order and a failure stops the rest
  * and is reported once. Imported comments are never posted back to Hippo.
  */
-export function* importHippoTicketToCard(card, { ticketState, values, commentTexts }) {
-  const hippoFieldGroup = yield call(ensureHippoFieldGroup, card.boardId, ticketState);
+export function* importHippoTicketToCard(card, { values, commentTexts }) {
+  const hippoFieldGroup = yield call(ensureHippoFieldGroup, card.boardId, values);
 
   let isComplete = !!hippoFieldGroup;
 

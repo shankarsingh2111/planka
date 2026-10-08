@@ -55,6 +55,7 @@ export const getHippoTicketForCardModel = (cardModel, CustomFieldValue) => {
     if (number) {
       const stateCustomFieldModel = customFieldModelByName[HippoFieldNames.TICKET_STATE];
       const urlCustomFieldModel = customFieldModelByName[HippoFieldNames.TICKET_URL];
+      const numberCustomFieldModel = customFieldModelByName[HippoFieldNames.TICKET_NUMBER];
 
       return {
         number,
@@ -65,6 +66,7 @@ export const getHippoTicketForCardModel = (cardModel, CustomFieldValue) => {
           urlCustomFieldModel,
         ),
         customFieldGroupId: customFieldGroupModel.id,
+        numberCustomFieldId: numberCustomFieldModel.id,
         stateCustomFieldId: stateCustomFieldModel ? stateCustomFieldModel.id : null,
         urlCustomFieldId: urlCustomFieldModel ? urlCustomFieldModel.id : null,
       };
@@ -108,6 +110,29 @@ export const selectHippoTicketForCurrentCard = createSelector(
     return getHippoTicketForCardModel(cardModel, CustomFieldValue);
   },
 );
+
+// Whether the current card has anything filled in for a group, whose section starts collapsed if not
+export const makeSelectHasValuesInCustomFieldGroupForCurrentCard = () =>
+  createSelector(
+    orm,
+    (state) => selectPath(state).cardId,
+    (_, customFieldGroupId) => customFieldGroupId,
+    ({ Card }, cardId, customFieldGroupId) => {
+      const cardModel = cardId && Card.withId(cardId);
+
+      if (!cardModel) {
+        return false;
+      }
+
+      return cardModel.customFieldValues
+        .toRefArray()
+        .some(
+          (customFieldValue) =>
+            customFieldValue.customFieldGroupId === customFieldGroupId &&
+            !!customFieldValue.content,
+        );
+    },
+  );
 
 // The board's own "Hippo Ticket" group, as the import fills it, with its saved fields
 export const selectHippoFieldGroupByBoardId = createSelector(
@@ -167,6 +192,7 @@ export const selectCanSyncToHippoInCurrentBoard = (state) => {
 
 export default {
   makeSelectHippoTicketByCardId,
+  makeSelectHasValuesInCustomFieldGroupForCurrentCard,
   selectHippoTicketByCardId,
   selectHippoTicketForCurrentCard,
   selectHippoFieldGroupByBoardId,

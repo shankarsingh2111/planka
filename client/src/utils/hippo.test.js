@@ -5,11 +5,12 @@ import {
   buildCardDescription,
   buildHippoImport,
   buildImportedCommentText,
-  buildTicketStateOptions,
   buildTicketUrl,
   getFirstLine,
+  getTicketUrl,
   getHippoErrorText,
   getUnmatchedAssigneeNames,
+  mergeFieldOptions,
   isTicketUrl,
   parseTicketNumber,
   toSafeHttpUrl,
@@ -22,6 +23,7 @@ const TICKET = {
   descriptionMarkdown: 'Cannot pass the OTP screen',
   statusText: 'Pending from Dev',
   priority: 'Normal',
+  tags: ['Backend', 'Billing'],
   dueDate: '2026-10-05T18:30:00.000Z',
   assignees: [
     { name: 'Sarabjot Kaur', userId: '11' },
@@ -84,6 +86,23 @@ describe('ticket URL patterns', () => {
     expect(buildTicketUrl(null, '43886')).toBeNull();
   });
 
+  it("falls back to Hippo's own ticket page when a card has no usable link", () => {
+    expect(getTicketUrl(null, '44233')).toBe('https://hippochat.io/en/#/ticket/list/active/44233');
+
+    // eslint-disable-next-line no-script-url
+    expect(getTicketUrl('javascript:alert(1)', '44233')).toBe(
+      'https://hippochat.io/en/#/ticket/list/active/44233',
+    );
+
+    expect(getTicketUrl('https://app2.hippochat.io/#/ticket/44233', '44233')).toBe(
+      'https://app2.hippochat.io/#/ticket/44233',
+    );
+  });
+
+  it('builds no fallback for a ticket number that is not a number', () => {
+    expect(getTicketUrl(null, 'abc')).toBeNull();
+  });
+
   it('tells links from numbers', () => {
     expect(isTicketUrl(' https://hippochat.io/x/1')).toBe(true);
     expect(isTicketUrl('#43886')).toBe(false);
@@ -107,16 +126,19 @@ describe('toSafeHttpUrl', () => {
   });
 });
 
-describe('buildTicketStateOptions', () => {
-  it('starts from the default states', () => {
-    expect(buildTicketStateOptions(null, 'Closed')).toEqual(DEFAULT_TICKET_STATES);
+describe('mergeFieldOptions', () => {
+  it('starts from the defaults', () => {
+    expect(mergeFieldOptions(null, DEFAULT_TICKET_STATES, ['Closed'])).toEqual(
+      DEFAULT_TICKET_STATES,
+    );
   });
 
-  it('prefers the board options and adds a state they lack', () => {
-    expect(buildTicketStateOptions(['Open', 'Done'], 'Pending from Dev')).toEqual([
+  it("keeps the board's options first, then adds missing defaults and values", () => {
+    expect(mergeFieldOptions(['Open', 'New'], ['New', 'Closed'], ['Reopened', null])).toEqual([
       'Open',
-      'Done',
-      'Pending from Dev',
+      'New',
+      'Closed',
+      'Reopened',
     ]);
   });
 });
@@ -198,6 +220,7 @@ describe('imported comments', () => {
         { name: HippoFieldNames.TICKET_NUMBER, content: '43886' },
         { name: HippoFieldNames.TICKET_STATE, content: 'Closed' },
         { name: HippoFieldNames.PRIORITY, content: 'Normal' },
+        { name: HippoFieldNames.TAGS, content: 'Backend, Billing' },
       ],
       commentTexts: ['**[Hippo Note] Harsh Sharma · DATE**\n\n@Deepak kumar Kindly look into this'],
     });

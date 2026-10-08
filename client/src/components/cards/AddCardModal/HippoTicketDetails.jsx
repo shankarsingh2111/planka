@@ -79,6 +79,12 @@ const HippoTicketDetails = React.memo(
               <div className={styles.label}>{t('common.priority')}</div>
               <div className={styles.value}>{ticket.priority || '—'}</div>
             </div>
+            {ticket.tags && ticket.tags.length > 0 && (
+              <div className={styles.field}>
+                <div className={styles.label}>{t('common.tags')}</div>
+                <div className={styles.value}>{ticket.tags.join(', ')}</div>
+              </div>
+            )}
           </div>
           {unmatchedNames.length > 0 && (
             <div className={styles.hint}>

@@ -13,10 +13,11 @@ import selectors from '../../../selectors';
 import entryActions from '../../../entry-actions';
 import { buildCustomFieldValueId } from '../../../models/CustomFieldValue';
 import { isListArchiveOrTrash } from '../../../utils/record-helpers';
+import { isChoiceFieldType } from '../../../utils/custom-fields';
+import { getTicketUrl } from '../../../utils/hippo';
 import { BoardMembershipRoles, CustomFieldTypes } from '../../../constants/Enums';
 import ValueField from './ValueField';
 import DropdownValueField from './DropdownValueField';
-import TicketChip from '../../hippo/TicketChip';
 import HippoSyncModal from '../../hippo/HippoSyncModal';
 
 import styles from './CustomField.module.scss';
@@ -58,21 +59,19 @@ const CustomField = React.memo(({ id, customFieldGroupId }) => {
   const dispatch = useDispatch();
   const [t] = useTranslation();
   const [isCopied, setIsCopied] = useState(false);
-  const [isUrlEditing, setIsUrlEditing] = useState(false);
   const [pendingTicketState, setPendingTicketState] = useState(null);
 
   const content = customFieldValue ? customFieldValue.content : undefined;
 
-  // The Ticket URL of a ticket card shows as its "#43886" link, editable behind a button
-  const isTicketUrlField =
-    !!hippoTicket &&
-    hippoTicket.customFieldGroupId === customFieldGroupId &&
-    hippoTicket.urlCustomFieldId === id;
+  const isHippoField = !!hippoTicket && hippoTicket.customFieldGroupId === customFieldGroupId;
 
-  const isTicketStateField =
-    !!hippoTicket &&
-    hippoTicket.customFieldGroupId === customFieldGroupId &&
-    hippoTicket.stateCustomFieldId === id;
+  // A ticket card's Ticket URL is reached from its Ticket # instead, so it is not shown
+  const isTicketUrlField = isHippoField && hippoTicket.urlCustomFieldId === id;
+  const isTicketNumberField = isHippoField && hippoTicket.numberCustomFieldId === id;
+  const isTicketStateField = isHippoField && hippoTicket.stateCustomFieldId === id;
+
+  const ticketUrl = isTicketNumberField ? getTicketUrl(hippoTicket.url, hippoTicket.number) : null;
+  const isChoiceField = isChoiceFieldType(customField.type);
 
   const saveValue = useCallback(
     (nextContent, syncToHippo = false) => {
@@ -126,14 +125,6 @@ const CustomField = React.memo(({ id, customFieldGroupId }) => {
     setPendingTicketState(null);
   }, []);
 
-  const handleUrlEditClick = useCallback(() => {
-    setIsUrlEditing(true);
-  }, []);
-
-  const handleUrlEditClose = useCallback(() => {
-    setIsUrlEditing(false);
-  }, []);
-
   const handleCopyClick = useCallback(() => {
     if (isCopied) {
       return;
@@ -147,26 +138,22 @@ const CustomField = React.memo(({ id, customFieldGroupId }) => {
     }, 1000);
   }, [content, isCopied]);
 
+  if (isTicketUrlField) {
+    return null;
+  }
+
   let valueNode;
 
-  if (isTicketUrlField && content && !isUrlEditing) {
-    valueNode = (
-      <div className={styles.ticketValue}>
-        <TicketChip number={hippoTicket.number} url={content} />
-        {canEdit && (
-          <Button className={styles.editButton} onClick={handleUrlEditClick}>
-            <Icon fitted name="pencil" />
-          </Button>
-        )}
-      </div>
-    );
-  } else if (!canEdit) {
-    valueNode = <div className={styles.value}>{content || ' '}</div>;
-  } else if (customField.type === CustomFieldTypes.DROPDOWN) {
+  if (!canEdit) {
+    valueNode = <div className={styles.value}>{content || ' '}</div>;
+  } else if (isChoiceField) {
+    // Hippo always has a state and a priority, so its fields are never cleared from here
     valueNode = (
       <DropdownValueField
         defaultValue={content}
         options={customField.options || []}
+        multiple={customField.type === CustomFieldTypes.MULTISELECT}
+        clearable={!isHippoField}
         disabled={!customField.isPersisted}
         onUpdate={handleValueUpdate}
       />
@@ -175,11 +162,33 @@ const CustomField = React.memo(({ id, customFieldGroupId }) => {
     valueNode = (
       <ValueField
         defaultValue={content}
-        autoFocus={isUrlEditing}
         disabled={!customField.isPersisted}
         onUpdate={handleValueUpdate}
-        onClose={isUrlEditing ? handleUrlEditClose : undefined}
       />
+    );
+  }
+
+  // A picked option has nothing worth copying, and a ticket number opens its ticket instead
+  let sideButtonNode = null;
+
+  if (ticketUrl) {
+    sideButtonNode = (
+      <Button
+        as="a"
+        href={ticketUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={t('action.openInHippo')}
+        className={styles.linkButton}
+      >
+        <Icon fitted name="external alternate" />
+      </Button>
+    );
+  } else if (content && !isTicketNumberField && !isChoiceField) {
+    sideButtonNode = (
+      <Button className={styles.copyButton} onClick={handleCopyClick}>
+        <Icon fitted name={isCopied ? 'check' : 'copy'} />
+      </Button>
     );
   }
 
@@ -188,11 +197,7 @@ const CustomField = React.memo(({ id, customFieldGroupId }) => {
       <div className={styles.name}>{customField.name}</div>
       <div className={styles.valueWrapper}>
         {valueNode}
-        {content && (
-          <Button className={styles.copyButton} onClick={handleCopyClick}>
-            <Icon fitted name={isCopied ? 'check' : 'copy'} />
-          </Button>
-        )}
+        {sideButtonNode}
       </div>
       {pendingTicketState && hippoTicket && (
         <HippoSyncModal

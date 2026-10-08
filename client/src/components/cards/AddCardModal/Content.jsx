@@ -15,16 +15,17 @@ import { useDidUpdate } from '../../../lib/hooks';
 import selectors from '../../../selectors';
 import { useForm, useNestedRef, usePopupInClosableContext } from '../../../hooks';
 import { isUsableMarkdownElement } from '../../../utils/element-helpers';
-import { ListTypeStates } from '../../../constants/Enums';
+import { CustomFieldTypes, ListTypeStates } from '../../../constants/Enums';
 import LIST_TYPE_STATE_BY_TYPE from '../../../constants/ListTypeStateByType';
 import { CardTypeIcons } from '../../../constants/Icons';
 import { ClosableContext } from '../../../contexts';
 import { areDatesInOrder, buildCardData } from './card-data';
 import {
+  DEFAULT_TICKET_STATES,
   HippoFieldNames,
   applyTicketToCardData,
   buildHippoImport,
-  buildTicketStateOptions,
+  mergeFieldOptions,
 } from '../../../utils/hippo';
 import HippoImportField from './HippoImportField';
 import HippoTicketDetails from './HippoTicketDetails';
@@ -128,10 +129,12 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
         (customField) => customField.name === HippoFieldNames.TICKET_STATE,
       );
 
-    return buildTicketStateOptions(
-      stateCustomField && stateCustomField.options,
-      hippo.ticket.statusText,
-    );
+    const existingOptions =
+      stateCustomField && stateCustomField.type === CustomFieldTypes.DROPDOWN
+        ? stateCustomField.options
+        : null;
+
+    return mergeFieldOptions(existingOptions, DEFAULT_TICKET_STATES, [hippo.ticket.statusText]);
   }, [hippo, hippoFieldGroup]);
 
   // Edits build on the previous state, so quick successive picks in a popup never undo each other

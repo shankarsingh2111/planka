@@ -46,14 +46,14 @@
  *                 example: false
  *               type:
  *                 type: string
- *                 enum: [text, dropdown]
+ *                 enum: [text, dropdown, multiselect]
  *                 description: Kind of value the field holds (text when omitted)
  *                 example: dropdown
  *               options:
  *                 type: array
  *                 items:
  *                   type: string
- *                 description: Values a dropdown field offers; required for dropdown fields
+ *                 description: Values a dropdown or multi-select field offers; required for both
  *                 example: [New, Pending from Dev, Closed]
  *     responses:
  *       200:

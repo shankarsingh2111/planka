@@ -64,6 +64,30 @@
     position: relative;
   }
 
+  .toggleButton {
+    align-items: center;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    display: flex;
+    font: inherit;
+    min-width: 0;
+    outline: none;
+    padding: 0;
+    text-align: left;
+
+    &:hover .toggleIcon {
+      color: #17394d;
+    }
+  }
+
+  .toggleIcon {
+    color: #6b808c;
+    font-size: 14px;
+    margin-left: 8px;
+  }
+
   .wrapper {
     border-radius: 3px;
     margin-bottom: 24px;

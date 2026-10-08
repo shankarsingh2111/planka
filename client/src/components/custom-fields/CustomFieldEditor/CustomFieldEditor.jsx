@@ -12,6 +12,7 @@ import { Input } from '../../../lib/custom-ui';
 
 import { useNestedRef } from '../../../hooks';
 import { CustomFieldTypes } from '../../../constants/Enums';
+import { isChoiceFieldType } from '../../../utils/custom-fields';
 import OptionsEditor from './OptionsEditor';
 
 import styles from './CustomFieldEditor.module.scss';
@@ -74,15 +75,22 @@ const CustomFieldEditor = React.forwardRef(({ data, onFieldChange }, ref) => {
             text: t('common.dropdown'),
             value: CustomFieldTypes.DROPDOWN,
           },
+          {
+            text: t('common.multiSelect'),
+            value: CustomFieldTypes.MULTISELECT,
+          },
         ]}
         value={data.type}
         className={styles.field}
         onChange={onFieldChange}
       />
-      {data.type === CustomFieldTypes.DROPDOWN && (
+      {isChoiceFieldType(data.type) && (
         <>
           <div className={styles.text}>{t('common.options')}</div>
           <OptionsEditor value={data.options} onChange={handleOptionsChange} />
+          {data.type === CustomFieldTypes.MULTISELECT && (
+            <div className={styles.hint}>{t('common.multiSelectOptionsCannotContainCommas')}</div>
+          )}
         </>
       )}
       <Radio

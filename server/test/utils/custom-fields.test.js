@@ -43,6 +43,19 @@ describe('custom-fields', () => {
       });
     });
 
+    it('keeps the cleaned options of a multi-select', () => {
+      expect(
+        normalizeTypeValues({ type: 'multiselect', options: ['Apps', 'Backend'] }),
+      ).to.deep.equal({
+        type: 'multiselect',
+        options: ['Apps', 'Backend'],
+      });
+    });
+
+    it('refuses multi-select options with commas, which separate the picked values', () => {
+      expect(normalizeTypeValues({ type: 'multiselect', options: ['Apps, Web'] })).to.equal(null);
+    });
+
     it('refuses a dropdown without options', () => {
       expect(normalizeTypeValues({ type: 'dropdown' })).to.equal(null);
       expect(normalizeTypeValues({ type: 'dropdown', options: [] })).to.equal(null);
@@ -78,6 +91,15 @@ describe('custom-fields', () => {
 
       expect(isValueAllowed(customField, 'Closed')).to.equal(true);
       expect(isValueAllowed(customField, 'Reopened')).to.equal(false);
+    });
+
+    it('limits multi-select fields to distinct picks from their options', () => {
+      const customField = { type: 'multiselect', options: ['Apps', 'Backend', 'Frontend'] };
+
+      expect(isValueAllowed(customField, 'Apps')).to.equal(true);
+      expect(isValueAllowed(customField, 'Apps, Frontend')).to.equal(true);
+      expect(isValueAllowed(customField, 'Apps, Mobile')).to.equal(false);
+      expect(isValueAllowed(customField, 'Apps, Apps')).to.equal(false);
     });
   });
 });
