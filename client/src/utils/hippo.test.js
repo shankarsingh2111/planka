@@ -145,6 +145,30 @@ describe('applyTicketToCardData', () => {
 
     expect(applyTicketToCardData(prefilledData, nextTicket, TICKET).userIds).toEqual(['5', '12']);
   });
+
+  it('clears the title and due date a previous ticket brought when the next one has none', () => {
+    const nextTicket = { ...TICKET, number: '43934', subject: '', dueDate: null, assignees: [] };
+    const prefilledData = applyTicketToCardData(data, TICKET, null);
+    const nextData = applyTicketToCardData(prefilledData, nextTicket, TICKET);
+
+    expect(nextData.name).toBe('');
+    expect(nextData.dueDate).toBeNull();
+  });
+
+  it('keeps a title and due date changed by hand when the next ticket has none', () => {
+    const nextTicket = { ...TICKET, number: '43934', subject: '', dueDate: null, assignees: [] };
+
+    const editedData = {
+      ...applyTicketToCardData(data, TICKET, null),
+      name: 'My own title',
+      dueDate: new Date('2026-12-01T10:00:00.000Z'),
+    };
+
+    const nextData = applyTicketToCardData(editedData, nextTicket, TICKET);
+
+    expect(nextData.name).toBe('My own title');
+    expect(nextData.dueDate).toEqual(new Date('2026-12-01T10:00:00.000Z'));
+  });
 });
 
 describe('buildCardDescription', () => {

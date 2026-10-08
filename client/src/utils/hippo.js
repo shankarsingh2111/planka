@@ -161,11 +161,28 @@ export const applyTicketToCardData = (data, ticket, prevTicket) => {
 
   const ticketUserIds = getMatchedUserIds(ticket).filter((userId) => !keptUserIds.includes(userId));
 
+  // A title or due date the previous ticket filled in goes too, unless it was changed by hand
+  const isPrevName = !!prevTicket && data.name === prevTicket.subject;
+
+  const isPrevDueDate =
+    !!prevTicket &&
+    !!prevTicket.dueDate &&
+    !!data.dueDate &&
+    data.dueDate.getTime() === new Date(prevTicket.dueDate).getTime();
+
+  let { dueDate } = data;
+
+  if (ticket.dueDate) {
+    dueDate = new Date(ticket.dueDate);
+  } else if (isPrevDueDate) {
+    dueDate = null;
+  }
+
   return {
     ...data,
-    name: ticket.subject || data.name,
+    name: ticket.subject || (isPrevName ? '' : data.name),
     description: buildCardDescription(ticket),
-    dueDate: ticket.dueDate ? new Date(ticket.dueDate) : data.dueDate,
+    dueDate,
     userIds: [...keptUserIds, ...ticketUserIds],
   };
 };
