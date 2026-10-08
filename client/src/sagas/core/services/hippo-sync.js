@@ -3,11 +3,11 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-import { call } from 'redux-saga/effects';
+import { call, select } from 'redux-saga/effects';
 import toast from 'react-hot-toast';
 
-import request from '../request';
 import api from '../../../api';
+import selectors from '../../../selectors';
 import ToastTypes from '../../../constants/ToastTypes';
 
 const FAILED_TOAST_DURATION = 10 * 1000;
@@ -32,19 +32,34 @@ function* toastSyncFailure(cardId, commentId, error) {
   );
 }
 
+// Pushes go to the server directly rather than through request: its queue makes every later
+// Planka change wait, and Hippo may take its whole timeout to answer
 export function* syncCommentToHippo(cardId, commentId) {
+  const accessToken = yield select(selectors.selectAccessToken);
+
   try {
-    yield call(request, api.syncHippoNote, cardId, {
-      commentId,
-    });
+    yield call(
+      api.syncHippoNote,
+      cardId,
+      {
+        commentId,
+      },
+      {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    );
   } catch (error) {
     yield call(toastSyncFailure, cardId, commentId, error);
   }
 }
 
 export function* syncTicketStateToHippo(cardId) {
+  const accessToken = yield select(selectors.selectAccessToken);
+
   try {
-    yield call(request, api.syncHippoStatus, cardId);
+    yield call(api.syncHippoStatus, cardId, {
+      Authorization: `Bearer ${accessToken}`,
+    });
   } catch (error) {
     yield call(toastSyncFailure, cardId, null, error);
   }
