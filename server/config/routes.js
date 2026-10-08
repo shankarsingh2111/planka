@@ -142,6 +142,9 @@ module.exports.routes = {
   'GET /api/projects/:id': 'projects/show',
   'PATCH /api/projects/:id': 'projects/update',
   'DELETE /api/projects/:id': 'projects/delete',
+  'PUT /api/projects/:projectId/hippo-config': 'hippo/update-config',
+  'DELETE /api/projects/:projectId/hippo-config': 'hippo/delete-config',
+  'POST /api/projects/:projectId/hippo-config/verify': 'hippo/verify-config',
 
   'POST /api/projects/:projectId/project-managers': 'project-managers/create',
   'DELETE /api/project-managers/:id': 'project-managers/delete',
