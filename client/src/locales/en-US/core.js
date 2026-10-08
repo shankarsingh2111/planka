@@ -214,6 +214,7 @@ export default {
       recurringCard: 'Recurring card',
       refresh: 'Refresh',
       removeDependency: 'Remove dependency',
+      removedOption: '{{value}} (removed option)',
       repeatOn: 'Repeat on',
       repeat_title: 'Repeat',
       repeats: 'Repeats',
@@ -238,6 +239,7 @@ export default {
         'Files are stored on the local disk. To store them in S3, set S3_REGION and S3_BUCKET on the server and restart it (access keys are not needed when it runs with an AWS instance role). Files already on the local disk can then be exported from here.',
       s3LastExportResult:
         '{{copied}} copied, {{skipped}} already in S3, {{deleted}} local copies deleted',
+      selectOption: 'Select an option',
       seriesPreview_one: '{{count}} card, on {{from}}',
       seriesPreview_other: '{{count}} cards, {{from}} to {{to}}',
       showCompleted: 'Show completed',

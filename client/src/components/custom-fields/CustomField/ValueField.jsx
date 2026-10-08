@@ -12,7 +12,7 @@ import { useEscapeInterceptor, useField, useNestedRef } from '../../../hooks';
 
 import styles from './ValueField.module.scss';
 
-const ValueField = React.memo(({ defaultValue, onUpdate, ...props }) => {
+const ValueField = React.memo(({ defaultValue, onUpdate, onClose, ...props }) => {
   const prevDefaultValue = usePrevious(defaultValue);
   const [value, handleChange, setValue] = useField(defaultValue || '');
   const [blurFieldState, blurField] = useToggle();
@@ -52,7 +52,11 @@ const ValueField = React.memo(({ defaultValue, onUpdate, ...props }) => {
     if (cleanValue !== defaultValue) {
       onUpdate(cleanValue);
     }
-  }, [defaultValue, onUpdate, value, deactivateEscapeInterceptor]);
+
+    if (onClose) {
+      onClose();
+    }
+  }, [defaultValue, onUpdate, onClose, value, deactivateEscapeInterceptor]);
 
   useDidUpdate(() => {
     if (!isFocusedRef.current && defaultValue !== prevDefaultValue) {
@@ -83,10 +87,12 @@ const ValueField = React.memo(({ defaultValue, onUpdate, ...props }) => {
 ValueField.propTypes = {
   defaultValue: PropTypes.string,
   onUpdate: PropTypes.func.isRequired,
+  onClose: PropTypes.func,
 };
 
 ValueField.defaultProps = {
   defaultValue: undefined,
+  onClose: undefined,
 };
 
 export default ValueField;

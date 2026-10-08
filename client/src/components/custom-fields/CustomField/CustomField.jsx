@@ -12,8 +12,10 @@ import selectors from '../../../selectors';
 import entryActions from '../../../entry-actions';
 import { buildCustomFieldValueId } from '../../../models/CustomFieldValue';
 import { isListArchiveOrTrash } from '../../../utils/record-helpers';
-import { BoardMembershipRoles } from '../../../constants/Enums';
+import { BoardMembershipRoles, CustomFieldTypes } from '../../../constants/Enums';
 import ValueField from './ValueField';
+import DropdownValueField from './DropdownValueField';
+import TicketChip from '../../hippo/TicketChip';
 
 import styles from './CustomField.module.scss';
 
@@ -36,6 +38,8 @@ const CustomField = React.memo(({ id, customFieldGroupId }) => {
     ),
   );
 
+  const hippoTicket = useSelector(selectors.selectHippoTicketForCurrentCard);
+
   const canEdit = useSelector((state) => {
     const { listId } = selectors.selectCurrentCard(state);
     const list = selectListById(state, listId);
@@ -50,13 +54,22 @@ const CustomField = React.memo(({ id, customFieldGroupId }) => {
 
   const dispatch = useDispatch();
   const [isCopied, setIsCopied] = useState(false);
+  const [isUrlEditing, setIsUrlEditing] = useState(false);
 
-  const handleValueUpdate = useCallback(
-    (content) => {
-      if (content) {
+  const content = customFieldValue ? customFieldValue.content : undefined;
+
+  // The Ticket URL of a ticket card shows as its "#43886" link, editable behind a button
+  const isTicketUrlField =
+    !!hippoTicket &&
+    hippoTicket.customFieldGroupId === customFieldGroupId &&
+    hippoTicket.urlCustomFieldId === id;
+
+  const saveValue = useCallback(
+    (nextContent) => {
+      if (nextContent) {
         dispatch(
           entryActions.updateCustomFieldValue(cardId, customFieldGroupId, id, {
-            content,
+            content: nextContent,
           }),
         );
       } else {
@@ -66,35 +79,76 @@ const CustomField = React.memo(({ id, customFieldGroupId }) => {
     [id, customFieldGroupId, cardId, dispatch],
   );
 
+  const handleValueUpdate = useCallback(
+    (nextContent) => {
+      saveValue(nextContent);
+    },
+    [saveValue],
+  );
+
+  const handleUrlEditClick = useCallback(() => {
+    setIsUrlEditing(true);
+  }, []);
+
+  const handleUrlEditClose = useCallback(() => {
+    setIsUrlEditing(false);
+  }, []);
+
   const handleCopyClick = useCallback(() => {
     if (isCopied) {
       return;
     }
 
-    navigator.clipboard.writeText(customFieldValue.content);
+    navigator.clipboard.writeText(content);
 
     setIsCopied(true);
     setTimeout(() => {
       setIsCopied(false);
     }, 1000);
-  }, [customFieldValue, isCopied]);
+  }, [content, isCopied]);
+
+  let valueNode;
+
+  if (isTicketUrlField && content && !isUrlEditing) {
+    valueNode = (
+      <div className={styles.ticketValue}>
+        <TicketChip number={hippoTicket.number} url={content} />
+        {canEdit && (
+          <Button className={styles.editButton} onClick={handleUrlEditClick}>
+            <Icon fitted name="pencil" />
+          </Button>
+        )}
+      </div>
+    );
+  } else if (!canEdit) {
+    valueNode = <div className={styles.value}>{content || ' '}</div>;
+  } else if (customField.type === CustomFieldTypes.DROPDOWN) {
+    valueNode = (
+      <DropdownValueField
+        defaultValue={content}
+        options={customField.options || []}
+        disabled={!customField.isPersisted}
+        onUpdate={handleValueUpdate}
+      />
+    );
+  } else {
+    valueNode = (
+      <ValueField
+        defaultValue={content}
+        autoFocus={isUrlEditing}
+        disabled={!customField.isPersisted}
+        onUpdate={handleValueUpdate}
+        onClose={isUrlEditing ? handleUrlEditClose : undefined}
+      />
+    );
+  }
 
   return (
     <div>
       <div className={styles.name}>{customField.name}</div>
       <div className={styles.valueWrapper}>
-        {canEdit ? (
-          <ValueField
-            defaultValue={customFieldValue && customFieldValue.content}
-            disabled={!customField.isPersisted}
-            onUpdate={handleValueUpdate}
-          />
-        ) : (
-          <div className={styles.value}>
-            {customFieldValue ? customFieldValue.content : '\u00A0'}
-          </div>
-        )}
-        {customFieldValue && customFieldValue.content && (
+        {valueNode}
+        {content && (
           <Button className={styles.copyButton} onClick={handleCopyClick}>
             <Icon fitted name={isCopied ? 'check' : 'copy'} />
           </Button>

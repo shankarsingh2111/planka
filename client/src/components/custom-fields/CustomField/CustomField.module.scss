@@ -28,6 +28,29 @@
     }
   }
 
+  .editButton {
+    background: #ebeef0;
+    border-radius: 3px;
+    box-shadow: none;
+    box-sizing: content-box;
+    color: #516b7a;
+    display: none;
+    height: 30px;
+    margin: 0;
+    min-height: auto;
+    outline: none;
+    padding: 4px;
+    position: absolute;
+    right: 32px;
+    top: 0;
+    width: 20px;
+
+    &:hover {
+      background: #dfe3e6;
+      color: #4c4c4c;
+    }
+  }
+
   .name {
     color: #6b808c;
     font-size: 13px;
@@ -37,6 +60,14 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .ticketValue {
+    background: rgba(9, 30, 66, 0.04);
+    border: 1px solid transparent;
+    border-radius: 3px;
+    line-height: 20px;
+    padding: 8px 12px;
   }
 
   .value {
@@ -56,6 +87,10 @@
 
     &:hover:not(:has(input:focus)) {
       .copyButton {
+        display: block;
+      }
+
+      .editButton {
         display: block;
       }
     }
