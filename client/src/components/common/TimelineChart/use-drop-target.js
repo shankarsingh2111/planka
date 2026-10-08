@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { PIXELS_PER_DAY, getDropRange } from './utils';
+import { LANE_HEADER_WIDTH, PIXELS_PER_DAY, getDropRange } from './utils';
 
 /**
  * Drag session for a card coming from outside the canvas.
@@ -15,12 +15,26 @@ import { PIXELS_PER_DAY, getDropRange } from './utils';
  * pointer travelled on the way there does not lengthen it — and releasing commits it to the lane
  * underneath. Duration is set afterwards by resizing the bar.
  *
+ * A drop only counts over the dates actually on screen. The canvas runs on off-screen to the left
+ * once scrolled, so without this a pointer resting over the sidebar or the lane headers would map
+ * onto hidden dates and a card dropped back where it started would be scheduled there.
+ *
  * The canvas deliberately does not scroll itself while a card is in flight: the drag starts over
  * the sidebar, well to the left of the scroll area, so any edge-proximity rule fires immediately
  * and drags the dates out from under the cursor. Scroll to the dates you want first, then drag.
  */
+// Whether a point lies over the visible dates: inside the scroll area, right of the sticky lane
+// headers and below the sticky date header
+export const isPointOverVisibleCanvas = (clientX, clientY, scrollRect, headerHeight) =>
+  clientX >= scrollRect.left + LANE_HEADER_WIDTH &&
+  clientX <= scrollRect.right &&
+  clientY >= scrollRect.top + headerHeight &&
+  clientY <= scrollRect.bottom;
+
 const useDropTarget = ({
   isActive,
+  scrollRef,
+  headerRef,
   canvasRef,
   viewStart,
   zoomLevel,
@@ -37,9 +51,16 @@ const useDropTarget = ({
   const resolve = useCallback(() => {
     const pointer = pointerRef.current;
 
-    if (!pointer || !canvasRef.current) {
+    if (!pointer || !canvasRef.current || !scrollRef.current) {
       return;
     }
+
+    const isOverVisibleCanvas = isPointOverVisibleCanvas(
+      pointer.clientX,
+      pointer.clientY,
+      scrollRef.current.getBoundingClientRect(),
+      headerRef.current ? headerRef.current.offsetHeight : 0,
+    );
 
     const rect = canvasRef.current.getBoundingClientRect();
     const x = pointer.clientX - rect.left;
@@ -49,7 +70,7 @@ const useDropTarget = ({
       (candidate) => y >= candidate.top && y < candidate.top + candidate.height,
     );
 
-    if (!laneLayout || x < 0 || x > totalWidth) {
+    if (!isOverVisibleCanvas || !laneLayout || x < 0 || x > totalWidth) {
       previewRef.current = null;
       setPreview(null);
 
@@ -78,7 +99,7 @@ const useDropTarget = ({
         ? prevPreview
         : next,
     );
-  }, [canvasRef, layout, totalWidth, viewStart, zoomLevel]);
+  }, [scrollRef, headerRef, canvasRef, layout, totalWidth, viewStart, zoomLevel]);
 
   useEffect(() => {
     if (!isActive) {
