@@ -21,6 +21,14 @@ import { CardTypeIcons } from '../../../constants/Icons';
 import { ClosableContext } from '../../../contexts';
 import { areDatesInOrder, buildCardData } from './card-data';
 import {
+  HippoFieldNames,
+  applyTicketToCardData,
+  buildHippoImport,
+  buildTicketStateOptions,
+} from '../../../utils/hippo';
+import HippoImportField from './HippoImportField';
+import HippoTicketDetails from './HippoTicketDetails';
+import {
   buildOccurrenceDates,
   fromDateString,
   getSeriesStartDate,
@@ -44,15 +52,27 @@ import nameFieldStyles from '../CardModal/NameField.module.scss';
 import styles from './Content.module.scss';
 
 const Content = React.memo(({ defaultData, onCreate, onClose }) => {
-  const { defaultCardType } = useSelector(selectors.selectCurrentBoard);
+  const {
+    id: boardId,
+    projectId,
+    defaultCardType,
+  } = useSelector(selectors.selectCurrentBoard);
   const lists = useSelector(selectors.selectAvailableListsForCurrentBoard);
   const memberships = useSelector(selectors.selectMembershipsForCurrentBoard);
   const labels = useSelector(selectors.selectLabelsForCurrentBoard);
+  const isHippoConfigured = useSelector(selectors.selectIsHippoConfiguredForCurrentProject);
+
+  const hippoFieldGroup = useSelector((state) =>
+    selectors.selectHippoFieldGroupByBoardId(state, boardId),
+  );
 
   const [t] = useTranslation();
   const [descriptionDraft, setDescriptionDraft] = useState(null);
   const [isEditDescriptionOpened, setIsEditDescriptionOpened] = useState(false);
   const [, , setIsClosableActive] = useContext(ClosableContext);
+
+  // The fetched ticket and what to take from it: { ticket, ticketUrl, ticketState, selectedEntryIds }
+  const [hippo, setHippo] = useState(null);
 
   const [data, handleFieldChange, setData] = useForm(() => ({
     listId: defaultData.listId,
@@ -100,6 +120,23 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
     ).length > 0;
 
   const canCreate = !!list && isDatesOrderValid && isRecurrenceValid;
+
+  const hippoStateOptions = useMemo(() => {
+    if (!hippo) {
+      return [];
+    }
+
+    const stateCustomField =
+      hippoFieldGroup &&
+      hippoFieldGroup.customFields.find(
+        (customField) => customField.name === HippoFieldNames.TICKET_STATE,
+      );
+
+    return buildTicketStateOptions(
+      stateCustomField && stateCustomField.options,
+      hippo.ticket.statusText,
+    );
+  }, [hippo, hippoFieldGroup]);
 
   // Edits build on the previous state, so quick successive picks in a popup never undo each other
   const setField = useCallback(
@@ -170,6 +207,45 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
     setIsEditDescriptionOpened(false);
   }, []);
 
+  // A second ticket replaces the first one's prefill, members included
+  const handleHippoTicketFetch = useCallback(
+    (ticket, ticketUrl) => {
+      setData((prevData) => applyTicketToCardData(prevData, ticket, hippo && hippo.ticket));
+      setDescriptionDraft(null);
+
+      setHippo({
+        ticket,
+        ticketUrl,
+        ticketState: ticket.statusText,
+        selectedEntryIds: ticket.entries.map((entry) => entry.id),
+      });
+    },
+    [hippo, setData],
+  );
+
+  const handleHippoTicketStateChange = useCallback((ticketState) => {
+    setHippo((prevHippo) => ({
+      ...prevHippo,
+      ticketState,
+    }));
+  }, []);
+
+  const handleHippoSelectedEntryIdsChange = useCallback((selectedEntryIds) => {
+    setHippo((prevHippo) => ({
+      ...prevHippo,
+      selectedEntryIds,
+    }));
+  }, []);
+
+  const formatEntryDate = useCallback(
+    (date) =>
+      t('format:fullDateTime', {
+        value: date,
+        postProcess: 'formatDate',
+      }),
+    [t],
+  );
+
   const submit = useCallback(() => {
     if (!canCreate) {
       return;
@@ -190,6 +266,7 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
         userIds,
         labelIds,
         recurrence: recurrence || undefined,
+        hippo: hippo ? buildHippoImport(hippo, formatEntryDate) : undefined,
       },
     );
 
@@ -205,6 +282,8 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
     recurrence,
     canCreate,
     nameFieldRef,
+    hippo,
+    formatEntryDate,
   ]);
 
   const handleNameKeyDown = useCallback(
@@ -217,9 +296,12 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
     [submit],
   );
 
+  // From a list's Hippo button the ticket field takes the focus instead
   useEffect(() => {
-    nameFieldRef.current.focus();
-  }, [nameFieldRef]);
+    if (!(isHippoConfigured && defaultData.focusHippoImport)) {
+      nameFieldRef.current.focus();
+    }
+  }, [nameFieldRef]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useDidUpdate(() => {
     setIsClosableActive(isEditDescriptionOpened);
@@ -234,6 +316,18 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
 
   return (
     <Grid className={cardStyles.wrapper}>
+      {isHippoConfigured && (
+        <Grid.Row className={cardStyles.headerPadding}>
+          <Grid.Column width={16} className={cardStyles.headerPadding}>
+            <HippoImportField
+              boardId={boardId}
+              projectId={projectId}
+              autoFocus={!!defaultData.focusHippoImport}
+              onFetch={handleHippoTicketFetch}
+            />
+          </Grid.Column>
+        </Grid.Row>
+      )}
       <Grid.Row className={cardStyles.headerPadding}>
         <Grid.Column width={16} className={cardStyles.headerPadding}>
           <div className={cardStyles.headerWrapper}>
@@ -423,6 +517,17 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
                 ))}
             </div>
           </div>
+          {hippo && (
+            <HippoTicketDetails
+              ticket={hippo.ticket}
+              ticketUrl={hippo.ticketUrl}
+              ticketState={hippo.ticketState}
+              stateOptions={hippoStateOptions}
+              selectedEntryIds={hippo.selectedEntryIds}
+              onTicketStateChange={handleHippoTicketStateChange}
+              onSelectedEntryIdsChange={handleHippoSelectedEntryIdsChange}
+            />
+          )}
         </Grid.Column>
         <Grid.Column width={4} className={cardStyles.sidebarPadding}>
           <div className={cardStyles.sticky}>
@@ -526,6 +631,7 @@ Content.propTypes = {
     dueDate: PropTypes.instanceOf(Date),
     userIds: PropTypes.arrayOf(PropTypes.string),
     labelIds: PropTypes.arrayOf(PropTypes.string),
+    focusHippoImport: PropTypes.bool,
   }).isRequired,
   onCreate: PropTypes.func.isRequired,
   onClose: PropTypes.func.isRequired,

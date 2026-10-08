@@ -32,6 +32,7 @@ AddCardModal.propTypes = {
     dueDate: PropTypes.instanceOf(Date),
     userIds: PropTypes.arrayOf(PropTypes.string),
     labelIds: PropTypes.arrayOf(PropTypes.string),
+    focusHippoImport: PropTypes.bool,
   }).isRequired,
   onCreate: PropTypes.func.isRequired,
   onClose: PropTypes.func.isRequired,

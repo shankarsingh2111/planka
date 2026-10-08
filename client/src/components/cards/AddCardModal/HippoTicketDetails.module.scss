@@ -1,0 +1,84 @@
+/*!
+ * Copyright (c) 2024 PLANKA Software GmbH
+ * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
+ */
+
+:global(#app) {
+  .entries {
+    margin-top: 12px;
+  }
+
+  .entriesHeader {
+    align-items: center;
+    color: #17394d;
+    display: flex;
+    font-weight: bold;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .entry {
+    align-items: flex-start;
+    display: flex;
+    gap: 8px;
+    padding: 6px 0;
+  }
+
+  .entryBadge {
+    background: #dfe3e6;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: bold;
+    margin-right: 6px;
+    padding: 0 4px;
+  }
+
+  .entryContent {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .entryDate {
+    color: #6b808c;
+    font-size: 12px;
+    margin-left: 6px;
+  }
+
+  .entryText {
+    color: #6b808c;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .field {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .fields {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .hint {
+    color: #6b808c;
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+
+  .label {
+    color: #6b808c;
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+
+  .ticketChip {
+    margin-left: 8px;
+  }
+
+  .value {
+    line-height: 38px;
+  }
+}

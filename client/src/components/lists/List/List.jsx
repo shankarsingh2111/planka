@@ -26,6 +26,7 @@ import ActionsStep from './ActionsStep';
 import DraggableCard from '../../cards/DraggableCard';
 import AddCard from '../../cards/AddCard';
 import ArchiveCardsStep from '../../cards/ArchiveCardsStep';
+import AddCardModal from '../../cards/AddCardModal';
 import PlusMathIcon from '../../../assets/images/plus-math-icon.svg?react';
 
 import styles from './List.module.scss';
@@ -50,6 +51,7 @@ const List = React.memo(({ id, index }) => {
 
   const clipboard = useSelector(selectors.selectClipboard);
   const isFavoritesActive = useSelector(selectors.selectIsFavoritesActiveForCurrentUser);
+  const isHippoConfigured = useSelector(selectors.selectIsHippoConfiguredForCurrentProject);
 
   const list = useSelector((state) => selectListById(state, id));
   const cardIds = useSelector((state) => selectFilteredCardIdsByListId(state, id));
@@ -76,6 +78,7 @@ const List = React.memo(({ id, index }) => {
   const [t] = useTranslation();
   const [isEditNameOpened, setIsEditNameOpened] = useState(false);
   const [addCardPosition, setAddCardPosition] = useState(null);
+  const [hippoImportDefaultData, setHippoImportDefaultData] = useState(null);
   const [scrollBottomState, scrollBottom] = useToggle();
   const [handleListMouseEnter, handleListMouseLeave] = useContext(BoardShortcutsContext);
 
@@ -90,6 +93,24 @@ const List = React.memo(({ id, index }) => {
     },
     [id, dispatch, addCardPosition],
   );
+
+  const handleHippoImportClick = useCallback(() => {
+    setHippoImportDefaultData({
+      listId: id,
+      focusHippoImport: true,
+    });
+  }, [id]);
+
+  const handleHippoCardCreate = useCallback(
+    (listId, data, details) => {
+      dispatch(entryActions.createCardWithDetails(listId, data, details));
+    },
+    [dispatch],
+  );
+
+  const handleHippoImportClose = useCallback(() => {
+    setHippoImportDefaultData(null);
+  }, []);
 
   const handlePasteCardClick = useCallback(() => {
     dispatch(entryActions.pasteCard(id));
@@ -182,7 +203,8 @@ const List = React.memo(({ id, index }) => {
   );
 
   return (
-    <Draggable
+    <>
+      <Draggable
       draggableId={`list:${id}`}
       index={index}
       isDragDisabled={!list.isPersisted || !canEdit || isEditNameOpened}
@@ -284,12 +306,31 @@ const List = React.memo(({ id, index }) => {
                     <Icon name="paste" />
                   </button>
                 )}
+                {isHippoConfigured && (
+                  <button
+                    type="button"
+                    disabled={!list.isPersisted}
+                    title={t('action.importFromHippo')}
+                    className={classNames(styles.addCardButton, styles.paste)}
+                    onClick={handleHippoImportClick}
+                  >
+                    <Icon name="ticket alternate" />
+                  </button>
+                )}
               </div>
             )}
           </div>
         </div>
       )}
-    </Draggable>
+      </Draggable>
+      {hippoImportDefaultData && (
+        <AddCardModal
+          defaultData={hippoImportDefaultData}
+          onCreate={handleHippoCardCreate}
+          onClose={handleHippoImportClose}
+        />
+      )}
+    </>
   );
 });
 
