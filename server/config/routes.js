@@ -198,6 +198,10 @@ module.exports.routes = {
   'PATCH /api/cards/:cardId/card-recurrence': 'card-recurrences/update',
   'DELETE /api/cards/:cardId/card-recurrence': 'card-recurrences/delete',
 
+  'GET /api/boards/:boardId/hippo-tickets/:ticketNumber': 'hippo/show-ticket',
+  'POST /api/cards/:cardId/hippo-sync/note': 'hippo/sync-note',
+  'POST /api/cards/:cardId/hippo-sync/status': 'hippo/sync-status',
+
   'GET /api/dashboard': 'dashboard/show',
 
   'POST /api/cards/:cardId/task-lists': 'task-lists/create',

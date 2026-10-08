@@ -161,7 +161,17 @@ module.exports = {
       /* eslint-enable no-param-reassign */
     });
 
-    // ---- Step 4: Fetch users (board members + card members) ----
+    // ---- Step 4: Mark the cards linked to a Hippo ticket with its number ----
+    const ticketValuesByCardId = await sails.helpers.hippo.getTicketValuesByCards(cards);
+
+    cards.forEach((card) => {
+      const ticketValues = ticketValuesByCardId[card.id];
+
+      // eslint-disable-next-line no-param-reassign
+      card.ticketNumber = ticketValues ? ticketValues.ticketNumber : null;
+    });
+
+    // ---- Step 5: Fetch users (board members + card members) ----
     const boardMemberships = await BoardMembership.qm.getByBoardIds(boardIds);
 
     const userIds = _.union(
