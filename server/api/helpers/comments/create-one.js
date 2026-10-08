@@ -106,6 +106,29 @@ module.exports = {
       ]);
     }
 
+    // Mentioned board members join the card as members
+    if (mentionUserIds.length > 0) {
+      const mentionUsers = await User.qm.getByIds(mentionUserIds, { withDeactivated: false });
+
+      // eslint-disable-next-line no-restricted-syntax
+      for (const user of mentionUsers) {
+        // eslint-disable-next-line no-await-in-loop
+        await sails.helpers.cardMemberships.createOne
+          .with({
+            webhooks,
+            project: inputs.project,
+            board: inputs.board,
+            list: inputs.list,
+            values: {
+              user,
+              card: values.card,
+            },
+            actorUser: values.user,
+          })
+          .tolerate('userAlreadyCardMember');
+      }
+    }
+
     const mentionUserIdsSet = new Set(mentionUserIds);
 
     const cardSubscriptionUserIds = await sails.helpers.cards.getSubscriptionUserIds(

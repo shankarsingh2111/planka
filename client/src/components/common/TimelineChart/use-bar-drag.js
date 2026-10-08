@@ -125,7 +125,7 @@ const useBarDrag = ({
   const dragRef = useRef(null);
 
   const handlePointerDown = useCallback(
-    (event, itemId, mode) => {
+    (event, itemId, mode, laneKey) => {
       if (event.button !== 0) {
         return;
       }
@@ -138,6 +138,7 @@ const useBarDrag = ({
       dragRef.current = {
         itemId,
         mode,
+        laneKey,
         isItemEditable,
         startX: event.clientX,
         startScrollLeft: scrollRef.current ? scrollRef.current.scrollLeft : 0,

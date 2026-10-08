@@ -1,0 +1,98 @@
+/*!
+ * Copyright (c) 2024 PLANKA Software GmbH
+ * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
+ */
+
+:global(#app) {
+  .wrapper {
+    align-items: flex-end;
+    bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: calc(100vh - 120px);
+    pointer-events: none;
+    position: fixed;
+    right: 16px;
+    z-index: 1000;
+  }
+
+  .clearAll {
+    background: #172b4d;
+    border: none;
+    border-radius: 4px;
+    color: #b3bac5;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 4px 10px;
+    pointer-events: auto;
+
+    &:hover {
+      background: #253858;
+      color: #fff;
+    }
+  }
+
+  .list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+    overflow-y: auto;
+    pointer-events: auto;
+    scrollbar-width: thin;
+  }
+
+  .entry {
+    align-items: center;
+    background: #172b4d;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(9, 30, 66, 0.35);
+    color: #fff;
+    display: flex;
+    flex-shrink: 0;
+    font-size: 13px;
+    padding: 8px 8px 8px 12px;
+  }
+
+  .icon {
+    color: #8fa0b8;
+  }
+
+  .text {
+    margin-left: 2px;
+    white-space: nowrap;
+  }
+
+  .undo,
+  .close {
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .undo {
+    color: #79c4ff;
+    font-weight: bold;
+    margin-left: 12px;
+    padding: 4px 8px;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+  }
+
+  .close {
+    color: #8fa0b8;
+    margin-left: 2px;
+    padding: 4px 6px;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+  }
+}
