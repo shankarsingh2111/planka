@@ -20,6 +20,8 @@ import { getAddCardDefaults } from './add-card-defaults';
 import useTimelinePreferences from './use-timeline-preferences';
 import LanesFilterStep from './LanesFilterStep';
 import UnscheduledSidebar from './UnscheduledSidebar';
+import UndoStack from './UndoStack';
+import { pushEntry, removeEntry, removeEntryWithLater } from './UndoStack/undo-stack';
 import AddCardModal from '../../../cards/AddCardModal';
 import RecurrenceScopeModal from '../../../card-recurrences/RecurrenceScopeModal';
 import TimelineChart, {
@@ -35,6 +37,18 @@ import TimelineChart, {
 import styles from './TimelineView.module.scss';
 
 const UNSCHEDULED_DRAG_THRESHOLD = 4;
+
+// The card's values before a drag, as an update that puts them back. List and position are only
+// included when the drag is about to move the card to another list.
+const getUndoData = (card, nextListId) => ({
+  startDate: card.startDate || null,
+  dueDate: card.dueDate || null,
+  ...(nextListId &&
+    nextListId !== card.listId && {
+      listId: card.listId,
+      position: card.position,
+    }),
+});
 
 const LANES_FILTER_TITLES = {
   [GroupByOptions.LIST]: 'common.lists',
@@ -91,6 +105,11 @@ const TimelineView = React.memo(({ cardIds }) => {
 
   // What the add card dialog opens with; null while it is closed
   const [addCardDefaultData, setAddCardDefaultData] = useState(null);
+
+  // Recent drags that can still be undone, oldest first. Belongs to this view, so it is gone once
+  // the timeline is left.
+  const [undoEntries, setUndoEntries] = useState([]);
+  const undoEntryIdRef = useRef(0);
 
   // A drag of a recurring card waiting for which cards of its series it reaches
   const [pendingRecurrenceChange, setPendingRecurrenceChange] = useState(null);
@@ -375,6 +394,64 @@ const TimelineView = React.memo(({ cardIds }) => {
     [recurringCardById],
   );
 
+  const cardById = useMemo(
+    () =>
+      cards.reduce(
+        (result, card) => ({
+          ...result,
+          [card.id]: card,
+        }),
+        {},
+      ),
+    [cards],
+  );
+
+  // Called just before a drag is committed, while the card still holds its old values
+  const pushUndoEntry = useCallback(
+    (cardId, messageKey, nextListId) => {
+      const card = cardById[cardId];
+
+      if (!card) {
+        return;
+      }
+
+      undoEntryIdRef.current += 1;
+
+      const entry = {
+        id: undoEntryIdRef.current,
+        cardId,
+        cardName: card.name,
+        messageKey,
+        undoData: getUndoData(card, nextListId),
+      };
+
+      setUndoEntries((prevEntries) => pushEntry(prevEntries, entry));
+    },
+    [cardById],
+  );
+
+  const handleUndo = useCallback(
+    (entryId) => {
+      const entry = undoEntries.find(({ id }) => id === entryId);
+
+      if (!entry) {
+        return;
+      }
+
+      dispatch(entryActions.updateCard(entry.cardId, entry.undoData));
+      setUndoEntries((prevEntries) => removeEntryWithLater(prevEntries, entryId));
+    },
+    [undoEntries, dispatch],
+  );
+
+  const handleUndoClose = useCallback((entryId) => {
+    setUndoEntries((prevEntries) => removeEntry(prevEntries, entryId));
+  }, []);
+
+  const handleUndoClearAll = useCallback(() => {
+    setUndoEntries([]);
+  }, []);
+
   const handleItemDatesChange = useCallback(
     (id, { startDate, dueDate }) => {
       const data = {
@@ -391,9 +468,10 @@ const TimelineView = React.memo(({ cardIds }) => {
         return;
       }
 
+      pushUndoEntry(id, 'common.timelineCardRescheduled');
       dispatch(entryActions.updateCard(id, data));
     },
-    [isRecurrenceChange, dispatch],
+    [isRecurrenceChange, pushUndoEntry, dispatch],
   );
 
   const handleRecurrenceScopeSelect = useCallback(
@@ -401,7 +479,16 @@ const TimelineView = React.memo(({ cardIds }) => {
       const { cardId, listId, startDate, dueDate } = pendingRecurrenceChange;
       setPendingRecurrenceChange(null);
 
+      // Only a change to this card alone can be undone; a series-wide change is not offered one
       if (scope === CardRecurrenceScopes.THIS) {
+        pushUndoEntry(
+          cardId,
+          listId && listId !== recurringCardById[cardId].listId
+            ? 'common.timelineCardMoved'
+            : 'common.timelineCardRescheduled',
+          listId,
+        );
+
         if (listId) {
           dispatch(
             entryActions.scheduleCard(cardId, {
@@ -434,7 +521,7 @@ const TimelineView = React.memo(({ cardIds }) => {
         dispatch(entryActions.moveCard(cardId, listId));
       }
     },
-    [pendingRecurrenceChange, recurringCardById, dispatch],
+    [pendingRecurrenceChange, recurringCardById, pushUndoEntry, dispatch],
   );
 
   const handleRecurrenceScopeClose = useCallback(() => {
@@ -473,16 +560,20 @@ const TimelineView = React.memo(({ cardIds }) => {
     (cardId, { laneKey, startDate, dueDate }) => {
       setExternalDragItem(null);
 
+      // Only list lanes name a list; member and label lanes leave the card where it is
+      const listId = groupBy === GroupByOptions.LIST ? laneKey : undefined;
+
+      pushUndoEntry(cardId, 'common.timelineCardScheduled', listId);
+
       dispatch(
         entryActions.scheduleCard(cardId, {
-          // Only list lanes name a list; member and label lanes leave the card where it is
-          listId: groupBy === GroupByOptions.LIST ? laneKey : undefined,
+          listId,
           startDate,
           dueDate,
         }),
       );
     },
-    [dispatch, groupBy],
+    [pushUndoEntry, dispatch, groupBy],
   );
 
   // Vertical drag only means something when the lanes are lists; in member or label grouping a
@@ -500,6 +591,14 @@ const TimelineView = React.memo(({ cardIds }) => {
         return;
       }
 
+      pushUndoEntry(
+        cardId,
+        cardById[cardId] && laneKey !== cardById[cardId].listId
+          ? 'common.timelineCardMoved'
+          : 'common.timelineCardRescheduled',
+        laneKey,
+      );
+
       dispatch(
         entryActions.scheduleCard(cardId, {
           listId: laneKey,
@@ -508,7 +607,7 @@ const TimelineView = React.memo(({ cardIds }) => {
         }),
       );
     },
-    [isRecurrenceChange, dispatch],
+    [isRecurrenceChange, cardById, pushUndoEntry, dispatch],
   );
 
   // The card shown in the sidebar while a bar is held over it, before the dates are actually
@@ -520,6 +619,8 @@ const TimelineView = React.memo(({ cardIds }) => {
 
   const handleItemUnschedule = useCallback(
     (cardId) => {
+      pushUndoEntry(cardId, 'common.timelineCardUnscheduled');
+
       dispatch(
         entryActions.updateCard(cardId, {
           startDate: null,
@@ -527,7 +628,7 @@ const TimelineView = React.memo(({ cardIds }) => {
         }),
       );
     },
-    [dispatch],
+    [pushUndoEntry, dispatch],
   );
 
   const handleExternalDragCancel = useCallback(() => {
@@ -690,6 +791,12 @@ const TimelineView = React.memo(({ cardIds }) => {
           onClose={handleAddCardClose}
         />
       )}
+      <UndoStack
+        entries={undoEntries}
+        onUndo={handleUndo}
+        onClose={handleUndoClose}
+        onClearAll={handleUndoClearAll}
+      />
       {pendingRecurrenceChange && (
         <RecurrenceScopeModal
           onSelect={handleRecurrenceScopeSelect}

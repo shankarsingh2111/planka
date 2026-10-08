@@ -153,6 +153,7 @@ const TimelineChart = React.memo(
 
     const scrollRef = useRef(null);
     const canvasRef = useRef(null);
+    const headerRef = useRef(null);
 
     const pixelsPerDay = PIXELS_PER_DAY[zoomLevel];
     const unitWidth = getUnitWidth(zoomLevel);
@@ -286,6 +287,8 @@ const TimelineChart = React.memo(
       handlePointerUp: handleBarPointerUp,
       handleKeyDown: handleBarKeyDown,
     } = useBarDrag({
+      scrollRef,
+      headerRef,
       zoomLevel,
       unitWidth,
       canEdit,
@@ -562,6 +565,8 @@ const TimelineChart = React.memo(
 
     const dropPreview = useDropTarget({
       isActive: !!externalDragItem && !!onExternalDrop,
+      scrollRef,
+      headerRef,
       canvasRef,
       viewStart,
       zoomLevel,
@@ -749,7 +754,7 @@ const TimelineChart = React.memo(
         )}
         <div ref={scrollRef} className={styles.scroll}>
           <div className={styles.inner} style={{ width: LANE_HEADER_WIDTH + totalWidth }}>
-            <div className={styles.header}>
+            <div ref={headerRef} className={styles.header}>
               <div className={styles.corner} style={{ width: LANE_HEADER_WIDTH }} />
               <div className={styles.headerScale} style={{ width: totalWidth }}>
                 <div className={styles.headerRow}>
