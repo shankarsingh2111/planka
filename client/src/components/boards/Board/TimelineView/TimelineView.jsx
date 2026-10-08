@@ -341,6 +341,7 @@ const TimelineView = React.memo(({ cardIds }) => {
           isCompleted: isDone || !!card.isDueCompleted,
           isOverdue,
           seriesId: card.recurrenceId || undefined,
+          ticketNumber: card.ticketNumber || undefined,
           progress:
             card.tasksTotal > 0
               ? { completed: card.tasksCompleted, total: card.tasksTotal }

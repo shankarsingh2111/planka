@@ -6,7 +6,7 @@
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
-import { useSelector } from 'react-redux';
+import { shallowEqual, useSelector } from 'react-redux';
 import { Icon } from 'semantic-ui-react';
 
 import selectors from '../../../selectors';
@@ -14,11 +14,13 @@ import markdownToText from '../../../utils/markdown-to-text';
 import { BoardViews } from '../../../constants/Enums';
 import UserAvatar from '../../users/UserAvatar';
 import LabelChip from '../../labels/LabelChip';
+import TicketChip from '../../hippo/TicketChip';
 
 import styles from './InlineContent.module.scss';
 
 const InlineContent = React.memo(({ cardId }) => {
   const selectCardById = useMemo(() => selectors.makeSelectCardById(), []);
+  const selectHippoTicketByCardId = useMemo(() => selectors.makeSelectHippoTicketByCardId(), []);
   const selectListById = useMemo(() => selectors.makeSelectListById(), []);
   const selectLabelIdsByCardId = useMemo(() => selectors.makeSelectLabelIdsByCardId(), []);
 
@@ -28,6 +30,12 @@ const InlineContent = React.memo(({ cardId }) => {
   );
 
   const card = useSelector((state) => selectCardById(state, cardId));
+
+  // Compared by value: the ticket selector builds a new object whenever any field value changes
+  const hippoTicket = useSelector(
+    (state) => selectHippoTicketByCardId(state, cardId),
+    shallowEqual,
+  );
   const list = useSelector((state) => selectListById(state, card.listId));
   const labelIds = useSelector((state) => selectLabelIdsByCardId(state, cardId));
 
@@ -90,7 +98,16 @@ const InlineContent = React.memo(({ cardId }) => {
       <span
         className={classNames(styles.attachments, styles.name, card.isClosed && styles.nameClosed)}
       >
-        <div className={styles.hidable}>{card.name}</div>
+        <div className={styles.hidable}>
+          {hippoTicket && (
+          <TicketChip
+            number={hippoTicket.number}
+            url={hippoTicket.url}
+            className={styles.ticketChip}
+          />
+        )}
+          {card.name}
+        </div>
       </span>
       {descriptionText && (
         <span className={classNames(styles.attachments, styles.descriptionText, styles.hidable)}>

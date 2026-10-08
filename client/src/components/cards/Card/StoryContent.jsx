@@ -15,11 +15,13 @@ import { BoardViews } from '../../../constants/Enums';
 import TimeAgo from '../../common/TimeAgo';
 import LabelChip from '../../labels/LabelChip';
 import CustomFieldValueChip from '../../custom-field-values/CustomFieldValueChip';
+import TicketChip from '../../hippo/TicketChip';
 
 import styles from './StoryContent.module.scss';
 
 const StoryContent = React.memo(({ cardId }) => {
   const selectCardById = useMemo(() => selectors.makeSelectCardById(), []);
+  const selectHippoTicketByCardId = useMemo(() => selectors.makeSelectHippoTicketByCardId(), []);
   const selectListById = useMemo(() => selectors.makeSelectListById(), []);
   const selectLabelIdsByCardId = useMemo(() => selectors.makeSelectLabelIdsByCardId(), []);
 
@@ -41,6 +43,12 @@ const StoryContent = React.memo(({ cardId }) => {
   const selectAttachmentById = useMemo(() => selectors.makeSelectAttachmentById(), []);
 
   const card = useSelector((state) => selectCardById(state, cardId));
+
+  // Compared by value: the ticket selector builds a new object whenever any field value changes
+  const hippoTicket = useSelector(
+    (state) => selectHippoTicketByCardId(state, cardId),
+    shallowEqual,
+  );
   const list = useSelector((state) => selectListById(state, card.listId));
   const labelIds = useSelector((state) => selectLabelIdsByCardId(state, cardId));
   const attachmentsTotal = useSelector((state) => selectAttachmentsTotalByCardId(state, cardId));
@@ -102,6 +110,13 @@ const StoryContent = React.memo(({ cardId }) => {
           </span>
         )}
         <div className={classNames(styles.name, card.isClosed && styles.nameClosed)}>
+          {hippoTicket && (
+          <TicketChip
+            number={hippoTicket.number}
+            url={hippoTicket.url}
+            className={styles.ticketChip}
+          />
+        )}
           {card.name}
         </div>
         {card.description && <div className={styles.descriptionText}>{descriptionText}</div>}

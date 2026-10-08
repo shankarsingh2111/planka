@@ -81,6 +81,7 @@ const Bar = React.memo(
         {!isCompact && (
           <span className={styles.barLabel}>
             {item.seriesId && <Icon name="sync alternate" className={styles.barRecurringIcon} />}
+            {item.ticketNumber && <span className={styles.barTicket}>#{item.ticketNumber}</span>}
             {item.name}
           </span>
         )}

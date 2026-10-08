@@ -407,6 +407,12 @@
     opacity: 0.85;
   }
 
+  .barTicket {
+    font-weight: bold;
+    margin: 0 4px 0 0;
+    opacity: 0.85;
+  }
+
   // Name on the first line, member avatars on the second (see BAR_WITH_AVATARS_HEIGHT)
   .barWithAvatars {
     align-items: stretch;

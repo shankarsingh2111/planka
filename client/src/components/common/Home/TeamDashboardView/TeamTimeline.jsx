@@ -145,6 +145,7 @@ const TeamTimeline = React.memo(
             isCompleted: entry.isDone || !!card.isDueCompleted,
             isOverdue: entry.isOverdue,
             seriesId: card.recurrenceId || undefined,
+            ticketNumber: card.ticketNumber || undefined,
             isEditable: entry.isEditable,
             progress:
               card.tasksTotal > 0

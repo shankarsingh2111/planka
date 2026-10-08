@@ -1118,6 +1118,7 @@ TimelineChart.propTypes = {
       isOverdue: PropTypes.bool,
       isEditable: PropTypes.bool,
       seriesId: PropTypes.string,
+      ticketNumber: PropTypes.string,
       progress: PropTypes.shape({
         completed: PropTypes.number.isRequired,
         total: PropTypes.number.isRequired,

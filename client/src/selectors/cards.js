@@ -11,6 +11,13 @@ import { selectPath } from './router';
 import { selectCurrentUserId } from './users';
 import { buildCustomFieldValueId } from '../models/CustomFieldValue';
 import { isLocalId } from '../utils/local-id';
+import { getHippoTicketForCardModel } from './hippo';
+import { HIPPO_GROUP_NAME, TICKET_CHIP_FIELD_NAMES } from '../utils/hippo';
+
+// The ticket chip shows these two Hippo fields, so the custom field chips leave them out
+const isShownAsTicketChip = (customFieldGroupModel, customFieldModel) =>
+  customFieldGroupModel.name === HIPPO_GROUP_NAME &&
+  TICKET_CHIP_FIELD_NAMES.includes(customFieldModel.name);
 
 export const makeSelectCardById = () =>
   createSelector(
@@ -143,6 +150,10 @@ export const makeSelectShownOnFrontOfCardCustomFieldValueIdsByCardId = () =>
             customFieldGroupModel
               .getShownOnFrontOfCardCustomFieldsModelArray()
               .flatMap((customFieldModel) => {
+                if (isShownAsTicketChip(customFieldGroupModel, customFieldModel)) {
+                  return [];
+                }
+
                 const customFieldValue = CustomFieldValue.withId(
                   buildCustomFieldValueId({
                     cardId: id,
@@ -161,6 +172,10 @@ export const makeSelectShownOnFrontOfCardCustomFieldValueIdsByCardId = () =>
             customFieldGroupModel
               .getShownOnFrontOfCardCustomFieldsModelArray()
               .flatMap((customFieldModel) => {
+                if (isShownAsTicketChip(customFieldGroupModel, customFieldModel)) {
+                  return [];
+                }
+
                 const customFieldValue = CustomFieldValue.withId(
                   buildCustomFieldValueId({
                     cardId: id,
@@ -521,7 +536,7 @@ export const selectIsCurrentUserInCurrentCard = createSelector(
 export const selectTimelineCardsByIds = createSelector(
   orm,
   (_, ids) => ids,
-  ({ Card }, ids) => {
+  ({ Card, CustomFieldValue }, ids) => {
     if (!ids) {
       return [];
     }
@@ -546,6 +561,8 @@ export const selectTimelineCardsByIds = createSelector(
         });
       });
 
+      const hippoTicket = getHippoTicketForCardModel(cardModel, CustomFieldValue);
+
       return {
         ...cardModel.ref,
         userIds: cardModel.users.toRefArray().map((user) => user.id),
@@ -553,6 +570,7 @@ export const selectTimelineCardsByIds = createSelector(
         list: cardModel.list && cardModel.list.ref,
         tasksTotal,
         tasksCompleted,
+        ticketNumber: hippoTicket ? hippoTicket.number : null,
       };
     });
   },

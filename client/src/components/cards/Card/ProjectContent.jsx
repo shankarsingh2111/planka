@@ -22,11 +22,13 @@ import TimeAgo from '../../common/TimeAgo';
 import UserAvatar from '../../users/UserAvatar';
 import LabelChip from '../../labels/LabelChip';
 import CustomFieldValueChip from '../../custom-field-values/CustomFieldValueChip';
+import TicketChip from '../../hippo/TicketChip';
 
 import styles from './ProjectContent.module.scss';
 
 const ProjectContent = React.memo(({ cardId }) => {
   const selectCardById = useMemo(() => selectors.makeSelectCardById(), []);
+  const selectHippoTicketByCardId = useMemo(() => selectors.makeSelectHippoTicketByCardId(), []);
   const selectListById = useMemo(() => selectors.makeSelectListById(), []);
   const selectUserIdsByCardId = useMemo(() => selectors.makeSelectUserIdsByCardId(), []);
   const selectLabelIdsByCardId = useMemo(() => selectors.makeSelectLabelIdsByCardId(), []);
@@ -59,6 +61,12 @@ const ProjectContent = React.memo(({ cardId }) => {
   );
 
   const card = useSelector((state) => selectCardById(state, cardId));
+
+  // Compared by value: the ticket selector builds a new object whenever any field value changes
+  const hippoTicket = useSelector(
+    (state) => selectHippoTicketByCardId(state, cardId),
+    shallowEqual,
+  );
   const list = useSelector((state) => selectListById(state, card.listId));
   const userIds = useSelector((state) => selectUserIdsByCardId(state, cardId));
   const labelIds = useSelector((state) => selectLabelIdsByCardId(state, cardId));
@@ -184,7 +192,16 @@ const ProjectContent = React.memo(({ cardId }) => {
 
   return (
     <div className={styles.wrapper}>
-      <div className={classNames(styles.name, card.isClosed && styles.nameClosed)}>{card.name}</div>
+      <div className={classNames(styles.name, card.isClosed && styles.nameClosed)}>
+        {hippoTicket && (
+          <TicketChip
+            number={hippoTicket.number}
+            url={hippoTicket.url}
+            className={styles.ticketChip}
+          />
+        )}
+        {card.name}
+      </div>
       {coverUrl && (
         <div className={styles.coverWrapper}>
           <img src={coverUrl} alt="" className={styles.cover} />
