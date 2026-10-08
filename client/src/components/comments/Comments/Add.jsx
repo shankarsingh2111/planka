@@ -17,6 +17,7 @@ import { useEscapeInterceptor, useForm, useNestedRef } from '../../../hooks';
 import { isUsernameChar, mentionTextToMarkup } from '../../../utils/mentions';
 import { isModifierKeyPressed } from '../../../utils/event-helpers';
 import UserAvatar from '../../users/UserAvatar';
+import HippoSyncModal from '../../hippo/HippoSyncModal';
 
 import styles from './Add.module.scss';
 
@@ -26,11 +27,14 @@ const DEFAULT_DATA = {
 
 const Add = React.memo(() => {
   const boardMemberships = useSelector(selectors.selectMembershipsForCurrentBoard);
+  const hippoTicket = useSelector(selectors.selectHippoTicketForCurrentCard);
+  const canSyncToHippo = useSelector(selectors.selectCanSyncToHippoInCurrentBoard);
 
   const dispatch = useDispatch();
   const [t] = useTranslation();
   const [data, , setData] = useForm(DEFAULT_DATA);
   const [isOpened, setIsOpened] = useState(false);
+  const [pendingData, setPendingData] = useState(null);
   const [selectTextFieldState, selectTextField] = useToggle();
 
   const textFieldRef = useRef(null);
@@ -47,6 +51,20 @@ const Add = React.memo(() => {
     [boardMemberships],
   );
 
+  const createComment = useCallback(
+    (cleanData, syncToHippo) => {
+      dispatch(
+        entryActions.createCommentInCurrentCard(cleanData, {
+          syncToHippo,
+        }),
+      );
+
+      setData(DEFAULT_DATA);
+      selectTextField();
+    },
+    [dispatch, setData, selectTextField],
+  );
+
   const submit = useCallback(() => {
     const cleanData = {
       ...data,
@@ -58,10 +76,29 @@ const Add = React.memo(() => {
       return;
     }
 
-    dispatch(entryActions.createCommentInCurrentCard(cleanData));
-    setData(DEFAULT_DATA);
-    selectTextField();
-  }, [dispatch, data, setData, selectTextField, userByUsername]);
+    // On a ticket card the user first decides whether the comment goes to Hippo too
+    if (hippoTicket && canSyncToHippo) {
+      setPendingData(cleanData);
+      return;
+    }
+
+    createComment(cleanData, false);
+  }, [data, userByUsername, hippoTicket, canSyncToHippo, createComment]);
+
+  const handleHippoSync = useCallback(() => {
+    createComment(pendingData, true);
+    setPendingData(null);
+  }, [pendingData, createComment]);
+
+  const handleHippoSkip = useCallback(() => {
+    createComment(pendingData, false);
+    setPendingData(null);
+  }, [pendingData, createComment]);
+
+  // The draft stays in the box
+  const handleHippoSyncClose = useCallback(() => {
+    setPendingData(null);
+  }, []);
 
   const handleEscape = useCallback(() => {
     if (textMentionsRef.current.isOpened()) {
@@ -139,52 +176,65 @@ const Add = React.memo(() => {
   }, [selectTextFieldState]);
 
   return (
-    <Form onSubmit={handleSubmit}>
-      <div ref={textFieldRef} className={styles.field}>
-        <MentionsInput
-          {...clickAwayProps} // eslint-disable-line react/jsx-props-no-spreading
-          allowSpaceInQuery
-          allowSuggestionsAboveCursor
-          ref={textMentionsRef}
-          inputRef={textInputRef}
-          value={data.text}
-          placeholder={t('common.writeComment')}
-          maxLength={1048576}
-          rows={isOpened ? 3 : 1}
-          className="mentions-input"
-          style={{
-            control: {
-              minHeight: isOpened ? '79px' : '37px',
-            },
-          }}
-          onFocus={handleFieldFocus}
-          onChange={handleFieldChange}
-          onKeyDown={handleFieldKeyDown}
-        >
-          <Mention
-            appendSpaceOnAdd
-            data={boardMemberships.map(({ user }) => ({
-              id: user.id,
-              display: user.username || user.name,
-            }))}
-            displayTransform={(_, display) => `@${display}`}
-            renderSuggestion={suggestionRenderer}
-            className={styles.mention}
-          />
-        </MentionsInput>
-      </div>
-      {(isOpened || data.text.length > 0) && (
-        <div className={styles.controls}>
-          <Button
+    <>
+      <Form onSubmit={handleSubmit}>
+        <div ref={textFieldRef} className={styles.field}>
+          <MentionsInput
             {...clickAwayProps} // eslint-disable-line react/jsx-props-no-spreading
-            positive
-            ref={handleButtonRef}
-            content={t('action.addComment')}
-            className={styles.button}
-          />
+            allowSpaceInQuery
+            allowSuggestionsAboveCursor
+            ref={textMentionsRef}
+            inputRef={textInputRef}
+            value={data.text}
+            placeholder={t('common.writeComment')}
+            maxLength={1048576}
+            rows={isOpened ? 3 : 1}
+            className="mentions-input"
+            style={{
+              control: {
+                minHeight: isOpened ? '79px' : '37px',
+              },
+            }}
+            onFocus={handleFieldFocus}
+            onChange={handleFieldChange}
+            onKeyDown={handleFieldKeyDown}
+          >
+            <Mention
+              appendSpaceOnAdd
+              data={boardMemberships.map(({ user }) => ({
+                id: user.id,
+                display: user.username || user.name,
+              }))}
+              displayTransform={(_, display) => `@${display}`}
+              renderSuggestion={suggestionRenderer}
+              className={styles.mention}
+            />
+          </MentionsInput>
         </div>
+        {(isOpened || data.text.length > 0) && (
+          <div className={styles.controls}>
+            <Button
+              {...clickAwayProps} // eslint-disable-line react/jsx-props-no-spreading
+              positive
+              ref={handleButtonRef}
+              content={t('action.addComment')}
+              className={styles.button}
+            />
+          </div>
+        )}
+      </Form>
+      {pendingData && hippoTicket && (
+        <HippoSyncModal
+          content={t('common.alsoPostCommentToHippo', {
+            ticketNumber: hippoTicket.number,
+          })}
+          syncContent={t('action.postToPlankaAndHippo')}
+          onSync={handleHippoSync}
+          onSkip={handleHippoSkip}
+          onClose={handleHippoSyncClose}
+        />
       )}
-    </Form>
+    </>
   );
 });
 

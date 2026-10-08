@@ -6,6 +6,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useDispatch, useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { Button, Icon } from 'semantic-ui-react';
 
 import selectors from '../../../selectors';
@@ -16,6 +17,7 @@ import { BoardMembershipRoles, CustomFieldTypes } from '../../../constants/Enums
 import ValueField from './ValueField';
 import DropdownValueField from './DropdownValueField';
 import TicketChip from '../../hippo/TicketChip';
+import HippoSyncModal from '../../hippo/HippoSyncModal';
 
 import styles from './CustomField.module.scss';
 
@@ -39,6 +41,7 @@ const CustomField = React.memo(({ id, customFieldGroupId }) => {
   );
 
   const hippoTicket = useSelector(selectors.selectHippoTicketForCurrentCard);
+  const canSyncToHippo = useSelector(selectors.selectCanSyncToHippoInCurrentBoard);
 
   const canEdit = useSelector((state) => {
     const { listId } = selectors.selectCurrentCard(state);
@@ -53,8 +56,10 @@ const CustomField = React.memo(({ id, customFieldGroupId }) => {
   });
 
   const dispatch = useDispatch();
+  const [t] = useTranslation();
   const [isCopied, setIsCopied] = useState(false);
   const [isUrlEditing, setIsUrlEditing] = useState(false);
+  const [pendingTicketState, setPendingTicketState] = useState(null);
 
   const content = customFieldValue ? customFieldValue.content : undefined;
 
@@ -64,13 +69,26 @@ const CustomField = React.memo(({ id, customFieldGroupId }) => {
     hippoTicket.customFieldGroupId === customFieldGroupId &&
     hippoTicket.urlCustomFieldId === id;
 
+  const isTicketStateField =
+    !!hippoTicket &&
+    hippoTicket.customFieldGroupId === customFieldGroupId &&
+    hippoTicket.stateCustomFieldId === id;
+
   const saveValue = useCallback(
-    (nextContent) => {
+    (nextContent, syncToHippo = false) => {
       if (nextContent) {
         dispatch(
-          entryActions.updateCustomFieldValue(cardId, customFieldGroupId, id, {
-            content: nextContent,
-          }),
+          entryActions.updateCustomFieldValue(
+            cardId,
+            customFieldGroupId,
+            id,
+            {
+              content: nextContent,
+            },
+            {
+              syncToHippo,
+            },
+          ),
         );
       } else {
         dispatch(entryActions.deleteCustomFieldValue(cardId, customFieldGroupId, id));
@@ -79,12 +97,34 @@ const CustomField = React.memo(({ id, customFieldGroupId }) => {
     [id, customFieldGroupId, cardId, dispatch],
   );
 
+  // A new state may go to Hippo too, which the user decides first. Clearing never goes, since
+  // Hippo has no empty status.
   const handleValueUpdate = useCallback(
     (nextContent) => {
+      if (nextContent && isTicketStateField && canSyncToHippo) {
+        setPendingTicketState(nextContent);
+        return;
+      }
+
       saveValue(nextContent);
     },
-    [saveValue],
+    [isTicketStateField, canSyncToHippo, saveValue],
   );
+
+  const handleTicketStateSync = useCallback(() => {
+    saveValue(pendingTicketState, true);
+    setPendingTicketState(null);
+  }, [pendingTicketState, saveValue]);
+
+  const handleTicketStateSkip = useCallback(() => {
+    saveValue(pendingTicketState);
+    setPendingTicketState(null);
+  }, [pendingTicketState, saveValue]);
+
+  // The dropdown shows the saved value, so cancelling puts it back
+  const handleTicketStateSyncClose = useCallback(() => {
+    setPendingTicketState(null);
+  }, []);
 
   const handleUrlEditClick = useCallback(() => {
     setIsUrlEditing(true);
@@ -154,6 +194,18 @@ const CustomField = React.memo(({ id, customFieldGroupId }) => {
           </Button>
         )}
       </div>
+      {pendingTicketState && hippoTicket && (
+        <HippoSyncModal
+          content={t('common.changeHippoTicketStatus', {
+            ticketNumber: hippoTicket.number,
+            status: pendingTicketState,
+          })}
+          syncContent={t('action.updatePlankaAndHippo')}
+          onSync={handleTicketStateSync}
+          onSkip={handleTicketStateSkip}
+          onClose={handleTicketStateSyncClose}
+        />
+      )}
     </div>
   );
 });
