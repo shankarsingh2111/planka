@@ -98,7 +98,9 @@ const Bar = React.memo(
             />
             <span
               className={classNames(styles.barHandle, styles.barHandleEnd)}
-              onPointerDown={(event) => onPointerDown(event, item.id, DragModes.RESIZE_END, laneKey)}
+              onPointerDown={(event) =>
+                onPointerDown(event, item.id, DragModes.RESIZE_END, laneKey)
+              }
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
             />

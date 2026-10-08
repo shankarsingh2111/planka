@@ -100,12 +100,12 @@ const InlineContent = React.memo(({ cardId }) => {
       >
         <div className={styles.hidable}>
           {hippoTicket && (
-          <TicketChip
-            number={hippoTicket.number}
-            url={hippoTicket.url}
-            className={styles.ticketChip}
-          />
-        )}
+            <TicketChip
+              number={hippoTicket.number}
+              url={hippoTicket.url}
+              className={styles.ticketChip}
+            />
+          )}
           {card.name}
         </div>
       </span>

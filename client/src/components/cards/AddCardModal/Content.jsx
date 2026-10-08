@@ -52,11 +52,7 @@ import nameFieldStyles from '../CardModal/NameField.module.scss';
 import styles from './Content.module.scss';
 
 const Content = React.memo(({ defaultData, onCreate, onClose }) => {
-  const {
-    id: boardId,
-    projectId,
-    defaultCardType,
-  } = useSelector(selectors.selectCurrentBoard);
+  const { id: boardId, projectId, defaultCardType } = useSelector(selectors.selectCurrentBoard);
   const lists = useSelector(selectors.selectAvailableListsForCurrentBoard);
   const memberships = useSelector(selectors.selectMembershipsForCurrentBoard);
   const labels = useSelector(selectors.selectLabelsForCurrentBoard);
@@ -476,7 +472,9 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
               )}
             </div>
           )}
-          <div className={classNames(cardStyles.contentModule, cardStyles.contentModuleDescription)}>
+          <div
+            className={classNames(cardStyles.contentModule, cardStyles.contentModuleDescription)}
+          >
             <div className={cardStyles.moduleWrapper}>
               <Icon name="align left" className={cardStyles.moduleIcon} />
               <div className={cardStyles.moduleHeader}>

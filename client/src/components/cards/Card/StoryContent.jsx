@@ -111,12 +111,12 @@ const StoryContent = React.memo(({ cardId }) => {
         )}
         <div className={classNames(styles.name, card.isClosed && styles.nameClosed)}>
           {hippoTicket && (
-          <TicketChip
-            number={hippoTicket.number}
-            url={hippoTicket.url}
-            className={styles.ticketChip}
-          />
-        )}
+            <TicketChip
+              number={hippoTicket.number}
+              url={hippoTicket.url}
+              className={styles.ticketChip}
+            />
+          )}
           {card.name}
         </div>
         {card.description && <div className={styles.descriptionText}>{descriptionText}</div>}

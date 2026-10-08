@@ -205,123 +205,123 @@ const List = React.memo(({ id, index }) => {
   return (
     <>
       <Draggable
-      draggableId={`list:${id}`}
-      index={index}
-      isDragDisabled={!list.isPersisted || !canEdit || isEditNameOpened}
-    >
-      {({ innerRef, draggableProps, dragHandleProps }) => (
-        <div
-          {...draggableProps} // eslint-disable-line react/jsx-props-no-spreading
-          data-drag-scroller
-          ref={innerRef}
-          className={styles.innerWrapper}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleListMouseLeave}
-        >
+        draggableId={`list:${id}`}
+        index={index}
+        isDragDisabled={!list.isPersisted || !canEdit || isEditNameOpened}
+      >
+        {({ innerRef, draggableProps, dragHandleProps }) => (
           <div
-            ref={wrapperRef}
-            className={classNames(
-              styles.outerWrapper,
-              isFavoritesActive && styles.outerWrapperWithFavorites,
-              list.color && globalStyles[`background${upperFirst(camelCase(list.color))}Soft`],
-            )}
-            onTransitionEnd={handleWrapperTransitionEnd}
+            {...draggableProps} // eslint-disable-line react/jsx-props-no-spreading
+            data-drag-scroller
+            ref={innerRef}
+            className={styles.innerWrapper}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleListMouseLeave}
           >
-            {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events,
-                                         jsx-a11y/no-static-element-interactions */}
             <div
-              {...dragHandleProps} // eslint-disable-line react/jsx-props-no-spreading
-              className={classNames(styles.header, canEdit && styles.headerEditable)}
-              onClick={handleHeaderClick}
+              ref={wrapperRef}
+              className={classNames(
+                styles.outerWrapper,
+                isFavoritesActive && styles.outerWrapperWithFavorites,
+                list.color && globalStyles[`background${upperFirst(camelCase(list.color))}Soft`],
+              )}
+              onTransitionEnd={handleWrapperTransitionEnd}
             >
-              {isEditNameOpened ? (
-                <EditName listId={id} onClose={handleEditNameClose} />
-              ) : (
-                <div className={styles.headerName}>
-                  {list.color && (
-                    <Icon
-                      name="circle"
-                      className={classNames(
-                        styles.headerNameColor,
-                        globalStyles[`color${upperFirst(camelCase(list.color))}`],
-                      )}
-                    />
+              {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events,
+                                         jsx-a11y/no-static-element-interactions */}
+              <div
+                {...dragHandleProps} // eslint-disable-line react/jsx-props-no-spreading
+                className={classNames(styles.header, canEdit && styles.headerEditable)}
+                onClick={handleHeaderClick}
+              >
+                {isEditNameOpened ? (
+                  <EditName listId={id} onClose={handleEditNameClose} />
+                ) : (
+                  <div className={styles.headerName}>
+                    {list.color && (
+                      <Icon
+                        name="circle"
+                        className={classNames(
+                          styles.headerNameColor,
+                          globalStyles[`color${upperFirst(camelCase(list.color))}`],
+                        )}
+                      />
+                    )}
+                    {list.name}
+                  </div>
+                )}
+                {list.type !== ListTypes.ACTIVE && (
+                  <Icon
+                    name={ListTypeIcons[list.type]}
+                    className={classNames(
+                      styles.headerIcon,
+                      list.isPersisted && (canEdit || canArchiveCards) && styles.headerIconHidable,
+                    )}
+                  />
+                )}
+                {list.isPersisted &&
+                  (canEdit ? (
+                    <ActionsPopup listId={id} onNameEdit={handleNameEdit} onCardAdd={handleCardAdd}>
+                      <Button className={styles.headerButton}>
+                        <Icon fitted name="pencil" size="small" />
+                      </Button>
+                    </ActionsPopup>
+                  ) : (
+                    canArchiveCards && (
+                      <ArchiveCardsPopup listId={id}>
+                        <Button className={styles.headerButton}>
+                          <Icon fitted name="archive" size="small" />
+                        </Button>
+                      </ArchiveCardsPopup>
+                    )
+                  ))}
+              </div>
+              <div ref={cardsWrapperRef} className={styles.cardsInnerWrapper}>
+                <div className={styles.cardsOuterWrapper}>{cardsNode}</div>
+              </div>
+              {!addCardPosition && canAddCard && (
+                <div className={styles.addCardButtonWrapper}>
+                  <button
+                    type="button"
+                    disabled={!list.isPersisted}
+                    className={classNames(
+                      styles.addCardButton,
+                      list.color &&
+                        globalStyles[`background${upperFirst(camelCase(list.color))}Soft`],
+                    )}
+                    onClick={handleAddCardClick}
+                  >
+                    <PlusMathIcon className={styles.addCardButtonIcon} />
+                    <span className={styles.addCardButtonText}>
+                      {cardIds.length > 0 ? t('action.addAnotherCard') : t('action.addCard')}
+                    </span>
+                  </button>
+                  {clipboard && canPasteCard && (
+                    <button
+                      type="button"
+                      disabled={!list.isPersisted}
+                      className={classNames(styles.addCardButton, styles.paste)}
+                      onClick={handlePasteCardClick}
+                    >
+                      <Icon name="paste" />
+                    </button>
                   )}
-                  {list.name}
+                  {isHippoConfigured && (
+                    <button
+                      type="button"
+                      disabled={!list.isPersisted}
+                      title={t('action.importFromHippo')}
+                      className={classNames(styles.addCardButton, styles.paste)}
+                      onClick={handleHippoImportClick}
+                    >
+                      <Icon name="ticket alternate" />
+                    </button>
+                  )}
                 </div>
               )}
-              {list.type !== ListTypes.ACTIVE && (
-                <Icon
-                  name={ListTypeIcons[list.type]}
-                  className={classNames(
-                    styles.headerIcon,
-                    list.isPersisted && (canEdit || canArchiveCards) && styles.headerIconHidable,
-                  )}
-                />
-              )}
-              {list.isPersisted &&
-                (canEdit ? (
-                  <ActionsPopup listId={id} onNameEdit={handleNameEdit} onCardAdd={handleCardAdd}>
-                    <Button className={styles.headerButton}>
-                      <Icon fitted name="pencil" size="small" />
-                    </Button>
-                  </ActionsPopup>
-                ) : (
-                  canArchiveCards && (
-                    <ArchiveCardsPopup listId={id}>
-                      <Button className={styles.headerButton}>
-                        <Icon fitted name="archive" size="small" />
-                      </Button>
-                    </ArchiveCardsPopup>
-                  )
-                ))}
             </div>
-            <div ref={cardsWrapperRef} className={styles.cardsInnerWrapper}>
-              <div className={styles.cardsOuterWrapper}>{cardsNode}</div>
-            </div>
-            {!addCardPosition && canAddCard && (
-              <div className={styles.addCardButtonWrapper}>
-                <button
-                  type="button"
-                  disabled={!list.isPersisted}
-                  className={classNames(
-                    styles.addCardButton,
-                    list.color &&
-                      globalStyles[`background${upperFirst(camelCase(list.color))}Soft`],
-                  )}
-                  onClick={handleAddCardClick}
-                >
-                  <PlusMathIcon className={styles.addCardButtonIcon} />
-                  <span className={styles.addCardButtonText}>
-                    {cardIds.length > 0 ? t('action.addAnotherCard') : t('action.addCard')}
-                  </span>
-                </button>
-                {clipboard && canPasteCard && (
-                  <button
-                    type="button"
-                    disabled={!list.isPersisted}
-                    className={classNames(styles.addCardButton, styles.paste)}
-                    onClick={handlePasteCardClick}
-                  >
-                    <Icon name="paste" />
-                  </button>
-                )}
-                {isHippoConfigured && (
-                  <button
-                    type="button"
-                    disabled={!list.isPersisted}
-                    title={t('action.importFromHippo')}
-                    className={classNames(styles.addCardButton, styles.paste)}
-                    onClick={handleHippoImportClick}
-                  >
-                    <Icon name="ticket alternate" />
-                  </button>
-                )}
-              </div>
-            )}
           </div>
-        </div>
-      )}
+        )}
       </Draggable>
       {hippoImportDefaultData && (
         <AddCardModal
