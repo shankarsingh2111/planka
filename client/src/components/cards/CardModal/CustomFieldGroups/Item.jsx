@@ -103,16 +103,22 @@ const Item = React.memo(({ id, dragHandleProps }) => {
                   />
                 </button>
                 {isHippoGroup && (
+                  // Just an icon, which turns while Hippo is being asked; its name shows on hover
                   <Button
-                    basic
-                    size="mini"
-                    icon={isPull ? 'download' : 'sync'}
-                    content={isPull ? t('action.pullFromHippo') : t('action.syncWithHippo')}
-                    loading={hippoSync.isSyncing}
+                    title={isPull ? t('action.pullFromHippo') : t('action.syncWithHippo')}
                     disabled={!isLinked || hippoSync.isSyncing}
-                    className={styles.syncButton}
+                    className={classNames(
+                      styles.syncButton,
+                      hippoSync.isSyncing && styles.syncButtonSyncing,
+                    )}
                     onClick={syncWithHippoNow}
-                  />
+                  >
+                    <Icon
+                      fitted
+                      name={isPull && !hippoSync.isSyncing ? 'download' : 'sync'}
+                      loading={hippoSync.isSyncing}
+                    />
+                  </Button>
                 )}
               </>
             ) : (

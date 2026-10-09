@@ -65,8 +65,25 @@
   }
 
   .syncButton {
+    background: transparent;
+    box-shadow: none;
+    color: #6b808c;
     flex: 0 0 auto;
-    margin: 0 0 0 12px;
+    line-height: 28px;
+    margin: 0 0 0 8px;
+    min-height: auto;
+    padding: 0;
+    width: 28px;
+
+    &:hover {
+      background: rgba(9, 30, 66, 0.08);
+      color: #17394d;
+    }
+  }
+
+  // Semantic dims a disabled button; the turning icon should stay plain to see
+  .syncButtonSyncing:disabled {
+    opacity: 1 !important;
   }
 
   .syncError {
