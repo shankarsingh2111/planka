@@ -199,6 +199,7 @@ module.exports.routes = {
   'DELETE /api/cards/:cardId/card-recurrence': 'card-recurrences/delete',
 
   'GET /api/boards/:boardId/hippo-tickets/:ticketNumber': 'hippo/show-ticket',
+  'POST /api/cards/:cardId/hippo-sync': 'hippo/sync-card',
   'POST /api/cards/:cardId/hippo-sync/note': 'hippo/sync-note',
   'POST /api/cards/:cardId/hippo-sync/status': 'hippo/sync-status',
 
