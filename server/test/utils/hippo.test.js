@@ -316,8 +316,22 @@ describe('hippo', () => {
       expect(
         getTicketValuesByCardId({ cards, customFieldGroups, customFields, customFieldValues }),
       ).to.deep.equal({
-        c1: { ticketNumber: '43886', ticketState: 'Closed', priority: null, ticketUrl: null },
-        c3: { ticketNumber: '43934', ticketState: null, priority: null, ticketUrl: null },
+        c1: {
+          customFieldGroupId: 'g1',
+          ticketNumber: '43886',
+          ticketState: 'Closed',
+          priority: null,
+          ticketUrl: null,
+          tags: null,
+        },
+        c3: {
+          customFieldGroupId: 'g2',
+          ticketNumber: '43934',
+          ticketState: null,
+          priority: null,
+          ticketUrl: null,
+          tags: null,
+        },
       });
     });
   });

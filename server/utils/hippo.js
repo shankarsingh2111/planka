@@ -18,6 +18,7 @@ const HippoFieldNames = {
   TICKET_STATE: 'Ticket State',
   PRIORITY: 'Priority',
   TICKET_URL: 'Ticket URL',
+  TAGS: 'Tags',
 };
 
 // Exits of the Hippo helpers, one per way a call can go wrong
@@ -38,6 +39,7 @@ const FIELD_KEY_BY_NAME = {
   [HippoFieldNames.TICKET_STATE]: 'ticketState',
   [HippoFieldNames.PRIORITY]: 'priority',
   [HippoFieldNames.TICKET_URL]: 'ticketUrl',
+  [HippoFieldNames.TAGS]: 'tags',
 };
 
 const TICKET_NOT_FOUND_REGEX = /ticket not found/i;
@@ -269,21 +271,26 @@ const getTicketValuesByCardId = ({ cards, customFieldGroups, customFields, custo
   const result = {};
 
   cards.forEach((card) => {
-    const values = [
+    const match = [
       ...hippoCustomFieldGroups.filter(
         (customFieldGroup) => customFieldGroup.boardId === card.boardId,
       ),
       ...hippoCustomFieldGroups.filter((customFieldGroup) => customFieldGroup.cardId === card.id),
     ]
-      .map((customFieldGroup) => valuesByGroupedCardId[`${card.id}:${customFieldGroup.id}`])
-      .find((groupValues) => groupValues && groupValues.ticketNumber);
+      .map((customFieldGroup) => ({
+        customFieldGroupId: customFieldGroup.id,
+        values: valuesByGroupedCardId[`${card.id}:${customFieldGroup.id}`],
+      }))
+      .find(({ values }) => values && values.ticketNumber);
 
-    if (values) {
+    if (match) {
       result[card.id] = {
-        ticketNumber: values.ticketNumber,
-        ticketState: values.ticketState || null,
-        priority: values.priority || null,
-        ticketUrl: values.ticketUrl || null,
+        customFieldGroupId: match.customFieldGroupId,
+        ticketNumber: match.values.ticketNumber,
+        ticketState: match.values.ticketState || null,
+        priority: match.values.priority || null,
+        ticketUrl: match.values.ticketUrl || null,
+        tags: match.values.tags || null,
       };
     }
   });
