@@ -99,6 +99,14 @@ module.exports = {
       cardId: cardIdOrIds,
     });
 
+    await HippoCardEntry.qm.delete({
+      cardId: cardIdOrIds,
+    });
+
+    await HippoCardSync.qm.delete({
+      cardId: cardIdOrIds,
+    });
+
     await Action.qm.delete({
       cardId: cardIdOrIds,
     });
