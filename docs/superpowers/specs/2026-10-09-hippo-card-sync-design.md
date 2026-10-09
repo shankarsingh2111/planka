@@ -57,10 +57,12 @@ The server runs these steps for one card, as the editor who asked:
    Empty Hippo values leave the field as it is.
 6. **Members.** Hippo assignees are matched to board members by email (existing `matchAssignees`). Matched users who are not on the card yet are added. No one is removed.
 7. **Notes and comments.** Each Hippo note or comment that the card does not have yet becomes a Planka comment:
-   - written as the syncing editor, with the existing `**[Hippo Note] Author · date**` header;
+   - written as the syncing editor, headed `**[Hippo Note] Author**` (the comment's own time is now the Hippo date, so the header no longer repeats it);
    - placed by its Hippo date among the card's comments (see "Comment order");
    - recorded so it is never imported again (see "Remembering what was imported").
 8. **Record the sync.** Store the time and ticket number for the card.
+
+Only one sync runs per card at a time in a server process; a second request while one runs is answered as skipped. Each new entry's record is stored before its comment is created, and the unique index refuses a second record, so two servers syncing at once cannot import an entry twice.
 
 Steps 4–7 each save on their own. If one part fails (for example a member who has left the board), the rest still saves, and the response lists what was skipped. Every change goes out over the board's socket channel and webhooks through the existing helpers, so open clients update live.
 
@@ -86,10 +88,9 @@ New table **`hippo_card_entry`**:
 | `id` | bigint, `next_id()` |
 | `card_id` | bigint, not null |
 | `ticket_number` | text, not null |
-| `entry_id` | text, null — Hippo's `_id` for the note or comment |
-| `fingerprint` | text, null — for notes pushed from Planka, see below |
+| `entry_id` | text, not null — Hippo's `_id` for the note or comment |
 | `comment_id` | bigint, null — the Planka comment it became |
-| `kind` | text — `imported`, `skipped` or `pushed` |
+| `kind` | text — `imported` or `skipped` |
 | `created_at` / `updated_at` | timestamps |
 
 Unique on (`card_id`, `ticket_number`, `entry_id`). Rows go when their card is deleted (in `cards/delete-related`, next to comments).
@@ -98,8 +99,10 @@ New table **`hippo_card_sync`**: `card_id` (unique), `ticket_number`, `synced_at
 
 During a sync, a Hippo entry is new when no row has its `entry_id` for this card and ticket number, and none of the following matches it:
 
-- **Pushed notes.** When `sync-note` posts a Planka comment to Hippo, it stores a `pushed` row with a fingerprint: the SHA-256 of the note's text after `htmlToMarkdown`, whitespace collapsed. Hippo's add-note answer does not say the new note's ID. A Hippo note whose fingerprint matches a `pushed` row without an `entry_id` is that note. The row takes the `entry_id`, and nothing is imported.
-- **Cards imported before this change.** These have no rows. An entry whose Markdown, whitespace collapsed, appears in one of the card's comments is already there. An `imported` row is stored for it, pointing at that comment.
+- **Pushed notes.** Every note Planka pushes to Hippo reads `<author> (via Planka): <text>` (`buildNoteHtml`). A Hippo note in that form whose text appears in one of the card's comments is that comment coming back. An `imported` row is stored for it, pointing at that comment, and nothing is imported. This also covers notes pushed before this change.
+- **Cards imported before this change.** These have no rows. An entry whose Markdown appears in one of the card's comments is already there. An `imported` row is stored for it, pointing at that comment.
+
+Texts are compared with mention markup turned into `@Name`, Markdown backslash escapes removed and whitespace collapsed, since Hippo's HTML comes back through Turndown.
 
 ## Endpoint
 
@@ -141,7 +144,7 @@ A Hippo failure is never answered with 401, so the client never logs the user ou
   - **Sync** (↻) once it is true.
   It sends `force: true`, shows a spinner while running, and cannot be clicked twice.
 - **Last sync.** A muted line under the heading: "Synced from Hippo just now" / "Synced 5 min ago". It is hidden until the card's sync state is known.
-- **Errors.** A failed button sync shows the Hippo error toast, with the existing wording.
+- **Errors.** A failed button sync shows the error in red in place of the last-sync line, with the existing wording (`getHippoErrorText`).
 
 ### Refresh on open
 
@@ -152,7 +155,7 @@ When an editor opens a card that has a Ticket #, the card view sends one `force:
 
 The call goes straight to the API, not through the shared request queue (as `syncCommentToHippo` does). A slow Hippo therefore never holds up other actions.
 
-The sync state per card (`hasSynced`, `syncedAt`, `isSyncing`) lives in a small reducer keyed by card ID, outside the ORM.
+The sync state (`hasSynced`, `syncedAt`, `isSyncing`, `error`) lives in a hook used by the Hippo Ticket section, which calls the API itself, like the Add Card ticket lookup.
 
 ### Add Card
 
@@ -168,7 +171,7 @@ The server then:
 - adds members, which the dialog has already put on the card, so this is a no-op;
 - adds the ticked notes in date order.
 
-Notes left unticked are recorded as `skipped`, so a later refresh never brings them in. `ensureHippoFieldGroup` moves to the server.
+Notes left unticked are recorded as `skipped`, so a later refresh never brings them in. The client keeps `ensureHippoFieldGroup`, since the group and its Ticket # must exist before the server can read the number; the server runs the same field rules again during the sync.
 
 ## Not in scope
 
@@ -182,7 +185,7 @@ Notes left unticked are recorded as `skipped`, so a later refresh never brings t
 - **Cards imported before this change** show **Pull from Hippo** until someone clicks it once, since they have no sync record. After that they refresh on open.
 - **Edits inside the description block** are overwritten by the next sync, as Hippo wins there.
 - **Old members and comments stay** when Ticket # changes to another ticket. The old ticket's description block also stays, and a block for the new ticket is added.
-- **Waterline and the backdated comment fields:** whether Waterline keeps a supplied `createdAt` and `id` must be checked in planning. If it overwrites `createdAt`, the comment is created and then updated with the date.
+- **Backdated comment fields:** Planka's `beforeCreate` model hook always stamps `createdAt` with the current time. An imported comment is therefore created with its computed `id`, and then its `created_at` is set to the Hippo date in the same transaction. Whether Waterline passes a supplied `id` through is checked in the manual tests. If it does not, the comment keeps a normal ID and lands as the newest.
 
 ## Testing
 
@@ -190,7 +193,6 @@ Light checks, per the project's practice: unit tests for the pure parts, then li
 
 - the description block: append, replace, legacy footer, other ticket number, empty description;
 - the comment ID built from a date: ordering, epoch and future clamps;
-- note fingerprints, and matching against existing comment text;
-- which entries are new, given rows, pushed fingerprints and `entryIds`;
+- which entries are new, given rows, pushed notes, existing comment text and `entryIds`;
 - the skip rules: never synced, other number, under 2 minutes, `force`;
 - tag and option merging.
