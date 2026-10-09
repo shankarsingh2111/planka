@@ -227,6 +227,17 @@ describe('buildHippoImport', () => {
     });
   });
 
+  it("sends a picked state only when it differs from Hippo's own", () => {
+    expect(
+      buildHippoImport({
+        ticket: TICKET,
+        ticketUrl: null,
+        ticketState: 'Pending from Dev',
+        selectedEntryIds: [],
+      }).ticketState,
+    ).toBeNull();
+  });
+
   it('leaves out a missing link and state', () => {
     expect(
       buildHippoImport({

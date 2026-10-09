@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { createCustomFieldGroupInBoard } from './custom-field-groups';
 import { createCustomFieldInGroup, updateCustomField } from './custom-fields';
 import { updateCustomFieldValue } from './custom-field-values';
+import { syncTicketStateToHippo } from './hippo-sync';
 import api from '../../../api';
 import selectors from '../../../selectors';
 import { HIPPO_FIELD_DEFINITIONS, HIPPO_GROUP_NAME, mergeFieldOptions } from '../../../utils/hippo';
@@ -149,6 +150,11 @@ export function* importHippoTicketToCard(card, { values, entryIds, ticketState }
     } catch (error) {
       isComplete = false;
     }
+  }
+
+  // Hippo wins on every later refresh, so a state picked over Hippo's own is pushed there too
+  if (isComplete && ticketState) {
+    yield call(syncTicketStateToHippo, card.id);
   }
 
   if (!isComplete) {

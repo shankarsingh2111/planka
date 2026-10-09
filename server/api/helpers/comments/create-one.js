@@ -57,6 +57,13 @@ module.exports = {
     createdAt: {
       type: 'string',
     },
+    // A comment copied in from elsewhere, such as a Hippo note, reaches open boards and webhooks
+    // but notifies nobody, adds no mentioned members and subscribes no one: the user it is posted
+    // as did not write it
+    isImported: {
+      type: 'boolean',
+      defaultsTo: false,
+    },
     request: {
       type: 'ref',
     },
@@ -104,6 +111,10 @@ module.exports = {
       }),
       user: values.user,
     });
+
+    if (inputs.isImported) {
+      return comment;
+    }
 
     let mentionUserIds = extractMentionIds(comment.text);
 

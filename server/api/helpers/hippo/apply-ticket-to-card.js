@@ -26,15 +26,22 @@ const Warnings = {
   COMMENT_NOT_ADDED: 'commentNotAdded',
 };
 
+// The card is read again here, as an edit saved while Hippo was answering must not be lost
 const updateDescription = async ({ card, list, board, project, ticket, actorUser, request }) => {
-  const description = applyDescriptionBlock(card.description, ticket);
+  const currentCard = await Card.qm.getOneById(card.id);
 
-  if (description === card.description) {
-    return;
+  if (!currentCard) {
+    return false;
+  }
+
+  const description = applyDescriptionBlock(currentCard.description, ticket);
+
+  if (description === currentCard.description) {
+    return true;
   }
 
   await sails.helpers.cards.updateOne.with({
-    record: card,
+    record: currentCard,
     values: {
       description,
     },
@@ -44,6 +51,7 @@ const updateDescription = async ({ card, list, board, project, ticket, actorUser
     actorUser,
     request,
   });
+  return true;
 };
 
 // The group gets whichever fields and options it lacks, then the ticket's State, Priority and Tags
@@ -202,6 +210,7 @@ const createEntryComment = async ({ card, list, board, project, entry, actorUser
         board,
         list,
         createdAt: createdAt || undefined,
+        isImported: true,
         request,
       });
     } catch (error) {

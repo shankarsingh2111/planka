@@ -21,6 +21,8 @@ const TICKET_NUMBER_REGEX = /^#?(\d{1,12})$/;
 // buildNoteHtml writes "<author> (via Planka): <text>"; Hippo hands it back as Markdown
 const PUSHED_NOTE_REGEX = /^.*? \(via Planka\): ([\s\S]*)$/;
 const MARKDOWN_ESCAPE_REGEX = /\\([\\`*_{}[\]()#+\-.!>~|=])/g;
+// "**[Hippo Note] Author**", followed by the entry, as imported comments read
+const IMPORTED_COMMENT_REGEX = /^\*\*\[Hippo (?:Note|Comment)\][^\n]*\*\*(?:\n\n([\s\S]*))?$/;
 
 const SkipReasons = {
   NEVER_SYNCED: 'neverSynced',
@@ -173,23 +175,31 @@ const normalizeText = (text) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const getComparableText = (entry) => {
+// What a comment says, as an imported entry or a note Planka pushed would say it
+const getCommentBody = (comment) => {
+  const match = (comment.text || '').match(IMPORTED_COMMENT_REGEX);
+  return normalizeText(match ? match[1] : comment.text);
+};
+
+const getEntryBody = (entry) => {
   const match = entry.kind === 'note' && entry.markdown.match(PUSHED_NOTE_REGEX);
   return normalizeText(match ? match[1] : entry.markdown);
 };
 
 /**
  * Sorts the ticket's notes and comments into those the card has and those it needs. Recorded
- * entries are done with. An entry whose text a comment already holds was imported before records
- * were kept, or is a Planka comment that went to Hippo as a note; it gets a record. Entries left
- * out of entryIds are recorded as skipped. The rest are imported.
+ * entries are done with. An entry whose whole text a comment holds was imported before records
+ * were kept, or is a Planka comment that went to Hippo as a note; it gets a record. Each comment
+ * stands for one entry at most, so two "Done" notes need two comments. Entries left out of
+ * entryIds are recorded as skipped. The rest are imported.
  */
 const planEntries = ({ entries, records, comments, entryIds }) => {
   const recordedEntryIds = new Set(records.map((record) => record.entryId));
+  const claimedCommentIds = new Set(records.map((record) => record.commentId).filter(Boolean));
 
-  const commentTexts = comments.map((comment) => ({
+  const commentBodies = comments.map((comment) => ({
     id: comment.id,
-    text: normalizeText(comment.text),
+    body: getCommentBody(comment),
   }));
 
   const result = {
@@ -202,10 +212,17 @@ const planEntries = ({ entries, records, comments, entryIds }) => {
       return;
     }
 
-    const text = getComparableText(entry);
-    const comment = text && commentTexts.find((commentText) => commentText.text.includes(text));
+    const body = getEntryBody(entry);
+
+    const comment =
+      body &&
+      commentBodies.find(
+        (commentBody) => commentBody.body === body && !claimedCommentIds.has(commentBody.id),
+      );
 
     if (comment) {
+      claimedCommentIds.add(comment.id);
+
       result.toRecord.push({
         entryId: entry.id,
         kind: EntryRecordKinds.IMPORTED,

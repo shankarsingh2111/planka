@@ -207,6 +207,39 @@ describe('hippo-card-sync', () => {
       });
     });
 
+    it('does not take a short note for part of a longer comment', () => {
+      const done = { id: 'n5', kind: 'note', authorName: 'Harsh', markdown: 'Done' };
+
+      const comments = [
+        { id: '7', text: '**[Hippo Note] Harsh**\n\nDone with the backend part, ok to deploy?' },
+        { id: '8', text: 'Done, and more besides' },
+      ];
+
+      expect(planEntries({ entries: [done], records: [], comments })).to.deep.equal({
+        toImport: [done],
+        toRecord: [],
+      });
+    });
+
+    it('matches each earlier comment to one entry only', () => {
+      const first = { id: 'n6', kind: 'note', authorName: 'Harsh', markdown: 'Done' };
+      const second = { id: 'n7', kind: 'note', authorName: 'Harsh', markdown: 'Done' };
+      const comments = [{ id: '9', text: '**[Hippo Note] Harsh · Oct 1**\n\nDone' }];
+
+      expect(planEntries({ entries: [first, second], records: [], comments })).to.deep.equal({
+        toImport: [second],
+        toRecord: [{ entryId: 'n6', kind: EntryRecordKinds.IMPORTED, commentId: '9' }],
+      });
+    });
+
+    it('leaves a comment an entry record already points at to that entry', () => {
+      const again = { id: 'n8', kind: 'note', authorName: 'Harsh', markdown: 'Done' };
+      const records = [{ entryId: 'n6', kind: EntryRecordKinds.IMPORTED, commentId: '9' }];
+      const comments = [{ id: '9', text: '**[Hippo Note] Harsh**\n\nDone' }];
+
+      expect(planEntries({ entries: [again], records, comments }).toImport).to.deep.equal([again]);
+    });
+
     it('never matches an empty entry against comments', () => {
       const empty = { id: 'n4', kind: 'note', authorName: 'Harsh', markdown: '' };
 

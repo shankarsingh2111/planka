@@ -225,9 +225,10 @@ export const applyTicketToCardData = (data, ticket, prevTicket) => {
   };
 };
 
-// What the create saga needs: the card is linked here, and the server sync brings in the rest
+// What the create saga needs: the card is linked here, and the server sync brings in the rest.
+// A state picked over Hippo's own goes along, to be pushed to Hippo, so a refresh keeps it.
 export const buildHippoImport = ({ ticket, ticketUrl, ticketState, selectedEntryIds }) => ({
-  ticketState: ticketState || null,
+  ticketState: ticketState && ticketState !== ticket.statusText ? ticketState : null,
   entryIds: selectedEntryIds,
   values: [
     {
