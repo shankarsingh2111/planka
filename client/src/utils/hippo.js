@@ -4,7 +4,6 @@
  */
 
 import { CustomFieldTypes } from '../constants/Enums';
-import { joinMultiselectContent } from './custom-fields';
 
 // The server reads these same names (server/utils/hippo.js); the two must stay in step
 export const HIPPO_GROUP_NAME = 'Hippo Ticket';
@@ -79,11 +78,6 @@ const TICKET_NUMBER_PLACEHOLDER = '{ticketNumber}';
 // Where a ticket lives when no link to it was ever pasted
 export const DEFAULT_TICKET_URL_PATTERN = `https://hippochat.io/en/#/ticket/list/active/${TICKET_NUMBER_PLACEHOLDER}`;
 const MAX_TICKET_NUMBER_LENGTH = 12;
-
-const ENTRY_LABEL_BY_KIND = {
-  note: 'Hippo Note',
-  comment: 'Hippo Comment',
-};
 
 const ERROR_KEY_BY_MESSAGE = {
   'Hippo not configured': 'common.hippoNotConfigured',
@@ -186,9 +180,16 @@ export const getMatchedUserIds = (ticket) =>
 export const getUnmatchedAssigneeNames = (ticket) =>
   ticket.assignees.flatMap((assignee) => (assignee.userId ? [] : [assignee.name]));
 
+// The server writes and replaces this same block when it syncs the card
+// (server/utils/hippo-card-sync.js); the two must stay in step
 export const buildCardDescription = (ticket) => {
-  const footer = `— Imported from Hippo ticket #${ticket.number}`;
-  return ticket.descriptionMarkdown ? `${ticket.descriptionMarkdown}\n\n${footer}` : footer;
+  const heading = ticket.subject
+    ? `### Hippo #${ticket.number}: ${ticket.subject}`
+    : `### Hippo #${ticket.number}`;
+
+  return [heading, ticket.descriptionMarkdown, `— Imported from Hippo ticket #${ticket.number}`]
+    .filter(Boolean)
+    .join('\n\n');
 };
 
 // A fetched ticket fills the dialog in; members a ticket fetched before it brought are let go
@@ -224,47 +225,20 @@ export const applyTicketToCardData = (data, ticket, prevTicket) => {
   };
 };
 
-// "**[Hippo Note] Harsh Sharma · October 1, 2026 at 11:34 AM**" over the entry itself
-export const buildImportedCommentText = (entry, dateText) => {
-  const byline = [entry.authorName, dateText].filter(Boolean).join(' · ');
-  const header = `**[${ENTRY_LABEL_BY_KIND[entry.kind]}]${byline ? ` ${byline}` : ''}**`;
-
-  return entry.markdown ? `${header}\n\n${entry.markdown}` : header;
-};
-
-// What the create saga needs to link the new card to its ticket
-export const buildHippoImport = (
-  { ticket, ticketUrl, ticketState, selectedEntryIds },
-  formatDate,
-) => ({
+// What the create saga needs: the card is linked here, and the server sync brings in the rest
+export const buildHippoImport = ({ ticket, ticketUrl, ticketState, selectedEntryIds }) => ({
   ticketState: ticketState || null,
+  entryIds: selectedEntryIds,
   values: [
     {
       name: HippoFieldNames.TICKET_NUMBER,
       content: ticket.number,
     },
     {
-      name: HippoFieldNames.TICKET_STATE,
-      content: ticketState,
-    },
-    {
-      name: HippoFieldNames.PRIORITY,
-      content: ticket.priority,
-    },
-    {
-      name: HippoFieldNames.TAGS,
-      content: joinMultiselectContent(ticket.tags || []),
-    },
-    {
       name: HippoFieldNames.TICKET_URL,
       content: ticketUrl,
     },
   ].filter(({ content }) => !!content),
-  commentTexts: ticket.entries
-    .filter((entry) => selectedEntryIds.includes(entry.id))
-    .map((entry) =>
-      buildImportedCommentText(entry, entry.date ? formatDate(new Date(entry.date)) : null),
-    ),
 });
 
 export const getFirstLine = (markdown) =>

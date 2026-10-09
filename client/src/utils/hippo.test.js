@@ -4,7 +4,6 @@ import {
   applyTicketToCardData,
   buildCardDescription,
   buildHippoImport,
-  buildImportedCommentText,
   buildTicketUrl,
   getFirstLine,
   getTicketUrl,
@@ -149,7 +148,8 @@ describe('applyTicketToCardData', () => {
   it('fills the dialog in from the ticket', () => {
     expect(applyTicketToCardData(data, TICKET, null)).toEqual({
       name: 'Android APK not functional',
-      description: 'Cannot pass the OTP screen\n\n— Imported from Hippo ticket #43886',
+      description:
+        '### Hippo #43886: Android APK not functional\n\nCannot pass the OTP screen\n\n— Imported from Hippo ticket #43886',
       dueDate: new Date('2026-10-05T18:30:00.000Z'),
       userIds: ['5', '11'],
       labelIds: [],
@@ -194,35 +194,51 @@ describe('applyTicketToCardData', () => {
 });
 
 describe('buildCardDescription', () => {
-  it('ends with where the card came from', () => {
+  it('writes the block the server syncs: heading, description, footer', () => {
     expect(buildCardDescription({ ...TICKET, descriptionMarkdown: '' })).toBe(
-      '— Imported from Hippo ticket #43886',
+      '### Hippo #43886: Android APK not functional\n\n— Imported from Hippo ticket #43886',
+    );
+
+    expect(buildCardDescription({ ...TICKET, subject: '', descriptionMarkdown: '' })).toBe(
+      '### Hippo #43886\n\n— Imported from Hippo ticket #43886',
     );
   });
 });
 
-describe('imported comments', () => {
-  it('heads each entry with its kind, author and date', () => {
-    expect(buildImportedCommentText(TICKET.entries[1], 'October 1, 2026 at 11:34 AM')).toBe(
-      '**[Hippo Note] Harsh Sharma · October 1, 2026 at 11:34 AM**\n\n@Deepak kumar Kindly look into this',
-    );
-  });
-
-  it('builds what the create saga needs, keeping only the chosen entries', () => {
+describe('buildHippoImport', () => {
+  it('links the card and leaves the rest to the server sync', () => {
     expect(
-      buildHippoImport(
-        { ticket: TICKET, ticketUrl: null, ticketState: 'Closed', selectedEntryIds: ['n1'] },
-        () => 'DATE',
-      ),
+      buildHippoImport({
+        ticket: TICKET,
+        ticketUrl: 'https://hippochat.io/en/#/ticket/list/active/43886',
+        ticketState: 'Closed',
+        selectedEntryIds: ['n1'],
+      }),
     ).toEqual({
       ticketState: 'Closed',
+      entryIds: ['n1'],
       values: [
         { name: HippoFieldNames.TICKET_NUMBER, content: '43886' },
-        { name: HippoFieldNames.TICKET_STATE, content: 'Closed' },
-        { name: HippoFieldNames.PRIORITY, content: 'Normal' },
-        { name: HippoFieldNames.TAGS, content: 'Backend, Billing' },
+        {
+          name: HippoFieldNames.TICKET_URL,
+          content: 'https://hippochat.io/en/#/ticket/list/active/43886',
+        },
       ],
-      commentTexts: ['**[Hippo Note] Harsh Sharma · DATE**\n\n@Deepak kumar Kindly look into this'],
+    });
+  });
+
+  it('leaves out a missing link and state', () => {
+    expect(
+      buildHippoImport({
+        ticket: TICKET,
+        ticketUrl: null,
+        ticketState: null,
+        selectedEntryIds: [],
+      }),
+    ).toEqual({
+      ticketState: null,
+      entryIds: [],
+      values: [{ name: HippoFieldNames.TICKET_NUMBER, content: '43886' }],
     });
   });
 });

@@ -236,15 +236,6 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
     }));
   }, []);
 
-  const formatEntryDate = useCallback(
-    (date) =>
-      t('format:fullDateTime', {
-        value: date,
-        postProcess: 'formatDate',
-      }),
-    [t],
-  );
-
   const submit = useCallback(() => {
     if (!canCreate) {
       return;
@@ -265,7 +256,7 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
         userIds,
         labelIds,
         recurrence: recurrence || undefined,
-        hippo: hippo ? buildHippoImport(hippo, formatEntryDate) : undefined,
+        hippo: hippo ? buildHippoImport(hippo) : undefined,
       },
     );
 
@@ -282,7 +273,6 @@ const Content = React.memo(({ defaultData, onCreate, onClose }) => {
     canCreate,
     nameFieldRef,
     hippo,
-    formatEntryDate,
   ]);
 
   const handleNameKeyDown = useCallback(
