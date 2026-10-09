@@ -53,6 +53,10 @@ module.exports = {
       type: 'ref',
       required: true,
     },
+    // An imported comment's original time, as an ISO string
+    createdAt: {
+      type: 'string',
+    },
     request: {
       type: 'ref',
     },
@@ -61,11 +65,16 @@ module.exports = {
   async fn(inputs) {
     const { values } = inputs;
 
-    const comment = await Comment.qm.createOne({
-      ...values,
-      cardId: values.card.id,
-      userId: values.user.id,
-    });
+    const comment = await Comment.qm.createOne(
+      {
+        ...values,
+        cardId: values.card.id,
+        userId: values.user.id,
+      },
+      {
+        createdAt: inputs.createdAt,
+      },
+    );
 
     sails.sockets.broadcast(
       `board:${inputs.board.id}`,

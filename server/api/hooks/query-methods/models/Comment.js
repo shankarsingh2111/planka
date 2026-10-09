@@ -10,11 +10,24 @@ const defaultFind = (criteria, { limit } = {}) =>
 
 /* Query methods */
 
-const createOne = (values) =>
+// A comment imported from elsewhere keeps its original time. The model's beforeCreate always
+// stamps now, so that time is written right after, in the same transaction.
+const createOne = (values, { createdAt } = {}) =>
   sails.getDatastore().transaction(async (db) => {
     const comment = await Comment.create({ ...values })
       .fetch()
       .usingConnection(db);
+
+    if (createdAt) {
+      await sails
+        .sendNativeQuery('UPDATE comment SET created_at = $1 WHERE id = $2', [
+          createdAt,
+          comment.id,
+        ])
+        .usingConnection(db);
+
+      comment.createdAt = createdAt;
+    }
 
     const queryResult = await sails
       .sendNativeQuery(
@@ -45,6 +58,9 @@ const getByCardId = (cardId, { beforeId } = {}) => {
 
   return defaultFind(criteria, { limit: LIMIT });
 };
+
+// Every comment of the card, not just a page of them
+const getAllByCardId = (cardId) => defaultFind({ cardId });
 
 const getOneById = (id) => Comment.findOne(id);
 
@@ -117,6 +133,7 @@ module.exports = {
   createOne,
   getByIds,
   getByCardId,
+  getAllByCardId,
   getOneById,
   update,
   updateOne,
