@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import { createCustomFieldGroupInBoard } from './custom-field-groups';
 import { createCustomFieldInGroup, updateCustomField } from './custom-fields';
 import { updateCustomFieldValue } from './custom-field-values';
-import { createComment } from './comments';
+import api from '../../../api';
 import selectors from '../../../selectors';
 import { HIPPO_FIELD_DEFINITIONS, HIPPO_GROUP_NAME, mergeFieldOptions } from '../../../utils/hippo';
 import { isChoiceFieldType, splitMultiselectContent } from '../../../utils/custom-fields';
@@ -101,12 +101,12 @@ export function* ensureHippoFieldGroup(boardId, values) {
 }
 
 /**
- * Links a card that was just created to its Hippo ticket. The ticket's values go into the board's
- * "Hippo Ticket" fields, and the chosen notes and comments become comments, oldest first. Each
- * step waits for the one before it, so the comments keep their order and a failure stops the rest
- * and is reported once. Imported comments are never posted back to Hippo.
+ * Links a card that was just created to its Hippo ticket: the board's "Hippo Ticket" group gets
+ * its fields, and the card its Ticket # and Ticket URL. The server sync then brings in the rest,
+ * including the notes and comments picked in the dialog, placed by date. The ones left out are
+ * remembered, so a later refresh does not bring them in.
  */
-export function* importHippoTicketToCard(card, { values, commentTexts }) {
+export function* importHippoTicketToCard(card, { values, entryIds, ticketState }) {
   const hippoFieldGroup = yield call(ensureHippoFieldGroup, card.boardId, values);
 
   let isComplete = !!hippoFieldGroup;
@@ -127,12 +127,28 @@ export function* importHippoTicketToCard(card, { values, commentTexts }) {
     isComplete = !!customFieldValue;
   }
 
-  for (let i = 0; isComplete && i < commentTexts.length; i += 1) {
-    const comment = yield call(createComment, card.id, {
-      text: commentTexts[i],
-    });
+  if (isComplete) {
+    const accessToken = yield select(selectors.selectAccessToken);
 
-    isComplete = !!comment;
+    // Straight to the server, as Hippo may take its whole timeout to answer
+    try {
+      yield call(
+        api.syncHippoCard,
+        card.id,
+        {
+          force: true,
+          entryIds,
+          ...(ticketState && {
+            ticketState,
+          }),
+        },
+        {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      );
+    } catch (error) {
+      isComplete = false;
+    }
   }
 
   if (!isComplete) {

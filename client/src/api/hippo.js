@@ -13,6 +13,9 @@ const getHippoTicket = (boardId, ticketNumber, headers) =>
 const syncHippoNote = (cardId, data, headers) =>
   socket.post(`/cards/${cardId}/hippo-sync/note`, data, headers);
 
+const syncHippoCard = (cardId, data, headers) =>
+  socket.post(`/cards/${cardId}/hippo-sync`, data, headers);
+
 const syncHippoStatus = (cardId, headers) =>
   socket.post(`/cards/${cardId}/hippo-sync/status`, undefined, headers);
 
@@ -28,6 +31,7 @@ const verifyHippoConfig = (projectId, headers) =>
 export default {
   getHippoTicket,
   syncHippoNote,
+  syncHippoCard,
   syncHippoStatus,
   updateHippoConfig,
   deleteHippoConfig,
