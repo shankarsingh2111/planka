@@ -64,6 +64,23 @@
     position: relative;
   }
 
+  .syncButton {
+    flex: 0 0 auto;
+    margin: 0 0 0 12px;
+  }
+
+  .syncError {
+    color: #db2828;
+    font-size: 12px;
+    margin: -4px 0 8px;
+  }
+
+  .syncStatus {
+    color: #6b808c;
+    font-size: 12px;
+    margin: -4px 0 8px;
+  }
+
   .toggleButton {
     align-items: center;
     background: none;
