@@ -40,15 +40,14 @@ import styles from './TimelineView.module.scss';
 const UNSCHEDULED_DRAG_THRESHOLD = 4;
 
 // The card's values before a drag, as an update that puts them back. List and position are only
-// included when the drag is about to move the card to another list.
-const getUndoData = (card, nextListId) => ({
+// included when the drag moves the card to another list or to another place in its own.
+const getUndoData = (card, nextListId, isReordered = false) => ({
   startDate: card.startDate || null,
   dueDate: card.dueDate || null,
-  ...(nextListId &&
-    nextListId !== card.listId && {
-      listId: card.listId,
-      position: card.position,
-    }),
+  ...(((nextListId && nextListId !== card.listId) || isReordered) && {
+    listId: card.listId,
+    position: card.position,
+  }),
 });
 
 const LANES_FILTER_TITLES = {
@@ -277,6 +276,22 @@ const TimelineView = React.memo(({ cardIds }) => {
     [allLanes, hiddenLaneKeys],
   );
 
+  // Lanes are packed in this order: list by list as on the board, then card position within a
+  // list, so a list lane reads top to bottom like its kanban column
+  const orderByCardId = useMemo(() => {
+    const listIndexById = sortedLists.reduce(
+      (result, list, index) => ({ ...result, [list.id]: index }),
+      {},
+    );
+
+    const getListIndex = (card) => (card.listId in listIndexById ? listIndexById[card.listId] : 0);
+
+    return scheduledCards
+      .slice()
+      .sort((a, b) => getListIndex(a) - getListIndex(b) || (a.position || 0) - (b.position || 0))
+      .reduce((result, card, index) => ({ ...result, [card.id]: index }), {});
+  }, [scheduledCards, sortedLists]);
+
   const items = useMemo(
     () =>
       scheduledCards.map((card) => {
@@ -338,6 +353,7 @@ const TimelineView = React.memo(({ cardIds }) => {
           startDate: card.startDate || undefined,
           dueDate: card.dueDate || undefined,
           laneKeys,
+          order: orderByCardId[card.id],
           memberIds: card.userIds,
           colorClassName: getColorClassName(color),
           isCompleted: isDone || !!card.isDueCompleted,
@@ -355,7 +371,7 @@ const TimelineView = React.memo(({ cardIds }) => {
           ].filter(Boolean),
         };
       }),
-    [scheduledCards, groupBy, colorBy, labelById, userById, activeMemberUserIds],
+    [scheduledCards, orderByCardId, groupBy, colorBy, labelById, userById, activeMemberUserIds],
   );
 
   const dependencies = useMemo(
@@ -411,7 +427,7 @@ const TimelineView = React.memo(({ cardIds }) => {
 
   // Called just before a drag is committed, while the card still holds its old values
   const pushUndoEntry = useCallback(
-    (cardId, messageKey, nextListId) => {
+    (cardId, messageKey, nextListId, isReordered) => {
       const card = cardById[cardId];
 
       if (!card) {
@@ -425,7 +441,7 @@ const TimelineView = React.memo(({ cardIds }) => {
         cardId,
         cardName: card.name,
         messageKey,
-        undoData: getUndoData(card, nextListId),
+        undoData: getUndoData(card, nextListId, isReordered),
       };
 
       setUndoEntries((prevEntries) => pushEntry(prevEntries, entry));
@@ -560,19 +576,24 @@ const TimelineView = React.memo(({ cardIds }) => {
   ];
 
   const handleExternalDrop = useCallback(
-    (cardId, { laneKey, startDate, dueDate }) => {
+    (cardId, { laneKey, startDate, dueDate, placement }) => {
       setExternalDragItem(null);
 
       // Only list lanes name a list; member and label lanes leave the card where it is
       const listId = groupBy === GroupByOptions.LIST ? laneKey : undefined;
+      const isReordered = !!listId && !!placement && placement.isReordered;
 
-      pushUndoEntry(cardId, 'common.timelineCardScheduled', listId);
+      pushUndoEntry(cardId, 'common.timelineCardScheduled', listId, isReordered);
 
       dispatch(
         entryActions.scheduleCard(cardId, {
           listId,
           startDate,
           dueDate,
+          ...(isReordered && {
+            beforeCardId: placement.beforeItemId,
+            afterCardId: placement.afterItemId,
+          }),
         }),
       );
     },
@@ -580,9 +601,10 @@ const TimelineView = React.memo(({ cardIds }) => {
   );
 
   // Vertical drag only means something when the lanes are lists; in member or label grouping a
-  // lane is not somewhere a card can be moved to
+  // lane is not somewhere a card can be moved to. `placement` names the lane neighbours a reorder
+  // puts the card between; recurring cards never carry one, as the chart does not reorder series.
   const handleItemLaneChange = useCallback(
-    (cardId, laneKey, { startDate, dueDate }) => {
+    (cardId, laneKey, { startDate, dueDate }, placement) => {
       if (isRecurrenceChange(cardId, dueDate)) {
         setPendingRecurrenceChange({
           cardId,
@@ -594,12 +616,15 @@ const TimelineView = React.memo(({ cardIds }) => {
         return;
       }
 
+      const isReordered = !!placement && placement.isReordered;
+
       pushUndoEntry(
         cardId,
-        cardById[cardId] && laneKey !== cardById[cardId].listId
+        (cardById[cardId] && laneKey !== cardById[cardId].listId) || isReordered
           ? 'common.timelineCardMoved'
           : 'common.timelineCardRescheduled',
         laneKey,
+        isReordered,
       );
 
       dispatch(
@@ -607,6 +632,10 @@ const TimelineView = React.memo(({ cardIds }) => {
           listId: laneKey,
           startDate,
           dueDate,
+          ...(isReordered && {
+            beforeCardId: placement.beforeItemId,
+            afterCardId: placement.afterItemId,
+          }),
         }),
       );
     },
