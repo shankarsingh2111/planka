@@ -277,28 +277,6 @@
     z-index: 2;
   }
 
-  .dropPreview {
-    align-items: center;
-    background: rgba(0, 121, 191, 0.85);
-    border-radius: 4px;
-    box-shadow: 0 2px 6px rgba(9, 30, 66, 0.25);
-    display: flex;
-    overflow: hidden;
-    padding: 0 8px;
-    pointer-events: none;
-    position: absolute;
-    z-index: 6;
-  }
-
-  .dropPreviewLabel {
-    color: #fff;
-    font-size: 12px;
-    line-height: 26px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   .empty {
     color: #5e6c84;
     left: 0;

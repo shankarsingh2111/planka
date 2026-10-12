@@ -5,13 +5,14 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { LANE_HEADER_WIDTH, PIXELS_PER_DAY, getDropRange } from './utils';
+import { LANE_HEADER_WIDTH, getDropRange } from './utils';
 
 /**
  * Drag session for a card coming from outside the canvas.
  *
  * The gesture starts elsewhere (the unscheduled sidebar), so this listens on the window rather
- * than taking pointer capture. The drop is always the whole day under the cursor — how far the
+ * than taking pointer capture. The drop lands on the row under the cursor, the chart laying the
+ * lane out around it, and is always the whole day under the cursor — how far the
  * pointer travelled on the way there does not lengthen it — and releasing commits it to the lane
  * underneath. Duration is set afterwards by resizing the bar.
  *
@@ -39,7 +40,7 @@ const useDropTarget = ({
   viewStart,
   zoomLevel,
   totalWidth,
-  layout,
+  getDropSlotAtClientY,
   onDrop,
   onCancel,
 }) => {
@@ -64,28 +65,19 @@ const useDropTarget = ({
 
     const rect = canvasRef.current.getBoundingClientRect();
     const x = pointer.clientX - rect.left;
-    const y = pointer.clientY - rect.top;
 
-    const laneLayout = layout.lanes.find(
-      (candidate) => y >= candidate.top && y < candidate.top + candidate.height,
-    );
+    const slot = isOverVisibleCanvas ? getDropSlotAtClientY(pointer.clientY, null) : null;
 
-    if (!isOverVisibleCanvas || !laneLayout || x < 0 || x > totalWidth) {
+    if (!slot || x < 0 || x > totalWidth) {
       previewRef.current = null;
       setPreview(null);
 
       return;
     }
 
-    // A whole day wide, so the ghost matches the dates the drop will actually commit
-    const dayWidth = PIXELS_PER_DAY[zoomLevel];
-
     const next = {
-      laneKey: laneLayout.lane.key,
-      laneTop: laneLayout.top,
-      laneHeight: laneLayout.height,
-      left: Math.floor(x / dayWidth) * dayWidth,
-      width: dayWidth,
+      laneKey: slot.laneKey,
+      targetRow: slot.targetRow,
       ...getDropRange(x, viewStart, zoomLevel),
     };
 
@@ -94,12 +86,12 @@ const useDropTarget = ({
     setPreview((prevPreview) =>
       prevPreview &&
       prevPreview.laneKey === next.laneKey &&
-      prevPreview.left === next.left &&
-      prevPreview.width === next.width
+      prevPreview.targetRow === next.targetRow &&
+      prevPreview.startDate.getTime() === next.startDate.getTime()
         ? prevPreview
         : next,
     );
-  }, [scrollRef, headerRef, canvasRef, layout, totalWidth, viewStart, zoomLevel]);
+  }, [scrollRef, headerRef, canvasRef, getDropSlotAtClientY, totalWidth, viewStart, zoomLevel]);
 
   useEffect(() => {
     if (!isActive) {

@@ -14,7 +14,6 @@ import {
   PIXELS_PER_DAY,
   LANE_HEADER_WIDTH,
   ROW_HEIGHT,
-  BAR_HEIGHT,
   ROW_GAP,
   COMPACT_ROW_HEIGHT,
   COMPACT_BAR_HEIGHT,
@@ -301,7 +300,11 @@ const TimelineChart = React.memo(
 
     const handleExternalDrop = useCallback(
       (laneKey, dates) => {
-        onExternalDrop(externalDragItem.id, { laneKey, ...dates });
+        onExternalDrop(externalDragItem.id, {
+          laneKey,
+          ...dates,
+          placement: placementResultRef.current,
+        });
       },
       [externalDragItem, onExternalDrop],
     );
@@ -314,7 +317,7 @@ const TimelineChart = React.memo(
       viewStart,
       zoomLevel,
       totalWidth,
-      layout: committedLayout,
+      getDropSlotAtClientY,
       onDrop: handleExternalDrop,
       onCancel: onExternalDragCancel,
     });
@@ -381,7 +384,29 @@ const TimelineChart = React.memo(
       };
     }, [drag, itemById, rangeById, zoomLevel]);
 
-    const placement = barPlacement;
+    // A card coming from the sidebar has no place in any order yet, so it sorts last until a row
+    // gives it one
+    const externalPlacement = useMemo(
+      () =>
+        dropPreview && externalDragItem
+          ? {
+              item: {
+                id: externalDragItem.id,
+                name: externalDragItem.name,
+                // In list lanes it is not in any lane yet, so the drop counts as a move into one;
+                // elsewhere it only takes dates, so it belongs to the lane it is held over
+                laneKeys: onItemLaneChange ? [] : [dropPreview.laneKey],
+                order: Number.MAX_SAFE_INTEGER,
+              },
+              range: getItemRange(dropPreview),
+              laneKey: dropPreview.laneKey,
+              targetRow: onItemLaneChange ? dropPreview.targetRow : null,
+            }
+          : null,
+      [dropPreview, externalDragItem, onItemLaneChange],
+    );
+
+    const placement = barPlacement || externalPlacement;
 
     const layout = useMemo(
       () =>
@@ -713,9 +738,9 @@ const TimelineChart = React.memo(
     const backgroundStripes =
       backgroundLayers.length > 0 ? { backgroundImage: backgroundLayers.join(', ') } : undefined;
 
-    // A card heading into a lane it is not in yet lights that lane up
+    // A card heading into a lane it is not in yet, or coming from the sidebar, lights that lane up
     const placementLane =
-      placement && !placement.item.laneKeys.includes(placement.laneKey)
+      placement && (externalPlacement || !placement.item.laneKeys.includes(placement.laneKey))
         ? layout.lanes.find((laneLayout) => laneLayout.lane.key === placement.laneKey)
         : null;
 
@@ -1051,25 +1076,6 @@ const TimelineChart = React.memo(
                       )}
                     </React.Fragment>
                   ))}
-                  {dropPreview && externalDragItem && (
-                    <>
-                      <div
-                        className={styles.dropLane}
-                        style={{ top: dropPreview.laneTop, height: dropPreview.laneHeight }}
-                      />
-                      <div
-                        className={styles.dropPreview}
-                        style={{
-                          left: dropPreview.left,
-                          width: dropPreview.width,
-                          top: dropPreview.laneTop + LANE_PADDING + (ROW_HEIGHT - BAR_HEIGHT) / 2,
-                          height: BAR_HEIGHT,
-                        }}
-                      >
-                        <span className={styles.dropPreviewLabel}>{externalDragItem.name}</span>
-                      </div>
-                    </>
-                  )}
                   {committedBars.length === 0 && emptyMessage && (
                     <div className={styles.emptyOverlay}>{emptyMessage}</div>
                   )}
