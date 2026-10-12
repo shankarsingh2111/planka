@@ -52,12 +52,12 @@ export const getAutoScrollDirection = (clientX, clientY, rect, headerHeight) => 
 
 const UNSCHEDULE_ZONE_SELECTOR = '[data-timeline-unschedule-zone]';
 
-// Hit test rather than a cached rect, so the zone can move or resize mid-drag without going stale
-const isPointOverUnscheduleZone = (event) => {
-  const target = document.elementFromPoint(event.clientX, event.clientY);
-
-  return !!target && !!target.closest(UNSCHEDULE_ZONE_SELECTOR);
-};
+// Hit test rather than a cached rect, so the zone can move or resize mid-drag without going stale.
+// Every layer is checked, since the lifted bar itself sits right under the pointer.
+const isPointOverUnscheduleZone = (event) =>
+  document
+    .elementsFromPoint(event.clientX, event.clientY)
+    .some((element) => !!element.closest(UNSCHEDULE_ZONE_SELECTOR));
 
 // Applies a drag delta to an item's dates. The unit is a two-hour slot at day zoom and a
 // whole day at every other zoom level.
@@ -97,6 +97,28 @@ export const getDraggedDates = (item, range, mode, deltaUnits, zoomLevel) => {
   };
 };
 
+// What a released drag commits. A lane change also carries reorders inside the lane, since both
+// go through the same update with the card's new neighbours.
+export const getDropAction = ({
+  mode,
+  laneKey,
+  toLaneKey,
+  deltaUnits,
+  isReordered,
+  canChangeLane,
+}) => {
+  if (
+    canChangeLane &&
+    mode === DragModes.MOVE &&
+    toLaneKey &&
+    (toLaneKey !== laneKey || isReordered)
+  ) {
+    return 'laneChange';
+  }
+
+  return deltaUnits !== 0 ? 'dates' : null;
+};
+
 /**
  * Pointer handling for moving and resizing bars already on the canvas.
  *
@@ -106,6 +128,9 @@ export const getDraggedDates = (item, range, mode, deltaUnits, zoomLevel) => {
  *
  * Holding the pointer near an edge of the scroll area scrolls it at a fixed speed, and the scroll
  * travelled counts towards the drag, so a bar can be carried to lanes and dates off screen.
+ *
+ * A move also picks the row under the pointer, and the chart lays the lane out around it; the bar
+ * itself is moved frame by frame through `onDragFrame` rather than by re-rendering.
  */
 const useBarDrag = ({
   scrollRef,
@@ -115,7 +140,9 @@ const useBarDrag = ({
   canEdit,
   itemById,
   rangeById,
-  getLaneKeyAtClientY,
+  getDropSlotAtClientY,
+  getPlacementResult,
+  onDragFrame,
   onItemClick,
   onItemDatesChange,
   onItemLaneChange,
@@ -141,7 +168,9 @@ const useBarDrag = ({
         laneKey,
         isItemEditable,
         startX: event.clientX,
+        startY: event.clientY,
         startScrollLeft: scrollRef.current ? scrollRef.current.scrollLeft : 0,
+        startScrollTop: scrollRef.current ? scrollRef.current.scrollTop : 0,
         clientX: event.clientX,
         clientY: event.clientY,
         isDragging: false,
@@ -159,6 +188,15 @@ const useBarDrag = ({
     (current, clientX) => {
       const scrollLeft = scrollRef.current ? scrollRef.current.scrollLeft : 0;
       return clientX - current.startX + (scrollLeft - current.startScrollLeft);
+    },
+    [scrollRef],
+  );
+
+  // Vertical travel the same way, for the lifted bar following the pointer between lanes
+  const getDeltaY = useCallback(
+    (current, clientY) => {
+      const scrollTop = scrollRef.current ? scrollRef.current.scrollTop : 0;
+      return clientY - current.startY + (scrollTop - current.startScrollTop);
     },
     [scrollRef],
   );
@@ -183,8 +221,11 @@ const useBarDrag = ({
 
     const isMove = current.mode === DragModes.MOVE;
 
-    // Only a whole-bar move can change lanes; resizing an edge stays put
-    const toLaneKey = onItemLaneChange && isMove ? getLaneKeyAtClientY(clientY) : null;
+    // Only a whole-bar move can change lanes or rows; resizing an edge stays put
+    const slot = isMove ? getDropSlotAtClientY(clientY, current.itemId) : null;
+
+    const toLaneKey = onItemLaneChange && slot ? slot.laneKey : null;
+    const targetRow = onItemLaneChange && slot ? slot.targetRow : null;
 
     const isOverUnscheduleZone =
       !!onItemUnschedule && isMove && isPointOverUnscheduleZone({ clientX, clientY });
@@ -197,6 +238,7 @@ const useBarDrag = ({
       prevDrag.mode === current.mode &&
       prevDrag.deltaUnits === deltaUnits &&
       prevDrag.toLaneKey === toLaneKey &&
+      prevDrag.targetRow === targetRow &&
       prevDrag.isOverUnscheduleZone === isOverUnscheduleZone
         ? prevDrag
         : {
@@ -205,10 +247,23 @@ const useBarDrag = ({
             laneKey: current.laneKey,
             deltaUnits,
             toLaneKey,
+            targetRow,
             isOverUnscheduleZone,
           },
     );
-  }, [unitWidth, onItemLaneChange, onItemUnschedule, getLaneKeyAtClientY, getDeltaX]);
+
+    if (isMove && onDragFrame) {
+      onDragFrame(deltaX, getDeltaY(current, clientY));
+    }
+  }, [
+    unitWidth,
+    onItemLaneChange,
+    onItemUnschedule,
+    getDropSlotAtClientY,
+    getDeltaX,
+    getDeltaY,
+    onDragFrame,
+  ]);
 
   const handlePointerMove = useCallback(
     (event) => {
@@ -279,6 +334,24 @@ const useBarDrag = ({
     return () => cancelAnimationFrame(frameId);
   }, [isDragging, scrollRef, headerRef, updateDrag]);
 
+  // Escape drops the card back where it came from; the release that follows then finds no drag
+  // and neither commits nor counts as a click
+  useEffect(() => {
+    if (!isDragging) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        dragRef.current = null;
+        setDrag(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isDragging]);
+
   const handlePointerUp = useCallback(
     (event) => {
       const { current } = dragRef;
@@ -314,18 +387,23 @@ const useBarDrag = ({
           ? { startDate: item.startDate, dueDate: item.dueDate }
           : getDraggedDates(item, rangeById[current.itemId], current.mode, deltaUnits, zoomLevel);
 
-      // A lane change carries the dates with it, so the drop is a single update either way
-      if (
-        onItemLaneChange &&
-        current.mode === DragModes.MOVE &&
-        current.toLaneKey &&
-        current.toLaneKey !== current.laneKey
-      ) {
-        onItemLaneChange(current.itemId, current.toLaneKey, dates);
-        return;
-      }
+      const placementResult =
+        current.mode === DragModes.MOVE && getPlacementResult ? getPlacementResult() : null;
 
-      if (deltaUnits !== 0) {
+      const action = getDropAction({
+        mode: current.mode,
+        laneKey: current.laneKey,
+        toLaneKey: current.toLaneKey,
+        deltaUnits,
+        isReordered: !!placementResult && placementResult.isReordered,
+        canChangeLane: !!onItemLaneChange,
+      });
+
+      // A lane change carries the dates and the new neighbours with it, so the drop is a single
+      // update either way
+      if (action === 'laneChange') {
+        onItemLaneChange(current.itemId, current.toLaneKey, dates, placementResult);
+      } else if (action === 'dates') {
         onItemDatesChange(current.itemId, dates);
       }
     },
@@ -335,6 +413,7 @@ const useBarDrag = ({
       zoomLevel,
       itemById,
       rangeById,
+      getPlacementResult,
       onItemClick,
       onItemDatesChange,
       onItemLaneChange,

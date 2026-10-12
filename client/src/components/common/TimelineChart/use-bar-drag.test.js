@@ -1,4 +1,4 @@
-import { DragModes, getAutoScrollDirection, getDraggedDates } from './use-bar-drag';
+import { DragModes, getAutoScrollDirection, getDraggedDates, getDropAction } from './use-bar-drag';
 import { isPointOverVisibleCanvas } from './use-drop-target';
 import { ZoomLevels, getItemRange } from './utils';
 
@@ -85,5 +85,44 @@ describe('isPointOverVisibleCanvas', () => {
     expect(isPointOverVisibleCanvas(150, 400, rect, headerHeight)).toBe(false);
     expect(isPointOverVisibleCanvas(400, 400, rect, headerHeight)).toBe(false);
     expect(isPointOverVisibleCanvas(800, 130, rect, headerHeight)).toBe(false);
+  });
+});
+
+describe('getDropAction', () => {
+  const base = {
+    mode: DragModes.MOVE,
+    laneKey: 'l1',
+    toLaneKey: 'l1',
+    deltaUnits: 0,
+    isReordered: false,
+    canChangeLane: true,
+  };
+
+  it('does nothing for a drop back where it started', () => {
+    expect(getDropAction(base)).toBeNull();
+  });
+
+  it('only changes dates for a sideways drag on its own row', () => {
+    expect(getDropAction({ ...base, deltaUnits: 2 })).toBe('dates');
+  });
+
+  it('commits a reorder within the lane even without a date change', () => {
+    expect(getDropAction({ ...base, isReordered: true })).toBe('laneChange');
+  });
+
+  it('commits a move to another lane', () => {
+    expect(getDropAction({ ...base, toLaneKey: 'l2' })).toBe('laneChange');
+  });
+
+  it('never changes lanes where lanes are not lists', () => {
+    expect(getDropAction({ ...base, toLaneKey: 'l2', canChangeLane: false, deltaUnits: 1 })).toBe(
+      'dates',
+    );
+  });
+
+  it('never reorders while resizing', () => {
+    expect(
+      getDropAction({ ...base, mode: DragModes.RESIZE_END, isReordered: true, deltaUnits: 1 }),
+    ).toBe('dates');
   });
 });
