@@ -12,6 +12,7 @@ import { Input, Popup } from '../../../../lib/custom-ui';
 import selectors from '../../../../selectors';
 import entryActions from '../../../../entry-actions';
 import { useField, useNestedRef } from '../../../../hooks';
+import { putCurrentUserFirst } from '../../../../utils/current-user-first';
 import User from './User';
 
 import styles from './AddStep.module.scss';
@@ -20,6 +21,8 @@ const AddStep = React.memo(({ onClose }) => {
   const users = useSelector(selectors.selectActiveAdminOrProjectOwnerUsers);
   const currentUserIds = useSelector(selectors.selectManagerUserIdsForCurrentProject);
 
+  const currentUserId = useSelector(selectors.selectCurrentUserId);
+
   const dispatch = useDispatch();
   const [t] = useTranslation();
   const [search, handleSearchChange] = useField('');
@@ -27,12 +30,16 @@ const AddStep = React.memo(({ onClose }) => {
 
   const filteredUsers = useMemo(
     () =>
-      users.filter(
-        (user) =>
-          user.name.toLowerCase().includes(cleanSearch) ||
-          (user.username && user.username.includes(cleanSearch)),
+      putCurrentUserFirst(
+        users.filter(
+          (user) =>
+            user.name.toLowerCase().includes(cleanSearch) ||
+            (user.username && user.username.includes(cleanSearch)),
+        ),
+        currentUserId,
+        (user) => user.id,
       ),
-    [users, cleanSearch],
+    [users, cleanSearch, currentUserId],
   );
 
   const [searchFieldRef, handleSearchFieldRef] = useNestedRef('inputRef');

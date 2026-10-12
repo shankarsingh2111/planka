@@ -13,6 +13,7 @@ import selectors from '../../../../selectors';
 import entryActions from '../../../../entry-actions';
 import { useField, useNestedRef, useSteps } from '../../../../hooks';
 import { isUserAdminOrProjectOwner } from '../../../../utils/record-helpers';
+import { putCurrentUserFirst } from '../../../../utils/current-user-first';
 import User from './User';
 import SelectPermissionsStep from '../SelectPermissionsStep';
 
@@ -35,6 +36,8 @@ const AddStep = React.memo(({ onClose }) => {
 
   const currentUserIds = useSelector(selectors.selectMemberUserIdsForCurrentBoard);
 
+  const currentUserId = useSelector(selectors.selectCurrentUserId);
+
   const dispatch = useDispatch();
   const [t] = useTranslation();
   const [step, openStep, handleBack] = useSteps();
@@ -43,12 +46,16 @@ const AddStep = React.memo(({ onClose }) => {
 
   const filteredUsers = useMemo(
     () =>
-      users.filter(
-        (user) =>
-          user.name.toLowerCase().includes(cleanSearch) ||
-          (user.username && user.username.includes(cleanSearch)),
+      putCurrentUserFirst(
+        users.filter(
+          (user) =>
+            user.name.toLowerCase().includes(cleanSearch) ||
+            (user.username && user.username.includes(cleanSearch)),
+        ),
+        currentUserId,
+        (user) => user.id,
       ),
-    [users, cleanSearch],
+    [users, cleanSearch, currentUserId],
   );
 
   const [searchFieldRef, handleSearchFieldRef] = useNestedRef('inputRef');

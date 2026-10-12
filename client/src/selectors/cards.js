@@ -10,6 +10,7 @@ import { selectRecentCardId } from './core';
 import { selectPath } from './router';
 import { selectCurrentUserId } from './users';
 import { buildCustomFieldValueId } from '../models/CustomFieldValue';
+import { putCurrentUserFirst } from '../utils/current-user-first';
 import { isLocalId } from '../utils/local-id';
 import { getHippoTicketForCardModel } from './hippo';
 import { HIPPO_GROUP_NAME, TICKET_CHIP_FIELD_NAMES } from '../utils/hippo';
@@ -62,14 +63,18 @@ export const makeSelectUserIdsByCardId = () =>
   createSelector(
     orm,
     (_, id) => id,
-    ({ Card }, id) => {
+    (state) => selectCurrentUserId(state),
+    ({ Card }, id, currentUserId) => {
       const cardModel = Card.withId(id);
 
       if (!cardModel) {
         return cardModel;
       }
 
-      return cardModel.users.toRefArray().map((user) => user.id);
+      return putCurrentUserFirst(
+        cardModel.users.toRefArray().map((user) => user.id),
+        currentUserId,
+      );
     },
   );
 
@@ -283,7 +288,8 @@ export const selectCurrentCard = createSelector(
 export const selectUserIdsForCurrentCard = createSelector(
   orm,
   (state) => selectPath(state).cardId,
-  ({ Card }, id) => {
+  (state) => selectCurrentUserId(state),
+  ({ Card }, id, currentUserId) => {
     if (!id) {
       return id;
     }
@@ -294,7 +300,10 @@ export const selectUserIdsForCurrentCard = createSelector(
       return cardModel;
     }
 
-    return cardModel.users.toRefArray().map((user) => user.id);
+    return putCurrentUserFirst(
+      cardModel.users.toRefArray().map((user) => user.id),
+      currentUserId,
+    );
   },
 );
 

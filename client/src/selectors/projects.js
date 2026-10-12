@@ -9,6 +9,7 @@ import orm from '../orm';
 import { selectPath } from './router';
 import { selectCurrentUserId } from './users';
 import { isLocalId } from '../utils/local-id';
+import { putCurrentUserFirst } from '../utils/current-user-first';
 
 export const makeSelectProjectById = () =>
   createSelector(
@@ -159,7 +160,8 @@ export const selectCurrentProject = createSelector(
 export const selectManagersForCurrentProject = createSelector(
   orm,
   (state) => selectPath(state).projectId,
-  ({ Project }, id) => {
+  (state) => selectCurrentUserId(state),
+  ({ Project }, id, currentUserId) => {
     if (!id) {
       return id;
     }
@@ -170,14 +172,18 @@ export const selectManagersForCurrentProject = createSelector(
       return projectModel;
     }
 
-    return projectModel
-      .getManagersQuerySet()
-      .toModelArray()
-      .map((projectManagerModel) => ({
-        ...projectManagerModel.ref,
-        isPersisted: !isLocalId(projectManagerModel.id),
-        user: projectManagerModel.user.ref,
-      }));
+    return putCurrentUserFirst(
+      projectModel
+        .getManagersQuerySet()
+        .toModelArray()
+        .map((projectManagerModel) => ({
+          ...projectManagerModel.ref,
+          isPersisted: !isLocalId(projectManagerModel.id),
+          user: projectManagerModel.user.ref,
+        })),
+      currentUserId,
+      ({ user }) => user.id,
+    );
   },
 );
 

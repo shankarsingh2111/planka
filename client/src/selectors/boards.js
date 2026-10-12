@@ -9,6 +9,7 @@ import orm from '../orm';
 import { selectPath } from './router';
 import { selectCurrentUserId } from './users';
 import { isLocalId } from '../utils/local-id';
+import { putCurrentUserFirst } from '../utils/current-user-first';
 import { isListArchiveOrTrash } from '../utils/record-helpers';
 import { ListTypes } from '../constants/Enums';
 
@@ -137,7 +138,8 @@ export const selectCurrentBoard = createSelector(
 export const selectMembershipsForCurrentBoard = createSelector(
   orm,
   (state) => selectPath(state).boardId,
-  ({ Board }, id) => {
+  (state) => selectCurrentUserId(state),
+  ({ Board }, id, currentUserId) => {
     if (!id) {
       return id;
     }
@@ -148,14 +150,18 @@ export const selectMembershipsForCurrentBoard = createSelector(
       return boardModel;
     }
 
-    return boardModel
-      .getMembershipsQuerySet()
-      .toModelArray()
-      .map((boardMembershipModel) => ({
-        ...boardMembershipModel.ref,
-        isPersisted: !isLocalId(boardMembershipModel.id),
-        user: boardMembershipModel.user.ref,
-      }));
+    return putCurrentUserFirst(
+      boardModel
+        .getMembershipsQuerySet()
+        .toModelArray()
+        .map((boardMembershipModel) => ({
+          ...boardMembershipModel.ref,
+          isPersisted: !isLocalId(boardMembershipModel.id),
+          user: boardMembershipModel.user.ref,
+        })),
+      currentUserId,
+      ({ user }) => user.id,
+    );
   },
 );
 
@@ -426,7 +432,8 @@ export const selectActivityIdsForCurrentBoard = createSelector(
 export const selectFilterUserIdsForCurrentBoard = createSelector(
   orm,
   (state) => selectPath(state).boardId,
-  ({ Board }, id) => {
+  (state) => selectCurrentUserId(state),
+  ({ Board }, id, currentUserId) => {
     if (!id) {
       return id;
     }
@@ -437,7 +444,10 @@ export const selectFilterUserIdsForCurrentBoard = createSelector(
       return boardModel;
     }
 
-    return boardModel.filterUsers.toRefArray().map((user) => user.id);
+    return putCurrentUserFirst(
+      boardModel.filterUsers.toRefArray().map((user) => user.id),
+      currentUserId,
+    );
   },
 );
 

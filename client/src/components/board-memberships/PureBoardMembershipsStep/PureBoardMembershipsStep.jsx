@@ -6,11 +6,14 @@
 import orderBy from 'lodash/orderBy';
 import React, { useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
+import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { Button, Menu } from 'semantic-ui-react';
 import { Input, Popup } from '../../../lib/custom-ui';
 
+import selectors from '../../../selectors';
 import { useField, useNestedRef } from '../../../hooks';
+import { putCurrentUserFirst } from '../../../utils/current-user-first';
 import Item from './Item';
 
 import styles from './PureBoardMembershipsStep.module.scss';
@@ -26,21 +29,27 @@ const PureBoardMembershipsStep = React.memo(
     onClear,
     onBack,
   }) => {
+    const currentUserId = useSelector(selectors.selectCurrentUserId);
+
     const [t] = useTranslation();
     const [search, handleSearchChange] = useField('');
     const cleanSearch = useMemo(() => search.trim().toLowerCase(), [search]);
 
     const filteredItems = useMemo(
       () =>
-        orderBy(
-          items.filter(
-            ({ user }) =>
-              user.name.toLowerCase().includes(cleanSearch) ||
-              (user.username && user.username.includes(cleanSearch)),
+        putCurrentUserFirst(
+          orderBy(
+            items.filter(
+              ({ user }) =>
+                user.name.toLowerCase().includes(cleanSearch) ||
+                (user.username && user.username.includes(cleanSearch)),
+            ),
+            ({ user }) => user.name.toLowerCase(),
           ),
-          ({ user }) => user.name.toLowerCase(),
+          currentUserId,
+          ({ user }) => user.id,
         ),
-      [items, cleanSearch],
+      [items, cleanSearch, currentUserId],
     );
 
     const [searchFieldRef, handleSearchFieldRef] = useNestedRef('inputRef');
