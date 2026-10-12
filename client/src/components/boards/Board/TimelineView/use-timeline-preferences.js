@@ -11,7 +11,7 @@ import entryActions from '../../../../entry-actions';
 import { readBoardPreferences, writeBoardPreferences, toggleInArray } from './board-preferences';
 
 /**
- * Timeline state that outlives the visit: zoom, grouping and coloring are global to the user,
+ * Timeline state that outlives the visit: grouping and coloring are global to the user,
  * while hidden and collapsed lanes are per board. Writes go straight out — every one of them is
  * a discrete click, and `updateCurrentUser` already updates the store before it reaches the API.
  */
@@ -37,7 +37,6 @@ const useTimelinePreferences = (boardId) => {
     [update, user.timelineBoardPreferences, boardId, boardPreferences],
   );
 
-  const setZoomLevel = useCallback((value) => update({ timelineZoomLevel: value }), [update]);
   const setGroupBy = useCallback((value) => update({ timelineGroupBy: value }), [update]);
   const setColorBy = useCallback((value) => update({ timelineColorBy: value }), [update]);
 
@@ -82,13 +81,11 @@ const useTimelinePreferences = (boardId) => {
   );
 
   return {
-    zoomLevel: user.timelineZoomLevel,
     groupBy: user.timelineGroupBy,
     colorBy: user.timelineColorBy,
     isSidebarOpened: user.timelineSidebarOpened,
     collapsedLaneKeys: boardPreferences.collapsedLaneKeys,
     getHiddenLaneKeys,
-    setZoomLevel,
     setGroupBy,
     setColorBy,
     setIsSidebarOpened,

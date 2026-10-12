@@ -7,6 +7,7 @@ import { attr, fk, many } from 'redux-orm';
 
 import BaseModel from './BaseModel';
 import buildSearchParts from '../utils/build-search-parts';
+import { readBoardView } from '../utils/board-view-storage';
 import { isListKanban } from '../utils/record-helpers';
 import ActionTypes from '../constants/ActionTypes';
 import Config from '../constants/Config';
@@ -16,7 +17,7 @@ const prepareFetchedBoard = (board) => ({
   ...board,
   isFetching: false,
   context: BoardContexts.BOARD,
-  view: board.defaultView,
+  view: readBoardView(board.id) || board.defaultView,
   search: '',
 });
 
@@ -225,7 +226,10 @@ export default class extends BaseModel {
 
         boardModel.update({
           context: payload.value,
-          view: payload.value === BoardContexts.BOARD ? boardModel.defaultView : BoardViews.LIST,
+          view:
+            payload.value === BoardContexts.BOARD
+              ? readBoardView(boardModel.id) || boardModel.defaultView
+              : BoardViews.LIST,
         });
 
         break;

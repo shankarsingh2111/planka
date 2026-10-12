@@ -12,7 +12,9 @@ import selectors from '../../../selectors';
 import actions from '../../../actions';
 import api from '../../../api';
 import { createLocalId } from '../../../utils/local-id';
+import { writeBoardView } from '../../../utils/board-view-storage';
 import ActionTypes from '../../../constants/ActionTypes';
+import { BoardContexts } from '../../../constants/Enums';
 import ModalTypes from '../../../constants/ModalTypes';
 
 export function* createBoard(projectId, { import: boardImport, ...data }) {
@@ -195,6 +197,13 @@ export function* updateContextInCurrentBoard(value) {
 }
 
 export function* updateBoardView(id, value) {
+  const board = yield select(selectors.selectBoardById, id);
+
+  // Only views picked in the board itself are remembered; archive and trash have their own
+  if (board && board.context === BoardContexts.BOARD) {
+    writeBoardView(id, value);
+  }
+
   yield put(
     actions.updateBoard(id, {
       view: value,

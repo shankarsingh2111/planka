@@ -26,6 +26,7 @@ import AddCardModal from '../../../cards/AddCardModal';
 import RecurrenceScopeModal from '../../../card-recurrences/RecurrenceScopeModal';
 import TimelineChart, {
   ColorByOptions,
+  ZoomLevels,
   getZoomLevels,
   getColorClassName,
   getHashedColor,
@@ -78,14 +79,15 @@ const TimelineView = React.memo(({ cardIds }) => {
   const navigate = useNavigate();
   const [t] = useTranslation();
 
+  // Every visit opens at day zoom; switching zoom only lasts for the visit
+  const [zoomLevel, setZoomLevel] = useState(ZoomLevels.DAY);
+
   const {
-    zoomLevel,
     groupBy,
     colorBy,
     collapsedLaneKeys,
     isSidebarOpened,
     getHiddenLaneKeys,
-    setZoomLevel,
     setGroupBy,
     setColorBy,
     setIsSidebarOpened,
