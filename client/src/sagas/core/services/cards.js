@@ -418,22 +418,35 @@ export function* handleCardUpdate(card) {
  * lane. New cards go to the end of the target list, since timeline order comes from the dates
  * rather than from the position within a list.
  */
-export function* scheduleCard(id, { listId, startDate, dueDate }) {
+// `beforeCardId` / `afterCardId`, when either is given (null meaning the end), place the card
+// between those cards of its list, as a timeline drop that reorders a lane does
+export function* scheduleCard(id, { listId, startDate, dueDate, beforeCardId, afterCardId }) {
   const data = {
     startDate: startDate || null,
     dueDate: dueDate || null,
   };
 
-  if (listId) {
+  const isReorder = beforeCardId !== undefined || afterCardId !== undefined;
+
+  if (listId || isReorder) {
     const card = yield select(selectors.selectCardById, id);
+    const targetListId = listId || card.listId;
+    const list = yield select(selectors.selectListById, targetListId);
 
-    if (listId !== card.listId) {
-      const list = yield select(selectors.selectListById, listId);
+    if (targetListId !== card.listId) {
+      data.listId = targetListId;
+    }
 
-      data.listId = listId;
-
-      if (isListFinite(list)) {
-        data.position = yield select(selectors.selectNextCardPosition, listId, undefined, id);
+    if (isListFinite(list)) {
+      if (isReorder) {
+        data.position = yield select(
+          selectors.selectCardPositionBetween,
+          targetListId,
+          { beforeId: beforeCardId, afterId: afterCardId },
+          id,
+        );
+      } else if (data.listId) {
+        data.position = yield select(selectors.selectNextCardPosition, targetListId, undefined, id);
       }
     }
   }

@@ -3,33 +3,10 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-import isUndefined from 'lodash/isUndefined';
 import { createSelector } from 'redux-orm';
 
 import orm from '../orm';
-import Config from '../constants/Config';
-
-const nextPosition = (items, index, excludedId) => {
-  const filteredItems = isUndefined(excludedId)
-    ? items
-    : items.filter((item) => item.id !== excludedId);
-
-  if (isUndefined(index)) {
-    const lastItem = filteredItems[filteredItems.length - 1];
-    return (lastItem ? lastItem.position : 0) + Config.POSITION_GAP;
-  }
-
-  const prevItem = filteredItems[index - 1];
-  const nextItem = filteredItems[index];
-
-  const prevPosition = prevItem ? prevItem.position : 0;
-
-  if (!nextItem) {
-    return prevPosition + Config.POSITION_GAP;
-  }
-
-  return prevPosition + (nextItem.position - prevPosition) / 2;
-};
+import { getPositionBetween, nextPosition } from '../utils/positions';
 
 export const selectNextBoardPosition = createSelector(
   orm,
@@ -92,6 +69,22 @@ export const selectNextCardPosition = createSelector(
     }
 
     return nextPosition(listModel.getFilteredCardsModelArray(), index, excludedId);
+  },
+);
+
+export const selectCardPositionBetween = createSelector(
+  orm,
+  (_, listId) => listId,
+  (_, __, neighbours) => neighbours,
+  (_, __, ___, excludedId) => excludedId,
+  ({ List }, listId, neighbours, excludedId) => {
+    const listModel = List.withId(listId);
+
+    if (!listModel) {
+      return listModel;
+    }
+
+    return getPositionBetween(listModel.getCardsQuerySet().toRefArray(), neighbours, excludedId);
   },
 );
 
@@ -204,6 +197,7 @@ export default {
   selectNextLabelPosition,
   selectNextListPosition,
   selectNextCardPosition,
+  selectCardPositionBetween,
   selectNextTaskListPosition,
   selectNextTaskPosition,
   selectNextCustomFieldGroupPositionInBoard,
