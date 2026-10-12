@@ -1,4 +1,4 @@
-import buildLayout from './layout';
+import buildLayout, { getSlotAtY } from './layout';
 import { ROW_HEIGHT, LANE_PADDING, MIN_LANE_HEIGHT, getItemRange } from './utils';
 
 const day = (dateString) => new Date(`${dateString}T10:00:00`);
@@ -150,5 +150,42 @@ describe('buildLayout', () => {
 
     expect(layout.lanes[0].rowTops).toEqual([0, ROW_HEIGHT, 2 * ROW_HEIGHT, 3 * ROW_HEIGHT]);
     expect(layout.lanes[0].rowsHeight).toBe(4 * ROW_HEIGHT);
+  });
+});
+
+describe('dragging a stacked card sideways', () => {
+  // a and c share the top row; b overlaps a, so it sits alone on the row below
+  const items = [
+    card('a', 1, '2026-09-01', '2026-09-02'),
+    card('b', 2, '2026-09-01', '2026-09-05'),
+    card('c', 3, '2026-09-08', '2026-09-09'),
+  ];
+
+  test('reads the pointer over its bar as its own lane and row', () => {
+    const layout = build(items);
+    const y = layout.lanes[0].top + LANE_PADDING + ROW_HEIGHT + ROW_HEIGHT / 2;
+
+    expect(getSlotAtY(layout, y)).toEqual({ laneKey: 'l1', targetRow: 1 });
+  });
+
+  test('does not reorder it', () => {
+    const b = items[1];
+
+    const layout = build(items, {
+      placement: {
+        item: b,
+        range: getItemRange({ startDate: day('2026-09-02'), dueDate: day('2026-09-06') }),
+        laneKey: 'l1',
+        targetRow: 1,
+      },
+    });
+
+    expect(layout.placementResult.isReordered).toBe(false);
+  });
+
+  test('reads a pointer between lanes as no slot', () => {
+    const layout = build(items);
+
+    expect(getSlotAtY(layout, layout.totalHeight + 5)).toBeNull();
   });
 });

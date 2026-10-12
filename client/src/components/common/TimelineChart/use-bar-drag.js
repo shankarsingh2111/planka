@@ -222,7 +222,7 @@ const useBarDrag = ({
     const isMove = current.mode === DragModes.MOVE;
 
     // Only a whole-bar move can change lanes or rows; resizing an edge stays put
-    const slot = isMove ? getDropSlotAtClientY(clientY, current.itemId) : null;
+    const slot = isMove ? getDropSlotAtClientY(clientY) : null;
 
     const toLaneKey = onItemLaneChange && slot ? slot.laneKey : null;
     const targetRow = onItemLaneChange && slot ? slot.targetRow : null;

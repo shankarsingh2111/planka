@@ -6,6 +6,7 @@
 import {
   LANE_PADDING,
   MIN_LANE_HEIGHT,
+  getRowAtY,
   getRowOffsets,
   packRowsByOrder,
   packRowsWithSeries,
@@ -126,9 +127,16 @@ const buildLayout = ({
           ? others.filter(({ item }) => item.order < placement.item.order).length
           : others.length;
 
-        // Held below every row the lane already has: it goes last, whatever it fits beside
+        // Rows are counted as the pointer sees them: with the card still in its own lane, since
+        // that is the layout hit testing reads
+        const shownEntries =
+          isOwnLane && rangeById[placement.item.id]
+            ? [...others, { item: placement.item, range: rangeById[placement.item.id] }]
+            : others;
+
+        // Held below every row the lane shows: it goes last, whatever it fits beside
         const preferredIndex =
-          placement.targetRow >= getRowCount(packRowsByOrder(others))
+          placement.targetRow >= getRowCount(packRowsByOrder(shownEntries))
             ? others.length
             : originalIndex;
 
@@ -192,6 +200,26 @@ const buildLayout = ({
     lanes: laneLayouts,
     totalHeight: top,
     placementResult,
+  };
+};
+
+// The lane and row a y offset on the canvas falls in, or null between or below the lanes
+export const getSlotAtY = (layout, y) => {
+  const laneLayout = layout.lanes.find(
+    (candidate) => y >= candidate.top && y < candidate.top + candidate.height,
+  );
+
+  if (!laneLayout) {
+    return null;
+  }
+
+  return {
+    laneKey: laneLayout.lane.key,
+    targetRow: getRowAtY(
+      laneLayout.rowTops,
+      laneLayout.rowsHeight,
+      y - laneLayout.top - LANE_PADDING,
+    ),
   };
 };
 

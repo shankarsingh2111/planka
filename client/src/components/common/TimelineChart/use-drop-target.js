@@ -66,7 +66,7 @@ const useDropTarget = ({
     const rect = canvasRef.current.getBoundingClientRect();
     const x = pointer.clientX - rect.left;
 
-    const slot = isOverVisibleCanvas ? getDropSlotAtClientY(pointer.clientY, null) : null;
+    const slot = isOverVisibleCanvas ? getDropSlotAtClientY(pointer.clientY) : null;
 
     if (!slot || x < 0 || x > totalWidth) {
       previewRef.current = null;

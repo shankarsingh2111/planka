@@ -28,13 +28,12 @@ import {
   getDropRange,
   getBarHeight,
   getHeaderColumns,
-  getRowAtY,
   formatDragRange,
   buildArrowPath,
 } from './utils';
 import useBarDrag, { DragModes, getDraggedDates } from './use-bar-drag';
 import useDropTarget from './use-drop-target';
-import buildLayout from './layout';
+import buildLayout, { getSlotAtY } from './layout';
 import findCriticalPath from './find-critical-path';
 import Toolbar from './Toolbar';
 import Bar from './Bar';
@@ -207,51 +206,28 @@ const TimelineChart = React.memo(
       [committedLayout],
     );
 
-    // Hit testing reads the lanes as they were when the card was picked up, minus the card itself,
-    // so neither bars sliding aside nor changes from other users move the target under a still
-    // pointer. Cleared once nothing is in flight.
-    const baseLayoutRef = useRef(null);
-
-    const getBaseLayout = useCallback(
-      (excludeItemId) => {
-        if (!baseLayoutRef.current || baseLayoutRef.current.excludeItemId !== excludeItemId) {
-          baseLayoutRef.current = {
-            excludeItemId,
-            layout: buildLayout({ ...layoutInput, excludeItemId }),
-          };
-        }
-
-        return baseLayoutRef.current.layout;
-      },
-      [layoutInput],
-    );
+    // Hit testing reads the lanes as committed when the card was picked up, the card still in its
+    // own lane: rows then sit exactly where the user sees them at the start of the drag, and
+    // neither bars sliding aside nor changes from other users move the target under a still
+    // pointer. Held for one drag session and dropped as soon as nothing is in flight.
+    const sessionLayoutRef = useRef(null);
 
     const getDropSlotAtClientY = useCallback(
-      (clientY, excludeItemId) => {
+      (clientY) => {
         if (!canvasRef.current) {
           return null;
         }
 
-        const y = clientY - canvasRef.current.getBoundingClientRect().top;
-
-        const laneLayout = getBaseLayout(excludeItemId).lanes.find(
-          (candidate) => y >= candidate.top && y < candidate.top + candidate.height,
-        );
-
-        if (!laneLayout) {
-          return null;
+        if (!sessionLayoutRef.current) {
+          sessionLayoutRef.current = committedLayout;
         }
 
-        return {
-          laneKey: laneLayout.lane.key,
-          targetRow: getRowAtY(
-            laneLayout.rowTops,
-            laneLayout.rowsHeight,
-            y - laneLayout.top - LANE_PADDING,
-          ),
-        };
+        return getSlotAtY(
+          sessionLayoutRef.current,
+          clientY - canvasRef.current.getBoundingClientRect().top,
+        );
       },
-      [getBaseLayout],
+      [committedLayout],
     );
 
     // The bar being moved is moved by hand, frame by frame, rather than through a render per pixel
@@ -297,6 +273,14 @@ const TimelineChart = React.memo(
       onItemLaneChange,
       onItemUnschedule,
     });
+
+    const isDragSession = !!drag || !!externalDragItem;
+
+    useEffect(() => {
+      if (!isDragSession) {
+        sessionLayoutRef.current = null;
+      }
+    }, [isDragSession]);
 
     const handleExternalDrop = useCallback(
       (laneKey, dates) => {
@@ -423,12 +407,6 @@ const TimelineChart = React.memo(
     placementResultRef.current = layout.placementResult;
 
     const isPlacing = layout !== committedLayout;
-
-    useEffect(() => {
-      if (!isPlacing) {
-        baseLayoutRef.current = null;
-      }
-    }, [isPlacing]);
 
     const committedBars = useMemo(
       () => toBars(committedLayout.lanes, getRenderRange, viewStart, zoomLevel, unitWidth),
