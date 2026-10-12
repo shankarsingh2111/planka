@@ -1,4 +1,10 @@
-import { DragModes, getAutoScrollDirection, getDraggedDates, getDropAction } from './use-bar-drag';
+import {
+  DragModes,
+  getAutoScrollDirection,
+  getDraggedDates,
+  getDropAction,
+  hasCrossedDragThreshold,
+} from './use-bar-drag';
 import { isPointOverVisibleCanvas } from './use-drop-target';
 import { ZoomLevels, getItemRange } from './utils';
 
@@ -124,5 +130,26 @@ describe('getDropAction', () => {
     expect(
       getDropAction({ ...base, mode: DragModes.RESIZE_END, isReordered: true, deltaUnits: 1 }),
     ).toBe('dates');
+  });
+});
+
+describe('hasCrossedDragThreshold', () => {
+  it('stays a click for a press that barely moves', () => {
+    expect(hasCrossedDragThreshold(DragModes.MOVE, 2, 1)).toBe(false);
+  });
+
+  it('starts a move on 3px sideways', () => {
+    expect(hasCrossedDragThreshold(DragModes.MOVE, 3, 0)).toBe(true);
+    expect(hasCrossedDragThreshold(DragModes.MOVE, -3, 0)).toBe(true);
+  });
+
+  it('starts a move on 2px straight up or down', () => {
+    expect(hasCrossedDragThreshold(DragModes.MOVE, 0, 2)).toBe(true);
+    expect(hasCrossedDragThreshold(DragModes.MOVE, 0, -2)).toBe(true);
+  });
+
+  it('ignores vertical travel while resizing', () => {
+    expect(hasCrossedDragThreshold(DragModes.RESIZE_END, 0, 40)).toBe(false);
+    expect(hasCrossedDragThreshold(DragModes.RESIZE_START, 3, 0)).toBe(true);
   });
 });

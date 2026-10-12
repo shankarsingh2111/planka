@@ -15,6 +15,16 @@ export const DragModes = {
 
 const DRAG_THRESHOLD = 3;
 
+// Lower than sideways: rows are short, and a card lifted towards another row should come away
+// at once rather than wait for the hand to drift sideways
+const VERTICAL_DRAG_THRESHOLD = 2;
+
+// Whether a press has travelled far enough to become a drag. Only a whole-bar move goes up and
+// down; resizing an edge is sideways only.
+export const hasCrossedDragThreshold = (mode, deltaX, deltaY) =>
+  Math.abs(deltaX) >= DRAG_THRESHOLD ||
+  (mode === DragModes.MOVE && Math.abs(deltaY) >= VERTICAL_DRAG_THRESHOLD);
+
 // Auto-scroll while dragging near an edge of the scroll area. The speed is fixed and time based
 // rather than ramping with proximity, so it reads the same on every display and never races off.
 const AUTO_SCROLL_EDGE = 48;
@@ -122,7 +132,7 @@ export const getDropAction = ({
 /**
  * Pointer handling for moving and resizing bars already on the canvas.
  *
- * A press that never crosses DRAG_THRESHOLD is a click, so the same handlers serve both
+ * A press that never crosses the drag threshold is a click, so the same handlers serve both
  * opening a card and rescheduling it. The in-flight delta is kept in a ref and mirrored into
  * state only when it changes, so a drag re-renders once per unit rather than once per pixel.
  *
@@ -211,7 +221,10 @@ const useBarDrag = ({
     const { clientX, clientY } = current;
     const deltaX = getDeltaX(current, clientX);
 
-    if (!current.isDragging && Math.abs(deltaX) < DRAG_THRESHOLD) {
+    if (
+      !current.isDragging &&
+      !hasCrossedDragThreshold(current.mode, deltaX, getDeltaY(current, clientY))
+    ) {
       return;
     }
 
