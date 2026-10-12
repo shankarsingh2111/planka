@@ -3,7 +3,7 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useSelector } from 'react-redux';
 
@@ -21,10 +21,20 @@ const BoardMembershipsStep = React.memo(
     onBack,
   }) => {
     const boardMemberships = useSelector(selectors.selectMembershipsForCurrentBoard);
+    const currentUserId = useSelector(selectors.selectCurrentUserId);
+
+    // The signed-in user leads the list, the others keep their order
+    const items = useMemo(
+      () => [
+        ...boardMemberships.filter((boardMembership) => boardMembership.user.id === currentUserId),
+        ...boardMemberships.filter((boardMembership) => boardMembership.user.id !== currentUserId),
+      ],
+      [boardMemberships, currentUserId],
+    );
 
     return (
       <PureBoardMembershipsStep
-        items={boardMemberships}
+        items={items}
         currentUserIds={currentUserIds}
         title={title}
         clearButtonContent={clearButtonContent}
