@@ -19,7 +19,6 @@ import {
   COMPACT_ROW_HEIGHT,
   COMPACT_BAR_HEIGHT,
   LANE_PADDING,
-  MIN_LANE_HEIGHT,
   diffInDays,
   startOfDay,
   getUnitWidth,
@@ -28,14 +27,13 @@ import {
   getItemRange,
   getViewRange,
   getDropRange,
-  packRowsWithSeries,
   getBarHeight,
-  getRowOffsets,
   getHeaderColumns,
   buildArrowPath,
 } from './utils';
 import useBarDrag, { DragModes, getDraggedDates } from './use-bar-drag';
 import useDropTarget from './use-drop-target';
+import buildLayout from './layout';
 import findCriticalPath from './find-critical-path';
 import Toolbar from './Toolbar';
 import Bar from './Bar';
@@ -56,52 +54,6 @@ const readIsRepeatsCollapsed = () => {
   } catch {
     return false;
   }
-};
-
-/**
- * The rows of a lane that belong to a recurring series, with what their label in the lane column
- * shows: the name of the series' first card, the weekdays its cards fall on and how many there are.
- */
-const getSeriesRows = (entries, rowTops, rowsHeight) => {
-  const seriesRowById = {};
-
-  entries.forEach(({ item, range, rowIndex }) => {
-    if (!item.seriesId) {
-      return;
-    }
-
-    const weekday = range.start.getDay();
-    const seriesRow = seriesRowById[item.seriesId];
-
-    if (!seriesRow) {
-      const nextRowTop = rowIndex + 1 < rowTops.length ? rowTops[rowIndex + 1] : rowsHeight;
-
-      seriesRowById[item.seriesId] = {
-        seriesId: item.seriesId,
-        top: rowTops[rowIndex],
-        height: nextRowTop - rowTops[rowIndex],
-        name: item.name,
-        start: range.start,
-        total: 1,
-        weekdays: [weekday],
-      };
-
-      return;
-    }
-
-    seriesRow.total += 1;
-
-    if (!seriesRow.weekdays.includes(weekday)) {
-      seriesRow.weekdays.push(weekday);
-    }
-
-    if (range.start < seriesRow.start) {
-      seriesRow.start = range.start;
-      seriesRow.name = item.name;
-    }
-  });
-
-  return Object.values(seriesRowById);
 };
 
 const TimelineChart = React.memo(
@@ -206,62 +158,15 @@ const TimelineChart = React.memo(
       setIsRepeatsCollapsed((prevIsRepeatsCollapsed) => !prevIsRepeatsCollapsed);
     }, []);
 
-    // Rows are packed from committed dates only, so bars don't jump between rows mid-drag
-    const layout = useMemo(() => {
-      let top = 0;
+    const layoutInput = useMemo(
+      () => ({ lanes, items, rangeById, collapsedLaneKeys, isRepeatsCollapsed }),
+      [lanes, items, rangeById, collapsedLaneKeys, isRepeatsCollapsed],
+    );
 
-      const laneLayouts = lanes.map((lane) => {
-        const isCollapsed = collapsedLaneKeys.includes(lane.key);
+    // The lanes as committed, without anything in flight
+    const committedLayout = useMemo(() => buildLayout(layoutInput), [layoutInput]);
 
-        const packed = packRowsWithSeries(
-          items
-            .filter((item) => rangeById[item.id] && item.laneKeys.includes(lane.key))
-            .map((item) => ({
-              item,
-              range: rangeById[item.id],
-            })),
-        );
-
-        // A collapsed lane keeps every bar but squashes them onto one row, so it stays a
-        // drop target and still shows where its work sits on the scale
-        const rowEntries = isCollapsed
-          ? packed.map((entry) => ({ ...entry, rowIndex: 0 }))
-          : packed.map((entry) =>
-              isRepeatsCollapsed && entry.item.seriesId
-                ? {
-                    ...entry,
-                    isCompact: true,
-                  }
-                : entry,
-            );
-
-        const { rowTops, totalHeight: rowsHeight } = getRowOffsets(rowEntries);
-
-        const entries = rowEntries.map((entry) => ({
-          ...entry,
-          rowTop: rowTops[entry.rowIndex],
-        }));
-
-        const height = Math.max(MIN_LANE_HEIGHT, rowsHeight + LANE_PADDING * 2);
-
-        const laneLayout = {
-          lane,
-          top,
-          height,
-          entries,
-          isCollapsed,
-          seriesRows: isCollapsed ? [] : getSeriesRows(entries, rowTops, rowsHeight),
-        };
-
-        top += height;
-        return laneLayout;
-      });
-
-      return {
-        lanes: laneLayouts,
-        totalHeight: top,
-      };
-    }, [lanes, items, rangeById, collapsedLaneKeys, isRepeatsCollapsed]);
+    const layout = committedLayout;
 
     const getLaneKeyAtClientY = useCallback(
       (clientY) => {
