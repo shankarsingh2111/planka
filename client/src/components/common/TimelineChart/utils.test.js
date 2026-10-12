@@ -22,6 +22,11 @@ import {
   getViewRange,
   packRows,
   packRowsWithSeries,
+  packInSequence,
+  packRowsByOrder,
+  resolveOrderedDrop,
+  getRowAtY,
+  formatDragRange,
   getRowOffsets,
   ROW_HEIGHT,
   ROW_GAP,
@@ -504,5 +509,160 @@ describe('getRowOffsets with collapsed series', () => {
 
     expect(rowTops).toEqual([0, ROW_HEIGHT]);
     expect(totalHeight).toBe(ROW_HEIGHT + COMPACT_ROW_HEIGHT);
+  });
+});
+
+const entry = (id, order, start, end) => ({
+  item: { id, order },
+  range: { start: day(start), end: day(end) },
+});
+
+const rowsById = (packed) =>
+  packed.reduce((result, { item, rowIndex }) => ({ ...result, [item.id]: rowIndex }), {});
+
+describe('packRowsByOrder', () => {
+  test('gives the first card in order the top row even when it starts later', () => {
+    const packed = packRowsByOrder([
+      entry('a', 2, '2026-09-01', '2026-09-03'),
+      entry('b', 1, '2026-09-02', '2026-09-04'),
+    ]);
+
+    expect(rowsById(packed)).toEqual({ b: 0, a: 1 });
+  });
+
+  test('lets cards that do not overlap share a row', () => {
+    const packed = packRowsByOrder([
+      entry('a', 1, '2026-09-01', '2026-09-02'),
+      entry('b', 2, '2026-09-05', '2026-09-06'),
+    ]);
+
+    expect(rowsById(packed)).toEqual({ a: 0, b: 0 });
+  });
+
+  test('treats a card starting on the day another ends as overlapping', () => {
+    const packed = packRowsByOrder([
+      entry('a', 1, '2026-09-01', '2026-09-03'),
+      entry('b', 2, '2026-09-03', '2026-09-04'),
+    ]);
+
+    expect(rowsById(packed)).toEqual({ a: 0, b: 1 });
+  });
+
+  test('fills a gap in an upper row out of start-date order', () => {
+    const packed = packRowsByOrder([
+      entry('a', 1, '2026-09-01', '2026-09-02'),
+      entry('b', 2, '2026-09-01', '2026-09-10'),
+      entry('c', 3, '2026-09-05', '2026-09-06'),
+    ]);
+
+    expect(rowsById(packed)).toEqual({ a: 0, b: 1, c: 0 });
+  });
+});
+
+describe('packInSequence', () => {
+  test('keeps the order it is given', () => {
+    const packed = packInSequence([
+      entry('b', 9, '2026-09-01', '2026-09-03'),
+      entry('a', 1, '2026-09-01', '2026-09-03'),
+    ]);
+
+    expect(packed.map(({ item }) => item.id)).toEqual(['b', 'a']);
+    expect(rowsById(packed)).toEqual({ b: 0, a: 1 });
+  });
+});
+
+describe('resolveOrderedDrop', () => {
+  // Four cards over the same days, so each needs a row of its own
+  const lane = [
+    entry('a', 1, '2026-09-01', '2026-09-05'),
+    entry('c', 3, '2026-09-01', '2026-09-05'),
+    entry('d', 4, '2026-09-01', '2026-09-05'),
+  ];
+  const dragged = entry('b', 2, '2026-09-01', '2026-09-05');
+
+  test('moves a card to the top and pushes the rest down', () => {
+    const result = resolveOrderedDrop(lane, dragged, 0, 1);
+
+    expect(result.index).toBe(0);
+    expect(result.beforeItemId).toBe('a');
+    expect(result.afterItemId).toBeNull();
+    expect(rowsById(result.packed)).toEqual({ b: 0, a: 1, c: 2, d: 3 });
+  });
+
+  test('keeps the original index when the card stays on its own row', () => {
+    const result = resolveOrderedDrop(lane, dragged, 1, 1);
+
+    expect(result.index).toBe(1);
+    expect(result.beforeItemId).toBe('c');
+    expect(result.afterItemId).toBe('a');
+  });
+
+  test('keeps the original index for a card that fits beside others on the target row', () => {
+    const sparse = [
+      entry('a', 1, '2026-09-01', '2026-09-02'),
+      entry('c', 3, '2026-09-10', '2026-09-11'),
+    ];
+
+    const result = resolveOrderedDrop(sparse, entry('b', 2, '2026-09-05', '2026-09-06'), 0, 1);
+
+    expect(result.index).toBe(1);
+    expect(result.rowIndex).toBe(0);
+  });
+
+  test('goes as deep as it can when the target row is out of reach', () => {
+    const result = resolveOrderedDrop(lane, dragged, 9, lane.length);
+
+    expect(result.index).toBe(3);
+    expect(result.beforeItemId).toBeNull();
+    expect(result.afterItemId).toBe('d');
+    expect(result.rowIndex).toBe(3);
+  });
+
+  test('handles an empty lane', () => {
+    const result = resolveOrderedDrop([], dragged, 0, 0);
+
+    expect(result).toMatchObject({ index: 0, rowIndex: 0, beforeItemId: null, afterItemId: null });
+  });
+});
+
+describe('getRowAtY', () => {
+  const rowTops = [0, 36, 80];
+  const rowsHeight = 116;
+
+  test('finds the row a y offset falls in', () => {
+    expect(getRowAtY(rowTops, rowsHeight, 10)).toBe(0);
+    expect(getRowAtY(rowTops, rowsHeight, 36)).toBe(1);
+    expect(getRowAtY(rowTops, rowsHeight, 100)).toBe(2);
+  });
+
+  test('reads above the first row as the first row', () => {
+    expect(getRowAtY(rowTops, rowsHeight, -5)).toBe(0);
+  });
+
+  test('reads below the last row as a new row', () => {
+    expect(getRowAtY(rowTops, rowsHeight, 116)).toBe(3);
+    expect(getRowAtY([], 0, 10)).toBe(0);
+  });
+});
+
+describe('formatDragRange', () => {
+  const formatDate = (date, pattern) => `${pattern}@${date.getDate()}`;
+
+  test('joins start and end', () => {
+    const range = { start: day('2026-09-04'), end: day('2026-09-09') };
+
+    expect(formatDragRange(range, ZoomLevels.WEEK, formatDate)).toBe('d MMM@4 → d MMM@9');
+  });
+
+  test('shows a single date when both ends read the same', () => {
+    const range = { start: day('2026-09-04'), end: day('2026-09-04') };
+
+    expect(formatDragRange(range, ZoomLevels.MONTH, formatDate)).toBe('d MMM@4');
+  });
+
+  test('includes the time at day zoom', () => {
+    const range = { start: day('2026-09-04'), end: day('2026-09-05') };
+
+    expect(formatDragRange(range, ZoomLevels.DAY, formatDate)).toBe('d MMM, h a@4 → d MMM, h a@5');
   });
 });

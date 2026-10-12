@@ -270,14 +270,98 @@ export const packRows = (entries) => {
     });
 };
 
+// Whole-day overlap, matching packRows: a bar ending on the day another starts still collides
+const overlapsAny = (intervals, start, end) =>
+  intervals.some((interval) => !(interval.end < start || interval.start > end));
+
+// First fit in the order given: each entry takes the topmost row it does not collide with, so
+// whatever comes first in the sequence gets first claim on the upper rows
+export const packInSequence = (entries) => {
+  const rows = [];
+
+  return entries.map((entry) => {
+    const start = startOfDay(entry.range.start);
+    const end = startOfDay(entry.range.end);
+
+    let rowIndex = rows.findIndex((intervals) => !overlapsAny(intervals, start, end));
+
+    if (rowIndex === -1) {
+      rowIndex = rows.length;
+      rows.push([]);
+    }
+
+    rows[rowIndex].push({ start, end });
+
+    return {
+      ...entry,
+      rowIndex,
+    };
+  });
+};
+
+export const sortByOrder = (entries) =>
+  entries.slice().sort((a, b) => a.item.order - b.item.order || a.range.start - b.range.start);
+
+export const isOrdered = (entries) =>
+  entries.length > 0 && entries.every(({ item }) => item.order !== undefined);
+
 /**
- * Like packRows, except that the cards of each recurring series get a row of their own under the
+ * Packing for lanes whose cards have an order of their own (a list's card positions): the order
+ * decides who gets the upper rows, so moving a card up the order moves it up the lane. Less
+ * compact than packRows, which is the price of the order meaning something.
+ */
+export const packRowsByOrder = (entries) => packInSequence(sortByOrder(entries));
+
+/**
+ * Where a card held over row `targetRow` of a lane lands in the lane's order. `entries` are the
+ * lane's other cards, already in order. Every insertion index is tried and the lane re-packed; the
+ * one putting the card on the target row (or as near as the packing allows) wins, and among equals
+ * the one nearest `preferredIndex`, so a plain sideways drag never quietly reorders anything.
+ */
+export const resolveOrderedDrop = (entries, draggedEntry, targetRow, preferredIndex) => {
+  let best = null;
+
+  for (let index = 0; index <= entries.length; index += 1) {
+    const packed = packInSequence([
+      ...entries.slice(0, index),
+      draggedEntry,
+      ...entries.slice(index),
+    ]);
+
+    const { rowIndex } = packed[index];
+    const rowDistance = Math.abs(rowIndex - targetRow);
+    const indexDistance = Math.abs(index - preferredIndex);
+
+    if (
+      !best ||
+      rowDistance < best.rowDistance ||
+      (rowDistance === best.rowDistance && indexDistance < best.indexDistance)
+    ) {
+      best = { index, rowIndex, packed, rowDistance, indexDistance };
+    }
+  }
+
+  return {
+    index: best.index,
+    rowIndex: best.rowIndex,
+    packed: best.packed,
+    beforeItemId: best.index < entries.length ? entries[best.index].item.id : null,
+    afterItemId: best.index > 0 ? entries[best.index - 1].item.id : null,
+  };
+};
+
+const packOthersByDefault = (entries) =>
+  isOrdered(entries) ? packRowsByOrder(entries) : packRows(entries);
+
+/**
+ * Packs a lane's cards with `packOthers` (order-aware when every card has an order, by start date
+ * otherwise), except that the cards of each recurring series get a row of their own under the
  * lane's other cards, in the order the series start. A series then reads as one line, and never
  * splits across rows or pushes other cards around. A lane holding only series keeps its first row
  * free, since the lane's name sits there in the column beside it.
  */
-export const packRowsWithSeries = (entries) => {
-  const packed = packRows(entries.filter(({ item }) => !item.seriesId));
+export const packRowsWithSeries = (entries, packOthers = packOthersByDefault) => {
+  const packed = packOthers(entries.filter(({ item }) => !item.seriesId));
   const seriesEntries = entries.filter(({ item }) => item.seriesId);
 
   if (seriesEntries.length === 0) {
@@ -341,6 +425,34 @@ export const getRowOffsets = (entries) => {
     rowTops,
     totalHeight,
   };
+};
+
+// The row of a lane a y offset (from the top of the lane's rows) falls in. Below the last row
+// reads as one past it, which is where a card dropped into empty space goes.
+export const getRowAtY = (rowTops, rowsHeight, y) => {
+  if (y >= rowsHeight) {
+    return rowTops.length;
+  }
+
+  let rowIndex = 0;
+
+  rowTops.forEach((top, index) => {
+    if (y >= top) {
+      rowIndex = index;
+    }
+  });
+
+  return rowIndex;
+};
+
+// The label riding on a card in flight: where it would land, to the slot at day zoom
+export const formatDragRange = (range, zoomLevel, formatDate) => {
+  const pattern = isSlotZoom(zoomLevel) ? 'd MMM, h a' : 'd MMM';
+
+  const start = formatDate(range.start, pattern);
+  const end = formatDate(range.end, pattern);
+
+  return start === end ? start : `${start} → ${end}`;
 };
 
 export const getHeaderColumns = (viewStart, totalDays, zoomLevel, formatDate) => {
