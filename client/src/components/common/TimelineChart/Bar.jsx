@@ -27,6 +27,8 @@ const Bar = React.memo(
     isLinkable,
     isCritical,
     isDragging,
+    isLifted,
+    liftRef,
     isCompact,
     isDimmed,
     isSeriesHighlighted,
@@ -50,6 +52,7 @@ const Bar = React.memo(
 
     return (
       <div
+        ref={isLifted ? liftRef : undefined}
         data-timeline-item-id={item.id}
         role="button"
         tabIndex={0}
@@ -59,6 +62,7 @@ const Bar = React.memo(
           [styles.barOverdue]: item.isOverdue,
           [styles.barCritical]: isCritical,
           [styles.barDragging]: isDragging,
+          [styles.barLifted]: isLifted,
           [styles.barEditable]: isEditable,
           [styles.barWithAvatars]: withAvatars,
           [styles.barCompact]: isCompact,
@@ -131,6 +135,8 @@ Bar.propTypes = {
   isLinkable: PropTypes.bool,
   isCritical: PropTypes.bool,
   isDragging: PropTypes.bool,
+  isLifted: PropTypes.bool,
+  liftRef: PropTypes.func,
   isCompact: PropTypes.bool,
   isDimmed: PropTypes.bool,
   isSeriesHighlighted: PropTypes.bool,
@@ -148,6 +154,8 @@ Bar.defaultProps = {
   isLinkable: false,
   isCritical: false,
   isDragging: false,
+  isLifted: false,
+  liftRef: undefined,
   isCompact: false,
   isDimmed: false,
   isSeriesHighlighted: false,

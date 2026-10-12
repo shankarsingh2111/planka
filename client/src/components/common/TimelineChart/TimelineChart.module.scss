@@ -277,31 +277,6 @@
     z-index: 2;
   }
 
-  // A copy of the dragged bar drawn in the lane it would land in. It keeps the card's own colour
-  // so it reads as the same card, with a dashed outline to say it is not committed yet
-  .ghostBar {
-    align-items: center;
-    border: 1px dashed #fff;
-    border-radius: 4px;
-    box-shadow: 0 2px 6px rgba(9, 30, 66, 0.3);
-    display: flex;
-    opacity: 0.75;
-    overflow: hidden;
-    pointer-events: none;
-    position: absolute;
-    z-index: 6;
-  }
-
-  .ghostBarLabel {
-    color: #fff;
-    font-size: 12px;
-    overflow: hidden;
-    padding: 0 8px;
-    text-overflow: ellipsis;
-    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
-    white-space: nowrap;
-  }
-
   .dropPreview {
     align-items: center;
     background: rgba(0, 121, 191, 0.85);
@@ -389,6 +364,65 @@
     cursor: grabbing;
     opacity: 0.85;
     z-index: 5;
+  }
+
+  // The bar being moved, following the pointer above everything else
+  .barLifted {
+    box-shadow: 0 8px 18px rgba(9, 30, 66, 0.35);
+    cursor: grabbing;
+    opacity: 0.9;
+    z-index: 7;
+  }
+
+  // While a card is in flight the lane makes room for it, so bars glide to their new rows
+  .canvasPlacing .bar {
+    transition:
+      top 150ms ease,
+      left 150ms ease,
+      width 150ms ease;
+  }
+
+  .canvasPlacing .barLifted {
+    transition: none;
+  }
+
+  // Where the card in flight would land, in its own colour but faded and outlined to say it is
+  // not committed yet
+  .placeholderBar {
+    border: 1px dashed rgba(9, 30, 66, 0.55);
+    border-radius: 4px;
+    opacity: 0.45;
+    pointer-events: none;
+    position: absolute;
+    transition:
+      top 120ms ease,
+      left 120ms ease,
+      width 120ms ease;
+    z-index: 5;
+  }
+
+  .placeholderDates {
+    background: #172b4d;
+    border-radius: 3px;
+    color: #fff;
+    font-size: 11px;
+    line-height: 16px;
+    padding: 1px 6px;
+    pointer-events: none;
+    position: absolute;
+    transition:
+      top 120ms ease,
+      left 120ms ease;
+    white-space: nowrap;
+    z-index: 8;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .canvasPlacing .bar,
+    .placeholderBar,
+    .placeholderDates {
+      transition: none;
+    }
   }
 
   .barLabel {

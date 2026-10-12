@@ -29,6 +29,8 @@ import {
   getDropRange,
   getBarHeight,
   getHeaderColumns,
+  getRowAtY,
+  formatDragRange,
   buildArrowPath,
 } from './utils';
 import useBarDrag, { DragModes, getDraggedDates } from './use-bar-drag';
@@ -55,6 +57,29 @@ const readIsRepeatsCollapsed = () => {
     return false;
   }
 };
+
+const toBars = (laneLayouts, getRenderRange, viewStart, zoomLevel, unitWidth) =>
+  laneLayouts.flatMap(({ lane, top, entries }) =>
+    entries.map(({ item, rowTop, range: committedRange, isCompact, isPlaceholder }) => {
+      const range = isPlaceholder ? committedRange : getRenderRange(item.id, committedRange);
+      const left = getOffsetX(viewStart, range.start, zoomLevel);
+      const width = Math.max(getOffsetX(viewStart, range.end, zoomLevel) + unitWidth - left, 8);
+      const rowGap = isCompact ? COMPACT_ROW_HEIGHT - COMPACT_BAR_HEIGHT : ROW_GAP;
+
+      return {
+        key: `${lane.key}:${item.id}`,
+        item,
+        laneKey: lane.key,
+        range,
+        left,
+        width,
+        top: top + LANE_PADDING + rowTop + rowGap / 2,
+        height: isCompact ? COMPACT_BAR_HEIGHT : getBarHeight(item),
+        isCompact: !!isCompact,
+        isPlaceholder: !!isPlaceholder,
+      };
+    }),
+  );
 
 const TimelineChart = React.memo(
   ({
@@ -166,8 +191,6 @@ const TimelineChart = React.memo(
     // The lanes as committed, without anything in flight
     const committedLayout = useMemo(() => buildLayout(layoutInput), [layoutInput]);
 
-    const layout = committedLayout;
-
     const getLaneKeyAtClientY = useCallback(
       (clientY) => {
         if (!canvasRef.current) {
@@ -176,14 +199,82 @@ const TimelineChart = React.memo(
 
         const y = clientY - canvasRef.current.getBoundingClientRect().top;
 
-        const laneLayout = layout.lanes.find(
+        const laneLayout = committedLayout.lanes.find(
           (candidate) => y >= candidate.top && y < candidate.top + candidate.height,
         );
 
         return laneLayout ? laneLayout.lane.key : null;
       },
-      [layout],
+      [committedLayout],
     );
+
+    // Hit testing reads the lanes as they were when the card was picked up, minus the card itself,
+    // so neither bars sliding aside nor changes from other users move the target under a still
+    // pointer. Cleared once nothing is in flight.
+    const baseLayoutRef = useRef(null);
+
+    const getBaseLayout = useCallback(
+      (excludeItemId) => {
+        if (!baseLayoutRef.current || baseLayoutRef.current.excludeItemId !== excludeItemId) {
+          baseLayoutRef.current = {
+            excludeItemId,
+            layout: buildLayout({ ...layoutInput, excludeItemId }),
+          };
+        }
+
+        return baseLayoutRef.current.layout;
+      },
+      [layoutInput],
+    );
+
+    const getDropSlotAtClientY = useCallback(
+      (clientY, excludeItemId) => {
+        if (!canvasRef.current) {
+          return null;
+        }
+
+        const y = clientY - canvasRef.current.getBoundingClientRect().top;
+
+        const laneLayout = getBaseLayout(excludeItemId).lanes.find(
+          (candidate) => y >= candidate.top && y < candidate.top + candidate.height,
+        );
+
+        if (!laneLayout) {
+          return null;
+        }
+
+        return {
+          laneKey: laneLayout.lane.key,
+          targetRow: getRowAtY(
+            laneLayout.rowTops,
+            laneLayout.rowsHeight,
+            y - laneLayout.top - LANE_PADDING,
+          ),
+        };
+      },
+      [getBaseLayout],
+    );
+
+    // The bar being moved is moved by hand, frame by frame, rather than through a render per pixel
+    const liftRef = useRef(null);
+
+    const setLiftNode = useCallback((node) => {
+      if (liftRef.current && liftRef.current !== node) {
+        liftRef.current.style.transform = '';
+      }
+
+      liftRef.current = node;
+    }, []);
+
+    const handleDragFrame = useCallback((deltaX, deltaY) => {
+      if (liftRef.current) {
+        liftRef.current.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+      }
+    }, []);
+
+    // Read on release: where the layout last put the card in flight
+    const placementResultRef = useRef(null);
+    const getPlacementResult = useCallback(() => placementResultRef.current, []);
 
     const {
       drag,
@@ -199,16 +290,39 @@ const TimelineChart = React.memo(
       canEdit,
       itemById,
       rangeById,
-      getLaneKeyAtClientY,
+      getDropSlotAtClientY,
+      getPlacementResult,
+      onDragFrame: handleDragFrame,
       onItemClick,
       onItemDatesChange,
       onItemLaneChange,
       onItemUnschedule,
     });
 
+    const handleExternalDrop = useCallback(
+      (laneKey, dates) => {
+        onExternalDrop(externalDragItem.id, { laneKey, ...dates });
+      },
+      [externalDragItem, onExternalDrop],
+    );
+
+    const dropPreview = useDropTarget({
+      isActive: !!externalDragItem && !!onExternalDrop,
+      scrollRef,
+      headerRef,
+      canvasRef,
+      viewStart,
+      zoomLevel,
+      totalWidth,
+      layout: committedLayout,
+      onDrop: handleExternalDrop,
+      onCancel: onExternalDragCancel,
+    });
+
     /**
      * Resizing drags an edge of the bar itself, so it has to grow and shrink under the cursor.
-     * Moving is the one mode that leaves the bar where it is and sends a ghost instead.
+     * Moving is the one mode that does not: the bar lifts and follows the pointer, and a
+     * placeholder in the laid-out lanes shows where it would land.
      */
     const getRenderRange = useCallback(
       (itemId, committedRange) => {
@@ -237,34 +351,79 @@ const TimelineChart = React.memo(
       [drag, itemById, zoomLevel],
     );
 
+    // Where the bar being moved would land, laid into its lane so the rest makes room. Only a list
+    // lane takes a row; elsewhere the card keeps its place in the order and only its dates move.
+    const barPlacement = useMemo(() => {
+      if (!drag || drag.mode !== DragModes.MOVE || drag.isOverUnscheduleZone) {
+        return null;
+      }
+
+      const item = itemById[drag.itemId];
+      const committedRange = rangeById[drag.itemId];
+
+      if (!item || !committedRange) {
+        return null;
+      }
+
+      const range =
+        getItemRange({
+          ...item,
+          ...getDraggedDates(item, committedRange, drag.mode, drag.deltaUnits, zoomLevel),
+        }) || committedRange;
+
+      const isRowTarget = drag.toLaneKey !== null && drag.targetRow !== null;
+
+      return {
+        item,
+        range,
+        laneKey: isRowTarget ? drag.toLaneKey : drag.laneKey,
+        targetRow: isRowTarget ? drag.targetRow : null,
+      };
+    }, [drag, itemById, rangeById, zoomLevel]);
+
+    const placement = barPlacement;
+
+    const layout = useMemo(
+      () =>
+        placement || (drag && drag.isOverUnscheduleZone)
+          ? buildLayout({
+              ...layoutInput,
+              placement,
+              excludeItemId: placement ? null : drag.itemId,
+            })
+          : committedLayout,
+      [placement, drag, layoutInput, committedLayout],
+    );
+
+    placementResultRef.current = layout.placementResult;
+
+    const isPlacing = layout !== committedLayout;
+
+    useEffect(() => {
+      if (!isPlacing) {
+        baseLayoutRef.current = null;
+      }
+    }, [isPlacing]);
+
+    const committedBars = useMemo(
+      () => toBars(committedLayout.lanes, getRenderRange, viewStart, zoomLevel, unitWidth),
+      [committedLayout, getRenderRange, viewStart, zoomLevel, unitWidth],
+    );
+
     const bars = useMemo(
       () =>
-        layout.lanes.flatMap(({ lane, top, entries }) =>
-          entries.map(({ item, rowTop, range: committedRange, isCompact }) => {
-            const range = getRenderRange(item.id, committedRange);
-            const left = getOffsetX(viewStart, range.start, zoomLevel);
-            const width = Math.max(
-              getOffsetX(viewStart, range.end, zoomLevel) + unitWidth - left,
-              8,
-            );
-
-            const rowGap = isCompact ? COMPACT_ROW_HEIGHT - COMPACT_BAR_HEIGHT : ROW_GAP;
-
-            return {
-              key: `${lane.key}:${item.id}`,
-              item,
-              laneKey: lane.key,
-              range,
-              left,
-              width,
-              top: top + LANE_PADDING + rowTop + rowGap / 2,
-              height: isCompact ? COMPACT_BAR_HEIGHT : getBarHeight(item),
-              isCompact: !!isCompact,
-            };
-          }),
-        ),
-      [layout, getRenderRange, viewStart, zoomLevel, unitWidth],
+        isPlacing
+          ? toBars(layout.lanes, getRenderRange, viewStart, zoomLevel, unitWidth)
+          : committedBars,
+      [isPlacing, layout, getRenderRange, viewStart, zoomLevel, unitWidth, committedBars],
     );
+
+    const barByKey = useMemo(
+      () => bars.reduce((result, bar) => ({ ...result, [bar.key]: bar }), {}),
+      [bars],
+    );
+
+    const placeholderBars = useMemo(() => bars.filter((bar) => bar.isPlaceholder), [bars]);
 
     // A collapsed series row gets a strip joining its marks, from the first card to the last
     const seriesTracks = useMemo(() => {
@@ -326,60 +485,6 @@ const TimelineChart = React.memo(
 
       return positionById;
     }, [items, rangeById]);
-
-    /**
-     * The bar being dragged stays put and a ghost carries the movement instead, so the original
-     * dates remain visible to compare against right up to the drop. The ghost tracks the drag in
-     * both axes: sideways for the new dates, and into another lane when the card would change
-     * list. Across lanes it sits on the first row, since the real packing only happens on commit.
-     * Resizing is excluded — that mode changes the bar in place, see getRenderRange.
-     */
-    const dragGhost = useMemo(() => {
-      if (!drag || drag.mode !== DragModes.MOVE || drag.isOverUnscheduleZone) {
-        return null;
-      }
-
-      const item = itemById[drag.itemId];
-      const committedRange = rangeById[drag.itemId];
-
-      const isLaneChange = !!drag.toLaneKey && drag.toLaneKey !== drag.laneKey;
-
-      if (!item || !committedRange || (drag.deltaUnits === 0 && !isLaneChange)) {
-        return null;
-      }
-
-      const range = getItemRange({
-        ...item,
-        ...getDraggedDates(item, committedRange, drag.mode, drag.deltaUnits, zoomLevel),
-      });
-
-      const target = layout.lanes.find(
-        (candidate) => candidate.lane.key === (isLaneChange ? drag.toLaneKey : drag.laneKey),
-      );
-
-      if (!range || !target) {
-        return null;
-      }
-
-      // Staying in the same lane, the ghost rides the bar's own row so the two line up
-      const entry = isLaneChange
-        ? null
-        : target.entries.find((candidate) => candidate.item.id === drag.itemId);
-
-      const left = getOffsetX(viewStart, range.start, zoomLevel);
-
-      return {
-        item,
-        range,
-        left,
-        width: Math.max(getOffsetX(viewStart, range.end, zoomLevel) + unitWidth - left, 8),
-        top: target.top + LANE_PADDING + (entry ? entry.rowTop : 0) + ROW_GAP / 2,
-        height: getBarHeight(item),
-        laneTop: target.top,
-        laneHeight: target.height,
-        isLaneChange,
-      };
-    }, [drag, layout, itemById, rangeById, viewStart, zoomLevel, unitWidth]);
 
     // Arrows attach to the first occurrence of each item (items may sit in several lanes)
     const anchorById = useMemo(
@@ -460,26 +565,6 @@ const TimelineChart = React.memo(
     useLayoutEffect(() => {
       scrollToToday();
     }, [zoomLevel]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    const handleExternalDrop = useCallback(
-      (laneKey, dates) => {
-        onExternalDrop(externalDragItem.id, { laneKey, ...dates });
-      },
-      [externalDragItem, onExternalDrop],
-    );
-
-    const dropPreview = useDropTarget({
-      isActive: !!externalDragItem && !!onExternalDrop,
-      scrollRef,
-      headerRef,
-      canvasRef,
-      viewStart,
-      zoomLevel,
-      totalWidth,
-      layout,
-      onDrop: handleExternalDrop,
-      onCancel: onExternalDragCancel,
-    });
 
     // Told to the consumer rather than drawn here: the sidebar that shows the card in flight is
     // outside this component
@@ -628,6 +713,12 @@ const TimelineChart = React.memo(
     const backgroundStripes =
       backgroundLayers.length > 0 ? { backgroundImage: backgroundLayers.join(', ') } : undefined;
 
+    // A card heading into a lane it is not in yet lights that lane up
+    const placementLane =
+      placement && !placement.item.laneKeys.includes(placement.laneKey)
+        ? layout.lanes.find((laneLayout) => laneLayout.lane.key === placement.laneKey)
+        : null;
+
     return (
       <div className={styles.wrapper}>
         <Toolbar
@@ -769,7 +860,11 @@ const TimelineChart = React.memo(
                 </div>
                 <div
                   ref={canvasRef}
-                  className={classNames(styles.canvas, isCreatable && styles.canvasCreatable)}
+                  className={classNames(
+                    styles.canvas,
+                    isCreatable && styles.canvasCreatable,
+                    isPlacing && styles.canvasPlacing,
+                  )}
                   style={{ width: totalWidth, height: layout.totalHeight, ...backgroundStripes }}
                   onDoubleClick={isCreatable ? handleCanvasDoubleClick : undefined}
                 >
@@ -884,53 +979,78 @@ const TimelineChart = React.memo(
                       }}
                     />
                   ))}
-                  {bars.map(({ key, item, laneKey, range, left, width, top, height, isCompact }) => (
-                    <Bar
-                      key={key}
-                      item={item}
-                      laneKey={laneKey}
-                      range={range}
-                      left={left}
-                      width={width}
-                      top={top}
-                      height={height}
-                      isCompact={isCompact}
-                      isDimmed={!!hoveredSeriesId && item.seriesId !== hoveredSeriesId}
-                      isSeriesHighlighted={!!hoveredSeriesId && item.seriesId === hoveredSeriesId}
-                      isEditable={isEditable && item.isEditable !== false}
-                      isLinkable={isLinkable && item.isEditable !== false}
-                      isCritical={criticalPath.itemIds.has(item.id)}
-                      isDragging={!!drag && drag.itemId === item.id}
-                      onPointerDown={handleBarPointerDown}
-                      onPointerMove={handleBarPointerMove}
-                      onPointerUp={handleBarPointerUp}
-                      onPointerEnter={setHoveredItemId}
-                      onPointerLeave={setHoveredItemId}
-                      onKeyDown={handleBarKeyDown}
-                      onLinkPointerDown={handleLinkPointerDown}
+                  {/* Drawn in committed order, so no bar's element is ever moved or remounted
+                      mid-drag: the one being moved holds the pointer capture */}
+                  {committedBars.map((committedBar) => {
+                    const { key, item, laneKey } = committedBar;
+
+                    const isLifted =
+                      !!drag &&
+                      drag.mode === DragModes.MOVE &&
+                      drag.itemId === item.id &&
+                      drag.laneKey === laneKey;
+
+                    const bar = isLifted ? committedBar : barByKey[key];
+
+                    if (!bar || bar.isPlaceholder) {
+                      return null;
+                    }
+
+                    return (
+                      <Bar
+                        key={key}
+                        item={item}
+                        laneKey={laneKey}
+                        range={bar.range}
+                        left={bar.left}
+                        width={bar.width}
+                        top={bar.top}
+                        height={bar.height}
+                        isCompact={bar.isCompact}
+                        isDimmed={!!hoveredSeriesId && item.seriesId !== hoveredSeriesId}
+                        isSeriesHighlighted={!!hoveredSeriesId && item.seriesId === hoveredSeriesId}
+                        isEditable={isEditable && item.isEditable !== false}
+                        isLinkable={isLinkable && item.isEditable !== false}
+                        isCritical={criticalPath.itemIds.has(item.id)}
+                        isDragging={!!drag && drag.itemId === item.id}
+                        isLifted={isLifted}
+                        liftRef={setLiftNode}
+                        onPointerDown={handleBarPointerDown}
+                        onPointerMove={handleBarPointerMove}
+                        onPointerUp={handleBarPointerUp}
+                        onPointerEnter={setHoveredItemId}
+                        onPointerLeave={setHoveredItemId}
+                        onKeyDown={handleBarKeyDown}
+                        onLinkPointerDown={handleLinkPointerDown}
+                      />
+                    );
+                  })}
+                  {placementLane && (
+                    <div
+                      className={styles.dropLane}
+                      style={{ top: placementLane.top, height: placementLane.height }}
                     />
-                  ))}
-                  {dragGhost && (
-                    <>
-                      {dragGhost.isLaneChange && (
-                        <div
-                          className={styles.dropLane}
-                          style={{ top: dragGhost.laneTop, height: dragGhost.laneHeight }}
-                        />
-                      )}
-                      <div
-                        className={classNames(styles.ghostBar, dragGhost.item.colorClassName)}
-                        style={{
-                          left: dragGhost.left,
-                          width: dragGhost.width,
-                          top: dragGhost.top,
-                          height: dragGhost.height,
-                        }}
-                      >
-                        <span className={styles.ghostBarLabel}>{dragGhost.item.name}</span>
-                      </div>
-                    </>
                   )}
+                  {placeholderBars.map((bar) => (
+                    <React.Fragment key={`placeholder:${bar.key}`}>
+                      <div
+                        className={classNames(styles.placeholderBar, bar.item.colorClassName)}
+                        style={{ left: bar.left, width: bar.width, top: bar.top, height: bar.height }}
+                      />
+                      {/* A sibling, not a child: the placeholder is faded as a whole, and the
+                          colour classes set an !important background that cannot be split off */}
+                      {bar.laneKey === placement.laneKey && (
+                        <div
+                          className={styles.placeholderDates}
+                          style={{ left: bar.left, top: bar.top - 20 }}
+                        >
+                          {formatDragRange(bar.range, zoomLevel, (date, format) =>
+                            i18n.dateFns.format(date, format),
+                          )}
+                        </div>
+                      )}
+                    </React.Fragment>
+                  ))}
                   {dropPreview && externalDragItem && (
                     <>
                       <div
@@ -950,7 +1070,7 @@ const TimelineChart = React.memo(
                       </div>
                     </>
                   )}
-                  {bars.length === 0 && emptyMessage && (
+                  {committedBars.length === 0 && emptyMessage && (
                     <div className={styles.emptyOverlay}>{emptyMessage}</div>
                   )}
                   {hoveredBar && (
