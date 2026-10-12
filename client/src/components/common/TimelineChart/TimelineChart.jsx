@@ -377,6 +377,7 @@ const TimelineChart = React.memo(
               item: {
                 id: externalDragItem.id,
                 name: externalDragItem.name,
+                colorClassName: externalDragItem.colorClassName,
                 // In list lanes it is not in any lane yet, so the drop counts as a move into one;
                 // elsewhere it only takes dates, so it belongs to the lane it is held over
                 laneKeys: onItemLaneChange ? [] : [dropPreview.laneKey],
@@ -1035,15 +1036,25 @@ const TimelineChart = React.memo(
                   )}
                   {placeholderBars.map((bar) => (
                     <React.Fragment key={`placeholder:${bar.key}`}>
+                      {/* A card from the sidebar has no bar of its own following the pointer, so
+                          its placeholder stands in for it: stronger, and named */}
                       <div
-                        className={classNames(styles.placeholderBar, bar.item.colorClassName)}
+                        className={classNames(
+                          styles.placeholderBar,
+                          externalPlacement && styles.placeholderBarExternal,
+                          bar.item.colorClassName,
+                        )}
                         style={{
                           left: bar.left,
                           width: bar.width,
                           top: bar.top,
                           height: bar.height,
                         }}
-                      />
+                      >
+                        {externalPlacement && (
+                          <span className={styles.placeholderBarLabel}>{bar.item.name}</span>
+                        )}
+                      </div>
                       {/* A sibling, not a child: the placeholder is faded as a whole, and the
                           colour classes set an !important background that cannot be split off */}
                       {bar.laneKey === placement.laneKey && (
@@ -1159,6 +1170,7 @@ TimelineChart.propTypes = {
   externalDragItem: PropTypes.shape({
     id: PropTypes.string.isRequired,
     name: PropTypes.string.isRequired,
+    colorClassName: PropTypes.string,
   }),
   zoomLevel: PropTypes.oneOf(Object.values(ZoomLevels)),
   collapsedLaneKeys: PropTypes.arrayOf(PropTypes.string),

@@ -292,6 +292,26 @@ const TimelineView = React.memo(({ cardIds }) => {
       .reduce((result, card, index) => ({ ...result, [card.id]: index }), {});
   }, [scheduledCards, sortedLists]);
 
+  // A card's bar colour under the current "colour by" choice, shared by the bars and a card being
+  // dragged in from the sidebar, so the two look the same
+  const getCardColor = useCallback(
+    (card, isDone, isOverdue) => {
+      switch (colorBy) {
+        case ColorByOptions.LABEL: {
+          const label = labelById[card.labelIds[0]];
+          return label ? label.color : 'light-concrete';
+        }
+        case ColorByOptions.LIST:
+          return card.list && card.list.color ? card.list.color : getHashedColor(card.listId);
+        case ColorByOptions.MEMBER:
+          return card.userIds[0] ? getHashedColor(card.userIds[0]) : 'light-concrete';
+        default:
+          return getStatusColor(card, isDone, isOverdue);
+      }
+    },
+    [colorBy, labelById],
+  );
+
   const items = useMemo(
     () =>
       scheduledCards.map((card) => {
@@ -319,26 +339,6 @@ const TimelineView = React.memo(({ cardIds }) => {
             laneKeys = [NO_VALUE_KEY];
         }
 
-        let color;
-        switch (colorBy) {
-          case ColorByOptions.LABEL: {
-            const label = labelById[card.labelIds[0]];
-            color = label ? label.color : 'light-concrete';
-
-            break;
-          }
-          case ColorByOptions.LIST:
-            color = card.list && card.list.color ? card.list.color : getHashedColor(card.listId);
-
-            break;
-          case ColorByOptions.MEMBER:
-            color = card.userIds[0] ? getHashedColor(card.userIds[0]) : 'light-concrete';
-
-            break;
-          default:
-            color = getStatusColor(card, isDone, isOverdue);
-        }
-
         const memberNames = card.userIds.flatMap((userId) =>
           userById[userId] ? userById[userId].name : [],
         );
@@ -355,7 +355,7 @@ const TimelineView = React.memo(({ cardIds }) => {
           laneKeys,
           order: orderByCardId[card.id],
           memberIds: card.userIds,
-          colorClassName: getColorClassName(color),
+          colorClassName: getColorClassName(getCardColor(card, isDone, isOverdue)),
           isCompleted: isDone || !!card.isDueCompleted,
           isOverdue,
           seriesId: card.recurrenceId || undefined,
@@ -371,7 +371,15 @@ const TimelineView = React.memo(({ cardIds }) => {
           ].filter(Boolean),
         };
       }),
-    [scheduledCards, orderByCardId, groupBy, colorBy, labelById, userById, activeMemberUserIds],
+    [
+      scheduledCards,
+      orderByCardId,
+      groupBy,
+      getCardColor,
+      labelById,
+      userById,
+      activeMemberUserIds,
+    ],
   );
 
   const dependencies = useMemo(
@@ -649,6 +657,26 @@ const TimelineView = React.memo(({ cardIds }) => {
     [unschedulingCardId, cards],
   );
 
+  // The card coming in from the sidebar, in the colour its bar will take once it is scheduled
+  const externalDragChartItem = useMemo(() => {
+    if (!externalDragItem) {
+      return externalDragItem;
+    }
+
+    const card = cards.find(({ id }) => id === externalDragItem.id);
+
+    if (!card) {
+      return externalDragItem;
+    }
+
+    const isDone = isCardDone(card, card.list);
+
+    return {
+      ...externalDragItem,
+      colorClassName: getColorClassName(getCardColor(card, isDone, isCardOverdue(card, isDone))),
+    };
+  }, [externalDragItem, cards, getCardColor]);
+
   const handleItemUnschedule = useCallback(
     (cardId) => {
       pushUndoEntry(cardId, 'common.timelineCardUnscheduled');
@@ -764,7 +792,7 @@ const TimelineView = React.memo(({ cardIds }) => {
           canEdit={canEdit}
           zoomLevel={zoomLevel}
           collapsedLaneKeys={collapsedLaneKeys}
-          externalDragItem={externalDragItem}
+          externalDragItem={externalDragChartItem}
           leadingToolbarChildren={sidebarToggleNode}
           toolbarActionChildren={addCardButtonNode}
           unscheduledCount={isSidebarOpened ? 0 : unscheduledCards.length}
