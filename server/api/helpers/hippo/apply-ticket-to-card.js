@@ -27,7 +27,7 @@ const Warnings = {
 };
 
 // The card is read again here, as an edit saved while Hippo was answering must not be lost
-const updateDescription = async ({ card, list, board, project, ticket, actorUser, request }) => {
+const updateDescription = async ({ card, list, board, project, ticket, actorUser }) => {
   const currentCard = await Card.qm.getOneById(card.id);
 
   if (!currentCard) {
@@ -49,7 +49,6 @@ const updateDescription = async ({ card, list, board, project, ticket, actorUser
     board,
     list,
     actorUser,
-    request,
   });
   return true;
 };
@@ -64,7 +63,6 @@ const updateFields = async ({
   customFieldGroupId,
   ticketState,
   actorUser,
-  request,
 }) => {
   const customFieldGroup = await CustomFieldGroup.qm.getOneById(customFieldGroupId);
   const customFields = await CustomField.qm.getByCustomFieldGroupId(customFieldGroupId);
@@ -115,7 +113,6 @@ const updateFields = async ({
           customFieldGroup,
         },
         actorUser,
-        request,
       });
     } else if (change.action === 'update') {
       // eslint-disable-next-line no-await-in-loop
@@ -128,7 +125,6 @@ const updateFields = async ({
         card,
         customFieldGroup,
         actorUser,
-        request,
       });
     }
 
@@ -145,14 +141,13 @@ const updateFields = async ({
           content,
         },
         actorUser,
-        request,
       });
     }
   }
 };
 
 // Assignees on the board join the card; nobody leaves it
-const addMembers = async ({ card, list, board, project, ticket, users, actorUser, request }) => {
+const addMembers = async ({ card, list, board, project, ticket, users, actorUser }) => {
   const cardMemberships = await CardMembership.qm.getByCardId(card.id);
   const memberUserIds = sails.helpers.utils.mapRecords(cardMemberships, 'userId');
 
@@ -177,7 +172,6 @@ const addMembers = async ({ card, list, board, project, ticket, users, actorUser
           user,
         },
         actorUser,
-        request,
       });
     } catch (error) {
       isComplete = false;
@@ -189,7 +183,7 @@ const addMembers = async ({ card, list, board, project, ticket, users, actorUser
 
 // The comment takes an id built from its Hippo date, so it sorts among the card's comments by
 // that date. An id another comment already has is retried, then left to the database.
-const createEntryComment = async ({ card, list, board, project, entry, actorUser, request }) => {
+const createEntryComment = async ({ card, list, board, project, entry, actorUser }) => {
   const createdAt = buildCommentIdFromDate(entry.date) ? new Date(entry.date).toISOString() : null;
 
   for (let attempt = 0; attempt <= MAX_ID_ATTEMPTS; attempt += 1) {
@@ -211,7 +205,6 @@ const createEntryComment = async ({ card, list, board, project, entry, actorUser
         list,
         createdAt: createdAt || undefined,
         isImported: true,
-        request,
       });
     } catch (error) {
       if (!id || error.code !== 'E_UNIQUE') {
@@ -225,16 +218,7 @@ const createEntryComment = async ({ card, list, board, project, entry, actorUser
 
 // Each new entry's record goes in before its comment: the unique index lets only one sync claim
 // an entry, so two syncs at once never post it twice
-const importEntries = async ({
-  card,
-  list,
-  board,
-  project,
-  ticket,
-  entryIds,
-  actorUser,
-  request,
-}) => {
+const importEntries = async ({ card, list, board, project, ticket, entryIds, actorUser }) => {
   const records = await HippoCardEntry.qm.getByCardIdAndTicketNumber(card.id, ticket.number);
   const comments = await Comment.qm.getAllByCardId(card.id);
 
@@ -279,7 +263,6 @@ const importEntries = async ({
           project,
           entry,
           actorUser,
-          request,
         });
 
         // eslint-disable-next-line no-await-in-loop
@@ -354,9 +337,6 @@ module.exports = {
     actorUser: {
       type: 'ref',
       required: true,
-    },
-    request: {
-      type: 'ref',
     },
   },
 

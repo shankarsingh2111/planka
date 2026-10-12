@@ -175,6 +175,8 @@ module.exports = {
       );
 
       // ---- Step 6: Write the ticket into the card ----
+      // The request is left out on purpose: Planka's helpers skip the requesting browser when they
+      // broadcast, and the changes here come from Hippo, so that browser needs them too
       const { warnings } = await sails.helpers.hippo.applyTicketToCard.with({
         card,
         list,
@@ -189,7 +191,6 @@ module.exports = {
         ticketState: inputs.ticketState,
         entryIds: inputs.entryIds,
         actorUser: currentUser,
-        request: this.req,
       });
 
       // ---- Step 7: Record the sync ----
