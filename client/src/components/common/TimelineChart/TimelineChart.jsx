@@ -863,8 +863,7 @@ const TimelineChart = React.memo(
                           key={seriesRow.seriesId}
                           className={classNames(styles.seriesLabel, {
                             [styles.seriesLabelCompact]: seriesRow.height < ROW_HEIGHT,
-                            [styles.seriesLabelHighlighted]:
-                              seriesRow.seriesId === hoveredSeriesId,
+                            [styles.seriesLabelHighlighted]: seriesRow.seriesId === hoveredSeriesId,
                           })}
                           style={{ top: LANE_PADDING + seriesRow.top, height: seriesRow.height }}
                           title={seriesRow.name}
@@ -1060,7 +1059,12 @@ const TimelineChart = React.memo(
                     <React.Fragment key={`placeholder:${bar.key}`}>
                       <div
                         className={classNames(styles.placeholderBar, bar.item.colorClassName)}
-                        style={{ left: bar.left, width: bar.width, top: bar.top, height: bar.height }}
+                        style={{
+                          left: bar.left,
+                          width: bar.width,
+                          top: bar.top,
+                          height: bar.height,
+                        }}
                       />
                       {/* A sibling, not a child: the placeholder is faded as a whole, and the
                           colour classes set an !important background that cannot be split off */}
