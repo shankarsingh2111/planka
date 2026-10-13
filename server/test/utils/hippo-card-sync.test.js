@@ -3,6 +3,7 @@ const { expect } = require('chai');
 const {
   SYNC_INTERVAL_MS,
   SkipReasons,
+  SyncModes,
   EntryRecordKinds,
   HIPPO_FIELD_DEFINITIONS,
   normalizeTicketNumber,
@@ -12,6 +13,7 @@ const {
   buildCommentIdFromDate,
   planEntries,
   getSkipReason,
+  getSyncMode,
   mergeFieldOptions,
   mergeTags,
   buildFieldContents,
@@ -282,6 +284,19 @@ describe('hippo-card-sync', () => {
           now: Date.parse(syncRecord.syncedAt) + SYNC_INTERVAL_MS,
         }),
       ).to.equal(null);
+    });
+  });
+
+  describe('getSyncMode', () => {
+    const syncRecord = { ticketNumber: '43643', syncedAt: '2026-10-09T09:59:00.000Z' };
+
+    it('syncs in full a card never synced, or synced for another ticket', () => {
+      expect(getSyncMode({ syncRecord: null, ticketNumber: '43643' })).to.equal(SyncModes.FULL);
+      expect(getSyncMode({ syncRecord, ticketNumber: '1' })).to.equal(SyncModes.FULL);
+    });
+
+    it('refreshes a card already synced with the ticket', () => {
+      expect(getSyncMode({ syncRecord, ticketNumber: '43643' })).to.equal(SyncModes.REFRESH);
     });
   });
 

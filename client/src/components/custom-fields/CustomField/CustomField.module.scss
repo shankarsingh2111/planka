@@ -28,17 +28,21 @@
     }
   }
 
+  // Stretched to the field's height, with the icon in its middle
   .linkButton {
+    align-items: center;
     background: #ebeef0;
     border-radius: 3px;
+    bottom: 0;
     box-shadow: none;
     box-sizing: content-box;
     color: #516b7a;
-    height: 30px;
+    display: flex;
+    justify-content: center;
     margin: 0;
     min-height: auto;
     outline: none;
-    padding: 4px;
+    padding: 0 4px;
     position: absolute;
     right: 0;
     top: 0;

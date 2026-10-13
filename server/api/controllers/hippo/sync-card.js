@@ -8,6 +8,7 @@ const { mapTicket, matchAssignees } = require('../../../utils/hippo');
 const {
   SkipReasons,
   getSkipReason,
+  getSyncMode,
   normalizeTicketNumber,
 } = require('../../../utils/hippo-card-sync');
 const {
@@ -175,6 +176,8 @@ module.exports = {
       );
 
       // ---- Step 6: Write the ticket into the card ----
+      // Only the first sync with a ticket writes all of it; later ones, Sync now included, bring
+      // in just its state and new notes, so what was changed in Planka stays
       // The request is left out on purpose: Planka's helpers skip the requesting browser when they
       // broadcast, and the changes here come from Hippo, so that browser needs them too
       const { warnings } = await sails.helpers.hippo.applyTicketToCard.with({
@@ -188,6 +191,10 @@ module.exports = {
         },
         customFieldGroupId: ticketValues.customFieldGroupId,
         users,
+        mode: getSyncMode({
+          syncRecord,
+          ticketNumber,
+        }),
         ticketState: inputs.ticketState,
         entryIds: inputs.entryIds,
         actorUser: currentUser,

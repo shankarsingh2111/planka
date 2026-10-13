@@ -66,6 +66,13 @@ const Item = React.memo(({ id, dragHandleProps }) => {
   const isPull = !isLinked || hippoSync.hasSynced === false;
   const [isOpened, setIsOpened] = useState(!isCollapsible || hasValues);
 
+  // Leaving the Ticket # field saves it on mousedown, which links the card before the click lands
+  const handleSyncClick = useCallback(() => {
+    if (isLinked) {
+      syncWithHippoNow();
+    }
+  }, [isLinked, syncWithHippoNow]);
+
   const handleToggleClick = useCallback(() => {
     setIsOpened((prevIsOpened) => !prevIsOpened);
   }, []);
@@ -103,15 +110,19 @@ const Item = React.memo(({ id, dragHandleProps }) => {
                   />
                 </button>
                 {isHippoGroup && (
-                  // Just an icon, which turns while Hippo is being asked; its name shows on hover
+                  // Just an icon, which turns while Hippo is being asked; its name shows on hover.
+                  // It only looks inactive without a ticket, as a disabled button would swallow
+                  // the click that leaves the Ticket # field. The quiet refresh on open does not
+                  // hold it either.
                   <Button
                     title={isPull ? t('action.pullFromHippo') : t('action.syncWithHippo')}
-                    disabled={!isLinked || hippoSync.isSyncing}
+                    disabled={hippoSync.isForced}
                     className={classNames(
                       styles.syncButton,
+                      !isLinked && styles.syncButtonInactive,
                       hippoSync.isSyncing && styles.syncButtonSyncing,
                     )}
-                    onClick={syncWithHippoNow}
+                    onClick={handleSyncClick}
                   >
                     <Icon
                       fitted

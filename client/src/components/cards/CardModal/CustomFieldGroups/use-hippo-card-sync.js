@@ -8,18 +8,21 @@ import { useSelector } from 'react-redux';
 
 import api from '../../../../api';
 import selectors from '../../../../selectors';
+import { waitForQueuedRequests } from '../../../../sagas/core/request';
 
 const INITIAL_STATE = {
   hasSynced: null,
   syncedAt: null,
   isSyncing: false,
+  isForced: false,
   error: null,
 };
 
 /**
  * A card's sync with its Hippo ticket. Opening the card sends one quiet refresh, which the server
  * skips when it is not due; syncNow always reaches Hippo. Only the latest call settles the state,
- * and only syncNow reports errors. Calls go straight to the server, past the request queue.
+ * and only syncNow reports errors. Calls go straight to the server, past the request queue, once
+ * the changes already in it are saved: a Ticket # typed just before the click must reach it first.
  */
 export default (cardId, isEnabled) => {
   const accessToken = useSelector(selectors.selectAccessToken);
@@ -35,10 +38,13 @@ export default (cardId, isEnabled) => {
       setState((prevState) => ({
         ...prevState,
         isSyncing: true,
+        isForced: force,
         error: null,
       }));
 
       try {
+        await waitForQueuedRequests();
+
         const { item } = await api.syncHippoCard(
           cardId,
           {
@@ -54,6 +60,7 @@ export default (cardId, isEnabled) => {
             hasSynced: item.hasSynced,
             syncedAt: item.syncedAt ? new Date(item.syncedAt) : null,
             isSyncing: false,
+            isForced: false,
             error: null,
           });
         }
@@ -62,6 +69,7 @@ export default (cardId, isEnabled) => {
           setState((prevState) => ({
             ...prevState,
             isSyncing: false,
+            isForced: false,
             error: force ? error : null,
           }));
         }

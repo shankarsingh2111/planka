@@ -8,6 +8,7 @@ const { HippoFieldNames } = require('../../../utils/hippo');
 const {
   EntryRecordKinds,
   HIPPO_FIELD_DEFINITIONS,
+  SyncModes,
   applyDescriptionBlock,
   buildCommentIdFromDate,
   buildEntryCommentText,
@@ -53,7 +54,8 @@ const updateDescription = async ({ card, list, board, project, ticket, actorUser
   return true;
 };
 
-// The group gets whichever fields and options it lacks, then the ticket's State, Priority and Tags
+// The group gets whichever fields and options it lacks, then the ticket's State, Priority and Tags.
+// A refresh touches only State, so a Priority or Tags changed in Planka stays.
 const updateFields = async ({
   card,
   list,
@@ -62,6 +64,7 @@ const updateFields = async ({
   ticket,
   customFieldGroupId,
   ticketState,
+  mode,
   actorUser,
 }) => {
   const customFieldGroup = await CustomFieldGroup.qm.getOneById(customFieldGroupId);
@@ -92,8 +95,13 @@ const updateFields = async ({
     0,
   );
 
+  const definitions =
+    mode === SyncModes.REFRESH
+      ? HIPPO_FIELD_DEFINITIONS.filter(({ name }) => name === HippoFieldNames.TICKET_STATE)
+      : HIPPO_FIELD_DEFINITIONS;
+
   // eslint-disable-next-line no-restricted-syntax
-  for (const definition of HIPPO_FIELD_DEFINITIONS) {
+  for (const definition of definitions) {
     let customField = customFields.find(({ name }) => name === definition.name);
     const content = contents[definition.name] || null;
     const change = planFieldChange(definition, customField, getPicks(definition, content));
@@ -328,6 +336,11 @@ module.exports = {
       type: 'ref',
       required: true,
     },
+    mode: {
+      type: 'string',
+      isIn: Object.values(SyncModes),
+      defaultsTo: SyncModes.FULL,
+    },
     ticketState: {
       type: 'string',
     },
@@ -342,15 +355,20 @@ module.exports = {
 
   async fn(inputs) {
     const warnings = [];
+    const isFullSync = inputs.mode === SyncModes.FULL;
 
-    // ---- Step 1: Write the ticket's block into the description ----
-    await runStep(updateDescription, inputs, Warnings.DESCRIPTION_NOT_SAVED, warnings);
+    // ---- Step 1: Write the ticket's block into the description (full sync only) ----
+    if (isFullSync) {
+      await runStep(updateDescription, inputs, Warnings.DESCRIPTION_NOT_SAVED, warnings);
+    }
 
-    // ---- Step 2: Set State, Priority and Tags ----
+    // ---- Step 2: Set State, plus Priority and Tags on a full sync ----
     await runStep(updateFields, inputs, Warnings.FIELDS_NOT_SAVED, warnings);
 
-    // ---- Step 3: Add assignees as members ----
-    await runStep(addMembers, inputs, Warnings.MEMBER_NOT_ADDED, warnings);
+    // ---- Step 3: Add assignees as members (full sync only) ----
+    if (isFullSync) {
+      await runStep(addMembers, inputs, Warnings.MEMBER_NOT_ADDED, warnings);
+    }
 
     // ---- Step 4: Add new notes and comments, placed by date ----
     await runStep(importEntries, inputs, Warnings.COMMENT_NOT_ADDED, warnings);

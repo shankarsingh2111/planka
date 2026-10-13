@@ -31,6 +31,13 @@ const SkipReasons = {
   IN_PROGRESS: 'inProgress',
 };
 
+// A full sync writes the whole ticket into the card; a refresh brings in only its state and new
+// notes and comments, so members, description, priority and tags changed in Planka stay
+const SyncModes = {
+  FULL: 'full',
+  REFRESH: 'refresh',
+};
+
 const EntryRecordKinds = {
   IMPORTED: 'imported',
   SKIPPED: 'skipped',
@@ -270,6 +277,10 @@ const getSkipReason = ({ syncRecord, ticketNumber, force, now }) => {
   return null;
 };
 
+// Full the first time a card syncs with a ticket, refresh every time after
+const getSyncMode = ({ syncRecord, ticketNumber }) =>
+  syncRecord && syncRecord.ticketNumber === ticketNumber ? SyncModes.REFRESH : SyncModes.FULL;
+
 /* Fields */
 
 const mergeFieldOptions = (existingOptions, defaultOptions, values) =>
@@ -344,6 +355,7 @@ const planFieldChange = (definition, customField, picks) => {
 module.exports = {
   SYNC_INTERVAL_MS,
   SkipReasons,
+  SyncModes,
   EntryRecordKinds,
   HIPPO_FIELD_DEFINITIONS,
   normalizeTicketNumber,
@@ -353,6 +365,7 @@ module.exports = {
   buildCommentIdFromDate,
   planEntries,
   getSkipReason,
+  getSyncMode,
   mergeFieldOptions,
   mergeTags,
   buildFieldContents,

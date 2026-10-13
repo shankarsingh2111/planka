@@ -36,6 +36,10 @@ function* queueRequest(method, ...args) {
   }
 }
 
+// Settles once every request queued so far has; for calls that go past the queue but rely on it
+export const waitForQueuedRequests = () =>
+  lastRequestTask ? lastRequestTask.toPromise().catch(() => {}) : Promise.resolve();
+
 export default function* request(method, ...args) {
   lastRequestTask = yield spawn(queueRequest, method, ...args);
 

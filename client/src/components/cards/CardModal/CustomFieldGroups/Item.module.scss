@@ -81,6 +81,16 @@
     }
   }
 
+  .syncButtonInactive {
+    cursor: default;
+    opacity: 0.45;
+
+    &:hover {
+      background: transparent;
+      color: #6b808c;
+    }
+  }
+
   // Semantic dims a disabled button; the turning icon should stay plain to see
   .syncButtonSyncing:disabled {
     opacity: 1 !important;
