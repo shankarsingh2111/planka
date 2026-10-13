@@ -117,6 +117,7 @@ export const ActivityTypes = {
   UNCOMPLETE_TASK: 'uncompleteTask',
   CREATE_CARD_RECURRENCE: 'createCardRecurrence',
   UPDATE_CARD_RECURRENCE: 'updateCardRecurrence',
+  UPDATE_CARD_SCHEDULE: 'updateCardSchedule',
 };
 
 export const NotificationTypes = {

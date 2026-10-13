@@ -150,6 +150,25 @@ const Errors = {
   },
 };
 
+const toIsoString = (date) => (date ? new Date(date).toISOString() : null);
+
+// The start and due dates that differ between the two cards, each as { from, to }
+const buildScheduleChanges = (prevCard, card) =>
+  ['startDate', 'dueDate'].reduce((result, key) => {
+    const from = toIsoString(prevCard[key]);
+    const to = toIsoString(card[key]);
+
+    return from === to
+      ? result
+      : {
+          ...result,
+          [key]: {
+            from,
+            to,
+          },
+        };
+  }, {});
+
 module.exports = {
   inputs: {
     id: {
@@ -339,6 +358,8 @@ module.exports = {
       'isSubscribed',
     ]);
 
+    const prevCard = card;
+
     card = await sails.helpers.cards.updateOne
       .with({
         project,
@@ -364,6 +385,28 @@ module.exports = {
 
     if (!card) {
       throw Errors.CARD_NOT_FOUND;
+    }
+
+    // Logged here rather than in the helper, so a series-wide edit (one helper call per card)
+    // is covered by its single updateCardRecurrence action instead of one action per card
+    const scheduleChanges = buildScheduleChanges(prevCard, card);
+
+    if (!_.isEmpty(scheduleChanges)) {
+      await sails.helpers.actions.createOne.with({
+        webhooks: await Webhook.qm.getAll(),
+        values: {
+          card,
+          type: Action.Types.UPDATE_CARD_SCHEDULE,
+          data: {
+            card: _.pick(card, ['name']),
+            ...scheduleChanges,
+          },
+          user: currentUser,
+        },
+        project: nextProject || project,
+        board: nextBoard || board,
+        list: nextList || list,
+      });
     }
 
     return {

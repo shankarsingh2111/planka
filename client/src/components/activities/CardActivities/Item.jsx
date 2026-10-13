@@ -16,6 +16,7 @@ import { ActivityTypes } from '../../../constants/Enums';
 import TimeAgo from '../../common/TimeAgo';
 import UserAvatar from '../../users/UserAvatar';
 import { formatWeekdays } from '../../card-recurrences/weekdays';
+import ScheduleChanges from '../ScheduleChanges';
 
 import styles from './Item.module.scss';
 
@@ -209,6 +210,23 @@ const Item = React.memo(({ id }) => {
           <span className={styles.author}>{userName}</span>
           {` updated ${activity.data.cardsTotal} cards of this series`}
         </Trans>
+      );
+
+      break;
+    case ActivityTypes.UPDATE_CARD_SCHEDULE:
+      contentNode = (
+        <>
+          <Trans
+            i18nKey="common.userChangedScheduleTimesOfThisCard"
+            values={{
+              user: userName,
+            }}
+          >
+            <span className={styles.author}>{userName}</span>
+            {' changed schedule times:'}
+          </Trans>
+          <ScheduleChanges data={activity.data} />
+        </>
       );
 
       break;

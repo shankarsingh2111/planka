@@ -46,7 +46,7 @@
  *           example: "1357158568008091267"
  *         type:
  *           type: string
- *           enum: [createCard, moveCard, addMemberToCard, removeMemberFromCard, completeTask, uncompleteTask, createCardRecurrence, updateCardRecurrence]
+ *           enum: [createCard, moveCard, addMemberToCard, removeMemberFromCard, completeTask, uncompleteTask, createCardRecurrence, updateCardRecurrence, updateCardSchedule]
  *           description: Type of the action
  *           example: moveCard
  *         data:
@@ -76,6 +76,7 @@ const Types = {
   UNCOMPLETE_TASK: 'uncompleteTask',
   CREATE_CARD_RECURRENCE: 'createCardRecurrence',
   UPDATE_CARD_RECURRENCE: 'updateCardRecurrence',
+  UPDATE_CARD_SCHEDULE: 'updateCardSchedule',
 };
 
 const INTERNAL_NOTIFIABLE_TYPES = [Types.MOVE_CARD, Types.ADD_MEMBER_TO_CARD];
