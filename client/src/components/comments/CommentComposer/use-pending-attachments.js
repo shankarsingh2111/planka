@@ -3,7 +3,7 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { createLocalId } from '../../../utils/local-id';
 import { AttachmentTypes } from '../../../constants/Enums';
@@ -110,13 +110,16 @@ export default () => {
     [],
   );
 
-  return {
-    items,
-    addFiles,
-    addLink,
-    remove,
-    clear,
-    toData,
-    handlePaste,
-  };
+  return useMemo(
+    () => ({
+      items,
+      addFiles,
+      addLink,
+      remove,
+      clear,
+      toData,
+      handlePaste,
+    }),
+    [items, addFiles, addLink, remove, clear, toData, handlePaste],
+  );
 };

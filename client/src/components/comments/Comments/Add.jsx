@@ -16,8 +16,16 @@ import entryActions from '../../../entry-actions';
 import { useEscapeInterceptor, useForm, useNestedRef } from '../../../hooks';
 import { isUsernameChar, mentionTextToMarkup } from '../../../utils/mentions';
 import { isModifierKeyPressed } from '../../../utils/event-helpers';
+import { FORMAT_BY_SHORTCUT_KEY } from '../../../utils/markdown-format';
 import UserAvatar from '../../users/UserAvatar';
 import HippoSyncModal from '../../hippo/HippoSyncModal';
+import {
+  ComposerAttachments,
+  FormattingToolbar,
+  useAttachmentDropTarget,
+  useMarkdownFormatting,
+  usePendingAttachments,
+} from '../CommentComposer';
 
 import styles from './Add.module.scss';
 
@@ -42,6 +50,21 @@ const Add = React.memo(() => {
   const textInputRef = useRef(null);
   const [buttonRef, handleButtonRef] = useNestedRef();
 
+  const pendingAttachments = usePendingAttachments();
+
+  const setText = useCallback(
+    (text) => {
+      setData({
+        text,
+      });
+    },
+    [setData],
+  );
+
+  const applyFormat = useMarkdownFormatting(textInputRef, data.text, setText);
+
+  useAttachmentDropTarget(textFieldRef, pendingAttachments.addFiles);
+
   const userByUsername = useMemo(
     () =>
       keyBy(
@@ -56,13 +79,15 @@ const Add = React.memo(() => {
       dispatch(
         entryActions.createCommentInCurrentCard(cleanData, {
           syncToHippo,
+          attachments: pendingAttachments.toData(),
         }),
       );
 
       setData(DEFAULT_DATA);
+      pendingAttachments.clear();
       selectTextField();
     },
-    [dispatch, setData, selectTextField],
+    [dispatch, setData, selectTextField, pendingAttachments],
   );
 
   const submit = useCallback(() => {
@@ -71,7 +96,7 @@ const Add = React.memo(() => {
       text: mentionTextToMarkup(data.text.trim(), userByUsername),
     };
 
-    if (!cleanData.text) {
+    if (!cleanData.text && pendingAttachments.items.length === 0) {
       textInputRef.current.select();
       return;
     }
@@ -83,7 +108,7 @@ const Add = React.memo(() => {
     }
 
     createComment(cleanData, false);
-  }, [data, userByUsername, hippoTicket, canSyncToHippo, createComment]);
+  }, [data, userByUsername, hippoTicket, canSyncToHippo, createComment, pendingAttachments]);
 
   const handleHippoSync = useCallback(() => {
     createComment(pendingData, true);
@@ -132,11 +157,23 @@ const Add = React.memo(() => {
 
   const handleFieldKeyDown = useCallback(
     (event) => {
-      if (isModifierKeyPressed(event) && event.key === 'Enter') {
+      if (!isModifierKeyPressed(event)) {
+        return;
+      }
+
+      if (event.key === 'Enter') {
         submit();
+        return;
+      }
+
+      const format = FORMAT_BY_SHORTCUT_KEY[event.key.toLowerCase()];
+
+      if (format) {
+        event.preventDefault();
+        applyFormat(format);
       }
     },
-    [submit],
+    [submit, applyFormat],
   );
 
   const handleAwayClick = useCallback(() => {
@@ -175,10 +212,13 @@ const Add = React.memo(() => {
     textInputRef.current.focus();
   }, [selectTextFieldState]);
 
+  const isExpanded = isOpened || data.text.length > 0 || pendingAttachments.items.length > 0;
+
   return (
     <>
       <Form onSubmit={handleSubmit}>
-        <div ref={textFieldRef} className={styles.field}>
+        <div ref={textFieldRef} className={styles.field} onPaste={pendingAttachments.handlePaste}>
+          {isExpanded && <FormattingToolbar onFormat={applyFormat} />}
           <MentionsInput
             {...clickAwayProps} // eslint-disable-line react/jsx-props-no-spreading
             allowSpaceInQuery
@@ -210,8 +250,21 @@ const Add = React.memo(() => {
               className={styles.mention}
             />
           </MentionsInput>
+          {isExpanded && (
+            <ComposerAttachments
+              items={pendingAttachments.items.map(({ localId, kind, name, previewUrl }) => ({
+                key: localId,
+                kind,
+                name,
+                previewUrl,
+              }))}
+              onFilesAdd={pendingAttachments.addFiles}
+              onLinkAdd={pendingAttachments.addLink}
+              onRemove={pendingAttachments.remove}
+            />
+          )}
         </div>
-        {(isOpened || data.text.length > 0) && (
+        {isExpanded && (
           <div className={styles.controls}>
             <Button
               {...clickAwayProps} // eslint-disable-line react/jsx-props-no-spreading

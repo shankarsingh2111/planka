@@ -5,7 +5,7 @@
 
 import { dequal } from 'dequal';
 import { keyBy } from 'lodash';
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
@@ -19,15 +19,29 @@ import { useForm, useNestedRef } from '../../../hooks';
 import { isUsernameChar, mentionTextToMarkup } from '../../../utils/mentions';
 import { focusEnd } from '../../../utils/element-helpers';
 import { isModifierKeyPressed } from '../../../utils/event-helpers';
+import { FORMAT_BY_SHORTCUT_KEY } from '../../../utils/markdown-format';
 import UserAvatar from '../../users/UserAvatar';
+import { getStoredAttachmentChipProps } from '../../attachments/AttachmentChip';
+import {
+  ComposerAttachments,
+  FormattingToolbar,
+  useAttachmentDropTarget,
+  useMarkdownFormatting,
+  usePendingAttachments,
+} from '../CommentComposer';
 
 import styles from './Edit.module.scss';
 
 const Edit = React.memo(({ commentId, onClose }) => {
   const selectCommentById = useMemo(() => selectors.makeSelectCommentById(), []);
+  const selectAttachmentsByCommentId = useMemo(
+    () => selectors.makeSelectAttachmentsByCommentId(),
+    [],
+  );
 
   const comment = useSelector((state) => selectCommentById(state, commentId));
   const boardMemberships = useSelector(selectors.selectMembershipsForCurrentBoard);
+  const attachments = useSelector((state) => selectAttachmentsByCommentId(state, commentId));
 
   const dispatch = useDispatch();
   const [t] = useTranslation();
@@ -50,6 +64,22 @@ const Edit = React.memo(({ commentId, onClose }) => {
   const [submitButtonRef, handleSubmitButtonRef] = useNestedRef();
   const [cancelButtonRef, handleCancelButtonRef] = useNestedRef();
 
+  const pendingAttachments = usePendingAttachments();
+  const [removedAttachmentIds, setRemovedAttachmentIds] = useState(() => new Set());
+
+  const setText = useCallback(
+    (text) => {
+      setData({
+        text,
+      });
+    },
+    [setData],
+  );
+
+  const applyFormat = useMarkdownFormatting(textInputRef, data.text, setText);
+
+  useAttachmentDropTarget(textFieldRef, pendingAttachments.addFiles);
+
   const userByUsername = useMemo(
     () =>
       keyBy(
@@ -65,12 +95,38 @@ const Edit = React.memo(({ commentId, onClose }) => {
       text: mentionTextToMarkup(data.text.trim(), userByUsername),
     };
 
-    if (cleanData.text && !dequal(cleanData, defaultData)) {
-      dispatch(entryActions.updateComment(commentId, cleanData));
+    const isTextChanged = !dequal(cleanData, defaultData);
+    const removeAttachmentIds = [...removedAttachmentIds];
+    const addAttachments = pendingAttachments.toData();
+
+    const attachmentsTotal =
+      attachments.length - removeAttachmentIds.length + addAttachments.length;
+
+    // A comment left with neither text nor attachments keeps what it had
+    if (cleanData.text || attachmentsTotal > 0) {
+      if (isTextChanged || removeAttachmentIds.length > 0 || addAttachments.length > 0) {
+        dispatch(
+          entryActions.updateComment(commentId, isTextChanged ? cleanData : null, {
+            addAttachments,
+            removeAttachmentIds,
+          }),
+        );
+      }
     }
 
+    pendingAttachments.clear();
     onClose();
-  }, [commentId, onClose, dispatch, defaultData, data, userByUsername]);
+  }, [
+    commentId,
+    onClose,
+    dispatch,
+    defaultData,
+    data,
+    userByUsername,
+    attachments,
+    removedAttachmentIds,
+    pendingAttachments,
+  ]);
 
   const handleSubmit = useCallback(() => {
     submit();
@@ -87,9 +143,17 @@ const Edit = React.memo(({ commentId, onClose }) => {
 
   const handleFieldKeyDown = useCallback(
     (event) => {
-      if (event.key === 'Enter') {
-        if (isModifierKeyPressed(event)) {
+      if (isModifierKeyPressed(event)) {
+        if (event.key === 'Enter') {
           submit();
+          return;
+        }
+
+        const format = FORMAT_BY_SHORTCUT_KEY[event.key.toLowerCase()];
+
+        if (format) {
+          event.preventDefault();
+          applyFormat(format);
         }
       } else if (event.key === 'Escape') {
         if (textMentionsRef.current.isOpened()) {
@@ -100,7 +164,7 @@ const Edit = React.memo(({ commentId, onClose }) => {
         onClose();
       }
     },
-    [onClose, submit],
+    [onClose, submit, applyFormat],
   );
 
   const handleCancelClick = useCallback(() => {
@@ -127,13 +191,51 @@ const Edit = React.memo(({ commentId, onClose }) => {
     [],
   );
 
+  const handleAttachmentRemove = useCallback(
+    (key) => {
+      if (attachments.some(({ id }) => id === key)) {
+        setRemovedAttachmentIds((prevIds) => {
+          const nextIds = new Set(prevIds);
+
+          if (nextIds.has(key)) {
+            nextIds.delete(key);
+          } else {
+            nextIds.add(key);
+          }
+
+          return nextIds;
+        });
+      } else {
+        pendingAttachments.remove(key);
+      }
+    },
+    [attachments, pendingAttachments],
+  );
+
   useEffect(() => {
     focusEnd(textInputRef.current);
   }, []);
 
+  const attachmentItems = [
+    ...attachments
+      .filter(({ isPersisted }) => isPersisted)
+      .map((attachment) => ({
+        key: attachment.id,
+        ...getStoredAttachmentChipProps(attachment),
+        isMarked: removedAttachmentIds.has(attachment.id),
+      })),
+    ...pendingAttachments.items.map(({ localId, kind, name, previewUrl }) => ({
+      key: localId,
+      kind,
+      name,
+      previewUrl,
+    })),
+  ];
+
   return (
     <Form onSubmit={handleSubmit}>
-      <div ref={textFieldRef} className={styles.field}>
+      <div ref={textFieldRef} className={styles.field} onPaste={pendingAttachments.handlePaste}>
+        <FormattingToolbar onFormat={applyFormat} />
         <MentionsInput
           {...clickAwayProps} // eslint-disable-line react/jsx-props-no-spreading
           allowSpaceInQuery
@@ -163,6 +265,12 @@ const Edit = React.memo(({ commentId, onClose }) => {
             className={styles.mention}
           />
         </MentionsInput>
+        <ComposerAttachments
+          items={attachmentItems}
+          onFilesAdd={pendingAttachments.addFiles}
+          onLinkAdd={pendingAttachments.addLink}
+          onRemove={handleAttachmentRemove}
+        />
       </div>
       <div className={styles.controls}>
         <Button
