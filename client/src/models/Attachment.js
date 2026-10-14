@@ -48,6 +48,11 @@ export default class extends BaseModel {
       as: 'creatorUser',
       relatedName: 'createdAttachments',
     }),
+    commentId: fk({
+      to: 'Comment',
+      as: 'comment',
+      relatedName: 'attachments',
+    }),
   };
 
   static reducer({ type, payload }, Attachment) {
@@ -122,6 +127,20 @@ export default class extends BaseModel {
 
         break;
       }
+      // A deleted comment takes its attachments along
+      case ActionTypes.COMMENT_DELETE:
+        Attachment.filter({
+          commentId: payload.id,
+        }).delete();
+
+        break;
+      case ActionTypes.COMMENT_DELETE__SUCCESS:
+      case ActionTypes.COMMENT_DELETE_HANDLE:
+        Attachment.filter({
+          commentId: payload.comment.id,
+        }).delete();
+
+        break;
       default:
     }
   }

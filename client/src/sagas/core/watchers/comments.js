@@ -15,14 +15,16 @@ export default function* commentsWatchers() {
     ),
     takeEvery(
       EntryActionTypes.COMMENT_IN_CURRENT_CARD_CREATE,
-      ({ payload: { data, syncToHippo } }) =>
-        services.createCommentInCurrentCard(data, { syncToHippo }),
+      ({ payload: { data, syncToHippo, attachments } }) =>
+        services.createCommentInCurrentCard(data, { syncToHippo, attachments }),
     ),
     takeEvery(EntryActionTypes.COMMENT_CREATE_HANDLE, ({ payload: { comment, users } }) =>
       services.handleCommentCreate(comment, users),
     ),
-    takeEvery(EntryActionTypes.COMMENT_UPDATE, ({ payload: { id, data } }) =>
-      services.updateComment(id, data),
+    takeEvery(
+      EntryActionTypes.COMMENT_UPDATE,
+      ({ payload: { id, data, addAttachments, removeAttachmentIds } }) =>
+        services.updateComment(id, data, { addAttachments, removeAttachmentIds }),
     ),
     takeEvery(EntryActionTypes.COMMENT_UPDATE_HANDLE, ({ payload: { comment } }) =>
       services.handleCommentUpdate(comment),

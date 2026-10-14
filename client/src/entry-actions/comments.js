@@ -10,11 +10,12 @@ const fetchCommentsInCurrentCard = () => ({
   payload: {},
 });
 
-const createCommentInCurrentCard = (data, { syncToHippo = false } = {}) => ({
+const createCommentInCurrentCard = (data, { syncToHippo = false, attachments = [] } = {}) => ({
   type: EntryActionTypes.COMMENT_IN_CURRENT_CARD_CREATE,
   payload: {
     data,
     syncToHippo,
+    attachments,
   },
 });
 
@@ -26,11 +27,14 @@ const handleCommentCreate = (comment, users) => ({
   },
 });
 
-const updateComment = (id, data) => ({
+// data is null when only the attachments change
+const updateComment = (id, data, { addAttachments = [], removeAttachmentIds = [] } = {}) => ({
   type: EntryActionTypes.COMMENT_UPDATE,
   payload: {
     id,
     data,
+    addAttachments,
+    removeAttachmentIds,
   },
 });
 
