@@ -76,34 +76,27 @@ export const getDraggedDates = (item, range, mode, deltaUnits, zoomLevel) => {
   const span = diffInUnits(range.start, range.end, zoomLevel);
 
   // Moving or dragging the start edge works from the start as drawn, which for a due-only item is
-  // the beginning of its due day, so either gesture gives it the start date it was missing
+  // the beginning of its due day, so either gesture gives it the start date it was missing. An
+  // open-ended item likewise gets the end it is drawn with as its due date, from any gesture.
+  const dueDate = item.dueDate || range.end;
+
   if (mode === DragModes.MOVE) {
     return {
       startDate: shift(range.start, deltaUnits),
-      dueDate: shift(item.dueDate, deltaUnits),
+      dueDate: shift(dueDate, deltaUnits),
     };
   }
 
   if (mode === DragModes.RESIZE_START) {
     return {
       startDate: shift(range.start, Math.min(deltaUnits, span)),
-      dueDate: item.dueDate,
+      dueDate,
     };
   }
 
-  const delta = Math.max(deltaUnits, -span);
-
-  if (item.dueDate) {
-    return {
-      startDate: item.startDate,
-      dueDate: shift(item.dueDate, delta),
-    };
-  }
-
-  // Open-ended item: resizing the end commits a real due date
   return {
     startDate: item.startDate,
-    dueDate: shift(range.end, delta),
+    dueDate: shift(dueDate, Math.max(deltaUnits, -span)),
   };
 };
 

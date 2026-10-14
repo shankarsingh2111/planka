@@ -54,11 +54,27 @@ describe('getItemRange', () => {
     expect(range.isStartMissing).toBe(true);
   });
 
-  test('gives start-only items an open-ended week', () => {
-    const range = getItemRange({ startDate: day('2026-09-01') });
+  test('gives a start-only item a working day of slots', () => {
+    const range = getItemRange({ startDate: new Date(2026, 8, 1, 9, 0) });
 
     expect(range.isOpenEnded).toBe(true);
-    expect(diffInDays(range.start, range.end)).toBe(6);
+    expect(range.start).toEqual(new Date(2026, 8, 1, 9, 0));
+    expect(range.end).toEqual(new Date(2026, 8, 1, 21, 0));
+    expect(diffInSlots(range.start, range.end)).toBe(SLOTS_PER_DAY - 1);
+  });
+
+  test('rolls a start-only item starting mid-day over to the next day', () => {
+    const range = getItemRange({ startDate: new Date(2026, 8, 1, 15, 0) });
+
+    expect(range.end).toEqual(new Date(2026, 8, 2, 13, 0));
+    expect(diffInSlots(range.start, range.end)).toBe(SLOTS_PER_DAY - 1);
+  });
+
+  test('keeps six slots for a start-only item starting after working hours', () => {
+    const range = getItemRange({ startDate: new Date(2026, 8, 1, 22, 0) });
+
+    expect(range.end).toEqual(new Date(2026, 8, 2, 17, 0));
+    expect(diffInSlots(range.start, range.end)).toBe(SLOTS_PER_DAY - 1);
   });
 
   test('returns null without dates', () => {
@@ -254,6 +270,18 @@ describe('packRows', () => {
     const rowIndexById = Object.fromEntries(rows.map((row) => [row.id, row.rowIndex]));
 
     expect(rowIndexById).toEqual({ a: 0, c: 1, b: 1 });
+  });
+
+  test('puts completed items on rows under the open ones', () => {
+    const rows = packRows([
+      { ...entry('a', '2026-09-01', '2026-09-03'), item: { isCompleted: true } },
+      { ...entry('b', '2026-09-04', '2026-09-06'), item: {} },
+      { ...entry('c', '2026-09-02', '2026-09-05'), item: {} },
+    ]);
+
+    const rowIndexById = Object.fromEntries(rows.map((row) => [row.id, row.rowIndex]));
+
+    expect(rowIndexById).toEqual({ c: 0, b: 1, a: 2 });
   });
 });
 

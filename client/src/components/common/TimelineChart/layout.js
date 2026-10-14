@@ -160,9 +160,13 @@ const buildLayout = ({
     }
 
     // A collapsed lane keeps every bar but squashes them onto one row, so it stays a
-    // drop target and still shows where its work sits on the scale
+    // drop target and still shows where its work sits on the scale. Completed bars are drawn
+    // first, so where they overlap open ones they sit underneath.
     const rowEntries = isCollapsed
-      ? packed.map((entry) => ({ ...entry, rowIndex: 0 }))
+      ? [
+          ...packed.filter(({ item }) => item.isCompleted),
+          ...packed.filter(({ item }) => !item.isCompleted),
+        ].map((entry) => ({ ...entry, rowIndex: 0 }))
       : packed.map((entry) =>
           isRepeatsCollapsed && entry.item.seriesId
             ? {

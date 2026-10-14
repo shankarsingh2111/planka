@@ -56,6 +56,39 @@ describe('getDraggedDates for a card with both dates', () => {
   });
 });
 
+describe('getDraggedDates for a card with only a start date', () => {
+  const item = { startDate: new Date(2026, 8, 22, 9, 0) };
+  const range = getItemRange(item);
+
+  it('gives it the due date it is drawn with when moved', () => {
+    expect(getDraggedDates(item, range, DragModes.MOVE, 2, ZoomLevels.WEEK)).toEqual({
+      startDate: new Date(2026, 8, 24, 9, 0),
+      dueDate: new Date(2026, 8, 24, 21, 0),
+    });
+  });
+
+  it('gives it the due date it is drawn with when moved by slots', () => {
+    expect(getDraggedDates(item, range, DragModes.MOVE, 1, ZoomLevels.DAY)).toEqual({
+      startDate: new Date(2026, 8, 22, 11, 0),
+      dueDate: new Date(2026, 8, 23, 9, 0),
+    });
+  });
+
+  it('keeps the drawn end as its due date when its start edge is dragged', () => {
+    expect(getDraggedDates(item, range, DragModes.RESIZE_START, -1, ZoomLevels.WEEK)).toEqual({
+      startDate: new Date(2026, 8, 21, 9, 0),
+      dueDate: new Date(2026, 8, 22, 21, 0),
+    });
+  });
+
+  it('gives it a due date when its end edge is dragged', () => {
+    expect(getDraggedDates(item, range, DragModes.RESIZE_END, 1, ZoomLevels.WEEK)).toEqual({
+      startDate: new Date(2026, 8, 22, 9, 0),
+      dueDate: new Date(2026, 8, 23, 21, 0),
+    });
+  });
+});
+
 describe('getAutoScrollDirection', () => {
   // Lane headers take the first 220px, the date header the first 60px
   const rect = { left: 0, top: 0, right: 1000, bottom: 600 };

@@ -42,7 +42,6 @@ export const COMPACT_ROW_HEIGHT = 20;
 export const COMPACT_BAR_HEIGHT = 10;
 export const LANE_PADDING = 6;
 export const MIN_LANE_HEIGHT = ROW_HEIGHT + LANE_PADDING * 2;
-export const OPEN_ENDED_DURATION_DAYS = 7;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -201,12 +200,18 @@ export const getItemRange = ({ startDate, dueDate }) => {
     return { start, end, isStartMissing: true };
   }
 
+  // Start-only: drawn over a working day's worth of slots from the one it starts in, rolling over
+  // to the next working day when it starts late, and flagged so the bar can show that its end is
+  // still to be set. The end is the slot drawn last; one in the last slot of a day says 9 PM,
+  // like a due-only or dropped card's.
   if (startDate) {
-    return {
-      start: startDate,
-      end: addDays(startDate, OPEN_ENDED_DURATION_DAYS - 1),
-      isOpenEnded: true,
-    };
+    const end = addSlots(startDate, SLOTS_PER_DAY - 1);
+
+    if (getSlotOfDay(end) === SLOTS_PER_DAY - 1) {
+      end.setHours(WORK_DAY_END_HOUR, 0, 0, 0);
+    }
+
+    return { start: startDate, end, isOpenEnded: true };
   }
 
   return null;
@@ -242,41 +247,79 @@ export const getViewRange = (ranges, zoomLevel) => {
   };
 };
 
-// Greedy interval packing: places each item in the first row where it doesn't overlap.
-// Packing works on whole days, so bars stay clear of each other at every zoom level.
-export const packRows = (entries) => {
+/**
+ * Packs completed cards on rows of their own under the open ones, so a closed card never sits
+ * among (or claims a row above) work still to do. `pack` must return its entries in the order it
+ * was given them; so does this.
+ */
+const packOpenFirst = (entries, pack) => {
+  const openIndexes = [];
+  const completedIndexes = [];
+
+  entries.forEach(({ item }, index) => {
+    (item && item.isCompleted ? completedIndexes : openIndexes).push(index);
+  });
+
+  if (openIndexes.length === 0 || completedIndexes.length === 0) {
+    return pack(entries);
+  }
+
+  const openPacked = pack(openIndexes.map((index) => entries[index]));
+  const completedPacked = pack(completedIndexes.map((index) => entries[index]));
+  const openRowCount = openPacked.reduce((max, { rowIndex }) => Math.max(max, rowIndex + 1), 0);
+
+  const result = [];
+
+  openPacked.forEach((entry, position) => {
+    result[openIndexes[position]] = entry;
+  });
+
+  completedPacked.forEach((entry, position) => {
+    result[completedIndexes[position]] = {
+      ...entry,
+      rowIndex: entry.rowIndex + openRowCount,
+    };
+  });
+
+  return result;
+};
+
+const sortByStart = (entries) =>
+  entries.slice().sort((a, b) => a.range.start - b.range.start || a.range.end - b.range.end);
+
+const packByStart = (entries) => {
   const rowEnds = [];
 
-  return entries
-    .slice()
-    .sort((a, b) => a.range.start - b.range.start || a.range.end - b.range.end)
-    .map((entry) => {
-      const start = startOfDay(entry.range.start);
-      const end = startOfDay(entry.range.end);
+  return entries.map((entry) => {
+    const start = startOfDay(entry.range.start);
+    const end = startOfDay(entry.range.end);
 
-      let rowIndex = rowEnds.findIndex((rowEnd) => rowEnd < start);
+    let rowIndex = rowEnds.findIndex((rowEnd) => rowEnd < start);
 
-      if (rowIndex === -1) {
-        rowIndex = rowEnds.length;
-        rowEnds.push(end);
-      } else {
-        rowEnds[rowIndex] = end;
-      }
+    if (rowIndex === -1) {
+      rowIndex = rowEnds.length;
+      rowEnds.push(end);
+    } else {
+      rowEnds[rowIndex] = end;
+    }
 
-      return {
-        ...entry,
-        rowIndex,
-      };
-    });
+    return {
+      ...entry,
+      rowIndex,
+    };
+  });
 };
+
+// Greedy interval packing: places each item in the first row where it doesn't overlap.
+// Packing works on whole days, so bars stay clear of each other at every zoom level.
+// Completed cards go on rows under the open ones. Entries come back sorted by start.
+export const packRows = (entries) => packOpenFirst(sortByStart(entries), packByStart);
 
 // Whole-day overlap, matching packRows: a bar ending on the day another starts still collides
 const overlapsAny = (intervals, start, end) =>
   intervals.some((interval) => !(interval.end < start || interval.start > end));
 
-// First fit in the order given: each entry takes the topmost row it does not collide with, so
-// whatever comes first in the sequence gets first claim on the upper rows
-export const packInSequence = (entries) => {
+const packFirstFit = (entries) => {
   const rows = [];
 
   return entries.map((entry) => {
@@ -298,6 +341,11 @@ export const packInSequence = (entries) => {
     };
   });
 };
+
+// First fit in the order given: each entry takes the topmost row it does not collide with, so
+// whatever comes first in the sequence gets first claim on the upper rows. Completed cards go on
+// rows under the open ones. Entries come back in the order given.
+export const packInSequence = (entries) => packOpenFirst(entries, packFirstFit);
 
 export const sortByOrder = (entries) =>
   entries.slice().sort((a, b) => a.item.order - b.item.order || a.range.start - b.range.start);

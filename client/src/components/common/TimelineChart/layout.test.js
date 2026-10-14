@@ -189,3 +189,23 @@ describe('dragging a stacked card sideways', () => {
     expect(getSlotAtY(layout, layout.totalHeight + 5)).toBeNull();
   });
 });
+
+describe('completed cards', () => {
+  const items = [
+    { ...card('done', 1, '2026-09-01', '2026-09-05'), isCompleted: true },
+    card('open', 2, '2026-09-03', '2026-09-08'),
+  ];
+
+  test('go on rows under the open cards, whatever their order', () => {
+    const [lane] = build(items).lanes;
+
+    expect(rowsOf(lane)).toEqual({ open: 0, done: 1 });
+  });
+
+  test('are drawn first in a collapsed lane, so open bars sit on top', () => {
+    const [lane] = build(items, { collapsedLaneKeys: ['l1'] }).lanes;
+
+    expect(lane.entries.map(({ item }) => item.id)).toEqual(['done', 'open']);
+    expect(rowsOf(lane)).toEqual({ open: 0, done: 0 });
+  });
+});
