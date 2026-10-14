@@ -73,7 +73,6 @@ module.exports = {
     },
     text: {
       type: 'string',
-      isNotEmptyString: true,
       maxLength: 1048576,
     },
   },

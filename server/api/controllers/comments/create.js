@@ -26,8 +26,6 @@
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - text
  *             properties:
  *               text:
  *                 type: string
@@ -76,7 +74,7 @@ module.exports = {
     text: {
       type: 'string',
       maxLength: 1048576,
-      required: true,
+      defaultsTo: '',
     },
   },
 

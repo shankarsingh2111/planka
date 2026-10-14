@@ -39,6 +39,11 @@
  *           nullable: true
  *           description: ID of the user who created the attachment
  *           example: "1357158568008091266"
+ *         commentId:
+ *           type: string
+ *           nullable: true
+ *           description: ID of the comment the attachment was added with
+ *           example: "1357158568008091267"
  *         type:
  *           type: string
  *           enum: [file, link]
@@ -109,6 +114,10 @@ module.exports = {
     creatorUserId: {
       model: 'User',
       columnName: 'creator_user_id',
+    },
+    commentId: {
+      model: 'Comment',
+      columnName: 'comment_id',
     },
   },
 };
