@@ -5,5 +5,6 @@
 
 import ClosableContext from './ClosableContext';
 import BoardShortcutsContext from './BoardShortcutsContext';
+import AttachmentDropContext from './AttachmentDropContext';
 
-export { ClosableContext, BoardShortcutsContext };
+export { ClosableContext, BoardShortcutsContext, AttachmentDropContext };

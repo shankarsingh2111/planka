@@ -3,7 +3,7 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { useDispatch } from 'react-redux';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +12,7 @@ import { closePopup } from '../../../../lib/popup';
 
 import entryActions from '../../../../entry-actions';
 import { useModal } from '../../../../hooks';
+import { AttachmentDropContext } from '../../../../contexts';
 import { isUrl } from '../../../../utils/validator';
 import { isActiveTextElement } from '../../../../utils/element-helpers';
 import { AttachmentTypes } from '../../../../constants/Enums';
@@ -50,8 +51,46 @@ const AddAttachmentZone = React.memo(({ children }) => {
     [dispatch],
   );
 
+  const dropTargetsRef = useRef(new Set());
+
+  const registerDropTarget = useCallback((elementRef, onFiles) => {
+    const target = {
+      elementRef,
+      onFiles,
+    };
+
+    dropTargetsRef.current.add(target);
+
+    return () => {
+      dropTargetsRef.current.delete(target);
+    };
+  }, []);
+
+  // The drop overlay covers the whole modal, so a target is found by where the pointer was
   const handleDropAccepted = useCallback(
-    (files) => {
+    (files, event) => {
+      const target =
+        event &&
+        [...dropTargetsRef.current].find(({ elementRef }) => {
+          if (!elementRef.current) {
+            return false;
+          }
+
+          const rect = elementRef.current.getBoundingClientRect();
+
+          return (
+            event.clientX >= rect.left &&
+            event.clientX <= rect.right &&
+            event.clientY >= rect.top &&
+            event.clientY <= rect.bottom
+          );
+        });
+
+      if (target) {
+        target.onFiles(files);
+        return;
+      }
+
       files.forEach((file) => {
         submitFile(file);
       });
@@ -129,7 +168,7 @@ const AddAttachmentZone = React.memo(({ children }) => {
   }, [openModal, submitFile, submitLink]);
 
   return (
-    <>
+    <AttachmentDropContext.Provider value={registerDropTarget}>
       {/* eslint-disable-next-line react/jsx-props-no-spreading */}
       <div {...getRootProps()}>
         {isDragActive && (
@@ -148,7 +187,7 @@ const AddAttachmentZone = React.memo(({ children }) => {
           onClose={handleModalClose}
         />
       )}
-    </>
+    </AttachmentDropContext.Provider>
   );
 });
 
