@@ -134,6 +134,34 @@ describe('hippo', () => {
         '<p>A &lt;b&gt; (via Planka): @deepak please check &lt;b&gt;this&lt;/b&gt; &amp; reply<br>Thanks</p>',
       );
     });
+
+    it('lists attachments as links after the text', () => {
+      expect(
+        buildNoteHtml('Divya', 'See files', [
+          { name: 'log.txt', url: 'https://planka.example/attachments/1/download/log.txt' },
+          { name: 'Docs', url: 'https://docs.example/page' },
+        ]),
+      ).to.equal(
+        '<p>Divya (via Planka): See files</p>' +
+          '<p>Attachments:<br>' +
+          '<a href="https://planka.example/attachments/1/download/log.txt">log.txt</a><br>' +
+          '<a href="https://docs.example/page">Docs</a></p>',
+      );
+    });
+
+    it('escapes attachment names and urls', () => {
+      expect(
+        buildNoteHtml('Divya', '', [{ name: 'a <b> & "c"', url: 'https://x.example/?q="1"&r=2' }]),
+      ).to.equal(
+        '<p>Divya (via Planka): </p>' +
+          '<p>Attachments:<br>' +
+          '<a href="https://x.example/?q=&quot;1&quot;&amp;r=2">a &lt;b&gt; &amp; &quot;c&quot;</a></p>',
+      );
+    });
+
+    it('adds nothing when there are no attachments', () => {
+      expect(buildNoteHtml('Divya', 'Hi', [])).to.equal('<p>Divya (via Planka): Hi</p>');
+    });
   });
 
   describe('assignees', () => {

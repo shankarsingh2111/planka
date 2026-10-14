@@ -137,9 +137,16 @@ module.exports = {
       .getAppSecretKey(project.id)
       .intercept('hippoNotConfigured', () => HippoErrors.HIPPO_NOT_CONFIGURED);
 
-    // ---- Step 3: Post the comment as a note, led by its author ----
+    // ---- Step 3: Post the comment as a note, led by its author and followed by its attachments ----
     const author =
       comment.userId === currentUser.id ? currentUser : await User.qm.getOneById(comment.userId);
+
+    const attachments = await Attachment.qm.getByCommentId(comment.id);
+
+    const attachmentLinks = attachments.map((attachment) => ({
+      name: attachment.name,
+      url: sails.helpers.attachments.presentOne(attachment).data.url,
+    }));
 
     await interceptHippoExits(
       sails.helpers.hippo.addNote.with({
@@ -148,6 +155,7 @@ module.exports = {
         note: buildNoteHtml(
           author ? author.name : 'Unknown user',
           mentionMarkupToText(comment.text),
+          attachmentLinks,
         ),
       }),
     );

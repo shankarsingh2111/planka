@@ -136,10 +136,20 @@ const htmlToMarkdown = (html) => {
 };
 
 // Hippo shows notes added through its API as written by the business, so the Planka author leads
-const buildNoteHtml = (authorName, text) => {
+// Attachments follow the text as links: files by their Planka download address, links as they are
+const buildNoteHtml = (authorName, text, links = []) => {
   const body = escapeHtml(text.trim()).replace(/\r?\n/g, '<br>');
+  const note = `<p>${escapeHtml(authorName)} (via Planka): ${body}</p>`;
 
-  return `<p>${escapeHtml(authorName)} (via Planka): ${body}</p>`;
+  if (links.length === 0) {
+    return note;
+  }
+
+  const items = links
+    .map(({ name, url }) => `<a href="${escapeHtml(url)}">${escapeHtml(name)}</a>`)
+    .join('<br>');
+
+  return `${note}<p>Attachments:<br>${items}</p>`;
 };
 
 /* People */
