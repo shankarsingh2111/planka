@@ -35,6 +35,24 @@ module.exports = {
   },
 
   async fn(inputs) {
+    // The comment's attachments go with it, each through the usual path so its file is cleaned
+    // up and open boards and webhooks hear about it
+    const attachments = await Attachment.qm.getByCommentId(inputs.record.id);
+
+    // eslint-disable-next-line no-restricted-syntax
+    for (const attachment of attachments) {
+      // eslint-disable-next-line no-await-in-loop
+      await sails.helpers.attachments.deleteOne.with({
+        record: attachment,
+        project: inputs.project,
+        board: inputs.board,
+        list: inputs.list,
+        card: inputs.card,
+        actorUser: inputs.actorUser,
+        request: inputs.request,
+      });
+    }
+
     const comment = await Comment.qm.deleteOne(inputs.record.id);
 
     if (comment) {
