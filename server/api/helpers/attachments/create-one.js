@@ -35,6 +35,7 @@ module.exports = {
     const attachment = await Attachment.qm.createOne({
       ...values,
       cardId: values.card.id,
+      commentId: values.comment ? values.comment.id : null,
       creatorUserId: values.creatorUser.id,
     });
 
@@ -65,7 +66,8 @@ module.exports = {
       user: values.creatorUser,
     });
 
-    if (!values.card.coverAttachmentId) {
+    // An image added with a comment stays in the comment and never becomes the cover on its own
+    if (!values.card.coverAttachmentId && !values.comment) {
       if (attachment.type === Attachment.Types.FILE && attachment.data.image) {
         await sails.helpers.cards.updateOne.with({
           webhooks,

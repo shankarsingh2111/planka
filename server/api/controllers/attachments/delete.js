@@ -8,7 +8,7 @@
  * /attachments/{id}:
  *   delete:
  *     summary: Delete attachment
- *     description: Deletes an attachment. Requires board editor permissions.
+ *     description: Deletes an attachment. Requires board editor permissions, or comment permission for an attachment on your own comment.
  *     tags:
  *       - Attachments
  *     operationId: deleteAttachment
@@ -43,6 +43,7 @@
  */
 
 const { idInput } = require('../../../utils/inputs');
+const { canManageAttachment } = require('../../../utils/comment-attachments');
 
 const Errors = {
   NOT_ENOUGH_RIGHTS: {
@@ -89,7 +90,16 @@ module.exports = {
       throw Errors.ATTACHMENT_NOT_FOUND; // Forbidden
     }
 
-    if (boardMembership.role !== BoardMembership.Roles.EDITOR) {
+    const comment = attachment.commentId ? await Comment.qm.getOneById(attachment.commentId) : null;
+
+    const canManage = canManageAttachment({
+      isEditor: boardMembership.role === BoardMembership.Roles.EDITOR,
+      canComment: boardMembership.canComment,
+      comment,
+      userId: currentUser.id,
+    });
+
+    if (!canManage) {
       throw Errors.NOT_ENOUGH_RIGHTS;
     }
 

@@ -8,7 +8,7 @@
  * /cards/{cardId}/attachments:
  *   post:
  *     summary: Create attachment
- *     description: Creates an attachment on a card. Requires board editor permissions.
+ *     description: Creates an attachment on a card, optionally on one of its comments. Requires board editor permissions, or comment permission when adding to your own comment.
  *     tags:
  *       - Attachments
  *     operationId: createAttachment
@@ -50,6 +50,10 @@
  *                 maxLength: 128
  *                 description: Name/title of the attachment
  *                 example: Important Attachment
+ *               commentId:
+ *                 type: string
+ *                 description: ID of a comment on this card to add the attachment to
+ *                 example: "1357158568008091267"
  *               requestId:
  *                 type: string
  *                 maxLength: 128
@@ -104,6 +108,7 @@ const { rimraf } = require('rimraf');
 
 const { isUrl } = require('../../../utils/validators');
 const { idInput } = require('../../../utils/inputs');
+const { canManageAttachment } = require('../../../utils/comment-attachments');
 
 const Errors = {
   NOT_ENOUGH_RIGHTS: {
@@ -111,6 +116,9 @@ const Errors = {
   },
   CARD_NOT_FOUND: {
     cardNotFound: 'Card not found',
+  },
+  COMMENT_NOT_FOUND: {
+    commentNotFound: 'Comment not found',
   },
   NO_FILE_WAS_UPLOADED: {
     noFileWasUploaded: 'No file was uploaded',
@@ -147,6 +155,7 @@ module.exports = {
       maxLength: 128,
       required: true,
     },
+    commentId: idInput,
     requestId: {
       type: 'string',
       isNotEmptyString: true,
@@ -159,6 +168,9 @@ module.exports = {
       responseType: 'forbidden',
     },
     cardNotFound: {
+      responseType: 'notFound',
+    },
+    commentNotFound: {
       responseType: 'notFound',
     },
     noFileWasUploaded: {
@@ -194,7 +206,23 @@ module.exports = {
       throw Errors.CARD_NOT_FOUND; // Forbidden
     }
 
-    if (boardMembership.role !== BoardMembership.Roles.EDITOR) {
+    let comment = null;
+    if (inputs.commentId) {
+      comment = await Comment.qm.getOneById(inputs.commentId);
+
+      if (!comment || comment.cardId !== card.id) {
+        throw Errors.COMMENT_NOT_FOUND;
+      }
+    }
+
+    const canManage = canManageAttachment({
+      isEditor: boardMembership.role === BoardMembership.Roles.EDITOR,
+      canComment: boardMembership.canComment,
+      comment,
+      userId: currentUser.id,
+    });
+
+    if (!canManage) {
       throw Errors.NOT_ENOUGH_RIGHTS;
     }
 
@@ -244,6 +272,7 @@ module.exports = {
       values: {
         ...values,
         card,
+        comment,
         creatorUser: currentUser,
       },
       requestId: inputs.requestId,
