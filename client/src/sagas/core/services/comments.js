@@ -10,6 +10,7 @@ import selectors from '../../../selectors';
 import actions from '../../../actions';
 import api from '../../../api';
 import { createLocalId } from '../../../utils/local-id';
+import { isCommentLeftEmpty } from '../../../utils/comment-composer';
 import { syncCommentToHippo } from './hippo-sync';
 import { createAttachment, deleteAttachment } from './attachments';
 
@@ -42,6 +43,20 @@ export function* fetchCommentsInCurrentCard() {
   yield call(fetchComments, cardId);
 }
 
+export function* deleteComment(id) {
+  yield put(actions.deleteComment(id));
+
+  let comment;
+  try {
+    ({ item: comment } = yield call(request, api.deleteComment, id));
+  } catch (error) {
+    yield put(actions.deleteComment.failure(id, error));
+    return;
+  }
+
+  yield put(actions.deleteComment.success(comment));
+}
+
 // Returns the comment the server created, or null when it refused. Its attachments go up once it
 // exists, one at a time. On a ticket card the user may also have chosen to post it to Hippo, which
 // happens last so the note can list them.
@@ -68,11 +83,22 @@ export function* createComment(cardId, data, { syncToHippo = false, attachments 
 
   yield put(actions.createComment.success(localId, comment));
 
+  let createdAttachmentsTotal = 0;
   for (let index = 0; index < attachments.length; index += 1) {
-    yield call(createAttachment, cardId, {
+    const attachment = yield call(createAttachment, cardId, {
       ...attachments[index],
       commentId: comment.id,
     });
+
+    if (attachment) {
+      createdAttachmentsTotal += 1;
+    }
+  }
+
+  // Each refused upload has shown its own toast; a comment that was only its attachments goes too
+  if (attachments.length > 0 && isCommentLeftEmpty(comment.text, createdAttachmentsTotal)) {
+    yield call(deleteComment, comment.id);
+    return null;
   }
 
   if (syncToHippo) {
@@ -125,20 +151,6 @@ export function* updateComment(id, data, { addAttachments = [], removeAttachment
 
 export function* handleCommentUpdate(comment) {
   yield put(actions.handleCommentUpdate(comment));
-}
-
-export function* deleteComment(id) {
-  yield put(actions.deleteComment(id));
-
-  let comment;
-  try {
-    ({ item: comment } = yield call(request, api.deleteComment, id));
-  } catch (error) {
-    yield put(actions.deleteComment.failure(id, error));
-    return;
-  }
-
-  yield put(actions.deleteComment.success(comment));
 }
 
 export function* handleCommentDelete(comment) {

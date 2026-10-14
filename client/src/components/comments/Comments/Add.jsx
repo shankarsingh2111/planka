@@ -17,6 +17,7 @@ import { useEscapeInterceptor, useForm, useNestedRef } from '../../../hooks';
 import { isUsernameChar, mentionTextToMarkup } from '../../../utils/mentions';
 import { isModifierKeyPressed } from '../../../utils/event-helpers';
 import { FORMAT_BY_SHORTCUT_KEY } from '../../../utils/markdown-format';
+import { isOtherTextFieldFocused } from '../../../utils/comment-composer';
 import UserAvatar from '../../users/UserAvatar';
 import HippoSyncModal from '../../hippo/HippoSyncModal';
 import {
@@ -181,6 +182,12 @@ const Add = React.memo(() => {
   }, []);
 
   const handleClickAwayCancel = useCallback(() => {
+    if (
+      isOtherTextFieldFocused(textFieldRef.current, textInputRef.current, document.activeElement)
+    ) {
+      return;
+    }
+
     textInputRef.current.focus();
   }, []);
 

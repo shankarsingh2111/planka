@@ -28,6 +28,7 @@ const TOAST_TYPE_BY_UPLOAD_ERROR_MESSAGE = {
   'SVG contains active content': ToastTypes.SVG_CONTAINS_ACTIVE_CONTENT,
 };
 
+// Returns the attachment the server created, or null when it was refused
 export function* createAttachment(cardId, data) {
   if (data.type === AttachmentTypes.FILE) {
     const allowedExtensions = yield select(selectors.selectAllowedAttachmentExtensions);
@@ -46,7 +47,7 @@ export function* createAttachment(cardId, data) {
         },
       });
 
-      return;
+      return null;
     }
   }
 
@@ -92,10 +93,12 @@ export function* createAttachment(cardId, data) {
       }
     }
 
-    return;
+    return null;
   }
 
   yield put(actions.createAttachment.success(localId, attachment));
+
+  return attachment;
 }
 
 export function* createAttachmentInCurrentCard(data) {

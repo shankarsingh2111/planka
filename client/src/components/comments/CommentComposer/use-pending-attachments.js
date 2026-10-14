@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { createLocalId } from '../../../utils/local-id';
+import { getPastedFiles } from '../../../utils/comment-composer';
 import { AttachmentTypes } from '../../../constants/Enums';
 import { getAttachmentKind } from '../../attachments/AttachmentChip';
 
@@ -85,19 +86,23 @@ export default () => {
     [],
   );
 
-  // Only pasted files become attachments; a text paste, links included, stays text. Stopping the
-  // event keeps the card's own paste-to-attach from taking the files as well.
+  // Only pasted files become attachments; a text paste, links included, stays text. A paste that
+  // carries files is stopped either way, so the card's own paste-to-attach doesn't take them.
   const handlePaste = useCallback(
     (event) => {
-      const files = event.clipboardData ? [...event.clipboardData.files] : [];
+      if (!event.clipboardData || event.clipboardData.files.length === 0) {
+        return;
+      }
+
+      event.stopPropagation();
+
+      const files = getPastedFiles(event.clipboardData);
 
       if (files.length === 0) {
         return;
       }
 
       event.preventDefault();
-      event.stopPropagation();
-
       addFiles(files);
     },
     [addFiles],

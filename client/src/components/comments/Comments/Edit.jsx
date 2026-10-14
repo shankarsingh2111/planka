@@ -20,6 +20,7 @@ import { isUsernameChar, mentionTextToMarkup } from '../../../utils/mentions';
 import { focusEnd } from '../../../utils/element-helpers';
 import { isModifierKeyPressed } from '../../../utils/event-helpers';
 import { FORMAT_BY_SHORTCUT_KEY } from '../../../utils/markdown-format';
+import { isOtherTextFieldFocused } from '../../../utils/comment-composer';
 import UserAvatar from '../../users/UserAvatar';
 import { getStoredAttachmentChipProps } from '../../attachments/AttachmentChip';
 import {
@@ -172,6 +173,12 @@ const Edit = React.memo(({ commentId, onClose }) => {
   }, [onClose]);
 
   const handleClickAwayCancel = useCallback(() => {
+    if (
+      isOtherTextFieldFocused(textFieldRef.current, textInputRef.current, document.activeElement)
+    ) {
+      return;
+    }
+
     textInputRef.current.focus();
   }, []);
 
