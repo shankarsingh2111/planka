@@ -18,6 +18,7 @@ import { isListArchiveOrTrash, isUserStatic } from '../../../utils/record-helper
 import { BoardMembershipRoles } from '../../../constants/Enums';
 import { ClosableContext } from '../../../contexts';
 import Edit from './Edit';
+import CommentAttachments from './CommentAttachments';
 import TimeAgo from '../../common/TimeAgo';
 import Markdown from '../../common/Markdown';
 import ConfirmationStep from '../../common/ConfirmationStep';
@@ -29,9 +30,15 @@ const Item = React.memo(({ id }) => {
   const selectCommentById = useMemo(() => selectors.makeSelectCommentById(), []);
   const selectUserById = useMemo(() => selectors.makeSelectUserById(), []);
   const selectListById = useMemo(() => selectors.makeSelectListById(), []);
+  const selectAttachmentsByCommentId = useMemo(
+    () => selectors.makeSelectAttachmentsByCommentId(),
+    [],
+  );
 
   const comment = useSelector((state) => selectCommentById(state, id));
   const user = useSelector((state) => selectUserById(state, comment.userId));
+
+  const hasAttachments = useSelector((state) => selectAttachmentsByCommentId(state, id).length > 0);
 
   const isCurrentUser = useSelector(
     (state) => comment.userId === selectors.selectCurrentUserId(state),
@@ -112,7 +119,8 @@ const Item = React.memo(({ id }) => {
                   })
                 : user.name}
             </div>
-            <Markdown>{comment.text}</Markdown>
+            {comment.text && <Markdown>{comment.text}</Markdown>}
+            <CommentAttachments commentId={id} />
             <Comment.Actions className={styles.information}>
               <span className={styles.date}>
                 <TimeAgo date={comment.createdAt} />
@@ -130,7 +138,11 @@ const Item = React.memo(({ id }) => {
                   {canDelete && (
                     <ConfirmationPopup
                       title="common.deleteComment"
-                      content="common.areYouSureYouWantToDeleteThisComment"
+                      content={
+                        hasAttachments
+                          ? 'common.areYouSureYouWantToDeleteThisCommentAndItsAttachments'
+                          : 'common.areYouSureYouWantToDeleteThisComment'
+                      }
                       buttonContent="action.deleteComment"
                       onConfirm={handleDeleteConfirm}
                     >

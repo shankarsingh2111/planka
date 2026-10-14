@@ -14,6 +14,7 @@ import { useToggle } from '../../../lib/hooks';
 import selectors from '../../../selectors';
 import { ClosableContext } from '../../../contexts';
 import Item from './Item';
+import { GALLERY_OPTIONS } from './gallery';
 
 import styles from './Attachments.module.scss';
 
@@ -67,26 +68,7 @@ const Attachments = React.memo(({ hideImagesWhenNotAllVisible }) => {
       <Gallery
         withCaption
         withDownloadButton
-        options={{
-          wheelToZoom: true,
-          showHideAnimationType: 'none',
-          closeTitle: '',
-          zoomTitle: '',
-          arrowPrevTitle: '',
-          arrowNextTitle: '',
-          errorMsg: '',
-          paddingFn: (viewportSize) => {
-            const paddingX = viewportSize.x / 20;
-            const paddingY = viewportSize.y / 20;
-
-            return {
-              top: paddingX,
-              bottom: paddingX,
-              left: paddingY,
-              right: paddingY,
-            };
-          },
-        }}
+        options={GALLERY_OPTIONS}
         onBeforeOpen={handleBeforeGalleryOpen}
       >
         {itemsNode}

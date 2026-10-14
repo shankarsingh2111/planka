@@ -126,6 +126,13 @@ const ItemContent = React.forwardRef(({ id, onOpen }, ref) => {
         <span className={styles.name}>{attachment.name}</span>
         <span className={styles.information}>
           <TimeAgo date={attachment.createdAt} />
+          {attachment.commentId && (
+            <Icon
+              name="comment outline"
+              title={t('common.attachedToComment')}
+              className={styles.commentMarker}
+            />
+          )}
         </span>
         {attachment.type === AttachmentTypes.FILE && (
           <span className={styles.options}>

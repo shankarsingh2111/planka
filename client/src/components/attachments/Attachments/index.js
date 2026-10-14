@@ -5,4 +5,6 @@
 
 import Attachments from './Attachments';
 
+export { GALLERY_OPTIONS, buildGalleryItemProps } from './gallery';
+
 export default Attachments;

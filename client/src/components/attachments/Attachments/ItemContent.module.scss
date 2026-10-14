@@ -4,6 +4,10 @@
  */
 
 :global(#app) {
+  .commentMarker {
+    margin-left: 6px;
+  }
+
   .details {
     box-sizing: border-box;
     padding: 6px 32px 6px 128px;
