@@ -23,3 +23,39 @@ export const mentionMarkupToText = (markup) =>
   markup.replace(MENTION_MARKUP_REGEX, (_, username) => `@${username}`);
 
 export const isUsernameChar = (char) => USERNAME_CHAR_REGEX.test(char);
+
+// The input shows "@name" where the text holds "@[name](id)", so a caret position in one is not
+// the same in the other. A position inside a mention snaps to its end.
+export const plainToMarkupIndex = (markup, plainIndex) => {
+  const matches = [...markup.matchAll(MENTION_MARKUP_REGEX)];
+
+  let plainPosition = 0;
+  let markupPosition = 0;
+
+  for (let index = 0; index < matches.length; index += 1) {
+    const match = matches[index];
+    const gap = match.index - markupPosition;
+
+    if (plainIndex <= plainPosition + gap) {
+      break;
+    }
+
+    plainPosition += gap;
+    markupPosition = match.index;
+
+    const plainLength = match[1].length + 1;
+
+    if (plainIndex <= plainPosition + plainLength) {
+      return markupPosition + match[0].length;
+    }
+
+    plainPosition += plainLength;
+    markupPosition += match[0].length;
+  }
+
+  return markupPosition + (plainIndex - plainPosition);
+};
+
+// Only meant for positions outside mention markup, which is all the formatting toolbar produces
+export const markupToPlainIndex = (markup, markupIndex) =>
+  mentionMarkupToText(markup.slice(0, markupIndex)).length;
