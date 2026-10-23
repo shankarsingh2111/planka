@@ -13,6 +13,7 @@ import { usePopup } from '../../../lib/popup';
 
 import selectors from '../../../selectors';
 import { BoardViews } from '../../../constants/Enums';
+import { useIsBoardTimelineExpanded } from '../../../utils/timeline-expanded';
 import Home from '../Home';
 import GhostError from '../GhostError';
 import Board from '../../boards/Board';
@@ -25,6 +26,7 @@ const Static = React.memo(() => {
   const board = useSelector(selectors.selectCurrentBoard);
   const isFetching = useSelector(selectors.selectIsContentFetching);
   const isFavoritesActive = useSelector(selectors.selectIsFavoritesActiveForCurrentUser);
+  const isBoardTimelineExpanded = useIsBoardTimelineExpanded(board);
 
   const canAddBoard = useSelector((state) =>
     selectors.selectIsCurrentUserManagerForCurrentProject(state),
@@ -93,8 +95,20 @@ const Static = React.memo(() => {
 
     contentNode = <Loader active size="big" />;
   } else {
+    // Matches the board tabs row that Fixed leaves out for an expanded timeline
+    let boardWrapperClassName;
+    if (!isBoardTimelineExpanded) {
+      boardWrapperClassName = isFavoritesActive
+        ? styles.wrapperBoardWithFavorites
+        : styles.wrapperBoard;
+    } else {
+      boardWrapperClassName = isFavoritesActive
+        ? styles.wrapperBoardWithoutTabsWithFavorites
+        : styles.wrapperBoardWithoutTabs;
+    }
+
     wrapperClassNames = [
-      isFavoritesActive ? styles.wrapperBoardWithFavorites : styles.wrapperBoard,
+      boardWrapperClassName,
       // These views scroll inside themselves; without clipping here the page scrolls instead and
       // slides their content under the fixed header
       [BoardViews.GRID, BoardViews.LIST, BoardViews.TIMELINE].includes(board.view) &&

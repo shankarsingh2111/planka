@@ -17,6 +17,8 @@ import { BoardMembershipRoles, BoardViews, UserRoles } from '../../../constants/
 import UserAvatar from '../../users/UserAvatar';
 import UserActionsStep from '../../users/UserActionsStep';
 import NotificationsStep from '../../notifications/NotificationsStep';
+import Boards from '../../boards/Boards';
+import { useIsBoardTimelineExpanded } from '../../../utils/timeline-expanded';
 
 import styles from './Header.module.scss';
 
@@ -31,6 +33,9 @@ const Header = React.memo(() => {
   const notificationIds = useSelector(selectors.selectNotificationIdsForCurrentUser);
   const isFavoritesEnabled = useSelector(selectors.selectIsFavoritesEnabled);
   const isEditModeEnabled = useSelector(selectors.selectIsEditModeEnabled);
+
+  // An expanded timeline gives up the board tabs row, so the tabs move up here, beside the project
+  const withBoards = useIsBoardTimelineExpanded(board);
 
   const withFavoritesToggler = useSelector(
     // TODO: use selector instead?
@@ -101,7 +106,7 @@ const Header = React.memo(() => {
       )}
       <Menu inverted size="large" className={styles.menu}>
         {project && (
-          <Menu.Menu position="left">
+          <Menu.Menu position="left" className={styles.leftMenu}>
             <Menu.Item
               as={Link}
               to={Paths.ROOT}
@@ -117,6 +122,11 @@ const Header = React.memo(() => {
                 </Button>
               )}
             </Menu.Item>
+            {withBoards && (
+              <Menu.Item className={classNames(styles.item, styles.boards)}>
+                <Boards isCompact />
+              </Menu.Item>
+            )}
           </Menu.Menu>
         )}
         <Menu.Menu position="right">

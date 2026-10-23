@@ -7,6 +7,7 @@ import React from 'react';
 import { useSelector } from 'react-redux';
 
 import selectors from '../../../selectors';
+import { useIsBoardTimelineExpanded } from '../../../utils/timeline-expanded';
 import Header from '../Header';
 import Favorites from '../Favorites';
 import HomeActions from '../HomeActions';
@@ -19,12 +20,15 @@ const Fixed = React.memo(() => {
   const { projectId } = useSelector(selectors.selectPath);
   const board = useSelector(selectors.selectCurrentBoard);
 
+  // An expanded timeline moves the board tabs into the header; the board actions take their place
+  const withBoards = !useIsBoardTimelineExpanded(board);
+
   return (
     <div className={styles.wrapper}>
       <Header />
       <Favorites />
       {projectId === undefined && <HomeActions />}
-      {projectId && <Project />}
+      {projectId && <Project withBoards={withBoards} />}
       {board && !board.isFetching && <BoardActions />}
     </div>
   );

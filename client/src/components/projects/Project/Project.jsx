@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import PropTypes from 'prop-types';
 import { useSelector } from 'react-redux';
 
 import selectors from '../../../selectors';
@@ -14,7 +15,7 @@ import BoardSettingsModal from '../../boards/BoardSettingsModal';
 
 import styles from './Project.module.scss';
 
-const Project = React.memo(() => {
+const Project = React.memo(({ withBoards }) => {
   const modal = useSelector(selectors.selectCurrentModal);
 
   let modalNode = null;
@@ -34,12 +35,22 @@ const Project = React.memo(() => {
 
   return (
     <>
-      <div className={styles.wrapper}>
-        <Boards />
-      </div>
+      {withBoards && (
+        <div className={styles.wrapper}>
+          <Boards />
+        </div>
+      )}
       {modalNode}
     </>
   );
 });
+
+Project.propTypes = {
+  withBoards: PropTypes.bool,
+};
+
+Project.defaultProps = {
+  withBoards: true,
+};
 
 export default Project;

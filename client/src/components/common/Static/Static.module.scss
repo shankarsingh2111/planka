@@ -48,6 +48,15 @@
     margin-top: calc(264px + var(--promo-banner-height, 0px));
   }
 
+  // The board tabs (48px) left out of an expanded timeline
+  .wrapperBoardWithoutTabs {
+    margin-top: calc(126px + var(--promo-banner-height, 0px));
+  }
+
+  .wrapperBoardWithoutTabsWithFavorites {
+    margin-top: calc(216px + var(--promo-banner-height, 0px));
+  }
+
   .wrapperFlex {
     display: flex;
   }

@@ -19,7 +19,16 @@ import styles from './UnscheduledSidebar.module.scss';
  * adds a local search of its own and groups what is left by list.
  */
 const UnscheduledSidebar = React.memo(
-  ({ cards, ghostCard, isDropTarget, draggingCardId, onCardClick, onCardDragStart }) => {
+  ({
+    cards,
+    ghostCard,
+    isCollapsed,
+    isDropTarget,
+    draggingCardId,
+    onCardClick,
+    onCardDragStart,
+    onCollapsedToggle,
+  }) => {
   const [t] = useTranslation();
   const [search, setSearch] = useState('');
   const [collapsedListIds, setCollapsedListIds] = useState(() => new Set());
@@ -67,6 +76,23 @@ const UnscheduledSidebar = React.memo(
     return [...byListId.values()].sort((a, b) => a.position - b.position);
   }, [filteredCards, t]);
 
+  // Collapsed, it shrinks to a rail in the same place, so it opens again from where it closed
+  if (isCollapsed) {
+    return (
+      <button
+        type="button"
+        aria-expanded={false}
+        title={t('common.unscheduledCardsSidebar')}
+        className={styles.rail}
+        onClick={onCollapsedToggle}
+      >
+        <Icon fitted name="chevron right" className={styles.railIcon} />
+        <span className={styles.railTitle}>{t('common.unscheduled', { context: 'title' })}</span>
+        {cards.length > 0 && <span className={styles.headerCount}>{cards.length}</span>}
+      </button>
+    );
+  }
+
   return (
     <div
       className={classNames(styles.wrapper, isDropTarget && styles.wrapperDropTarget)}
@@ -76,6 +102,15 @@ const UnscheduledSidebar = React.memo(
         <Icon name="calendar times outline" className={styles.headerIcon} />
         <span className={styles.headerTitle}>{t('common.unscheduled', { context: 'title' })}</span>
         <span className={styles.headerCount}>{cards.length}</span>
+        <button
+          type="button"
+          aria-expanded
+          title={t('action.collapse')}
+          className={styles.collapseButton}
+          onClick={onCollapsedToggle}
+        >
+          <Icon fitted name="chevron left" />
+        </button>
       </div>
       <div className={styles.searchWrapper}>
         <Input
@@ -159,14 +194,17 @@ const UnscheduledSidebar = React.memo(
 UnscheduledSidebar.propTypes = {
   cards: PropTypes.array.isRequired, // eslint-disable-line react/forbid-prop-types
   ghostCard: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+  isCollapsed: PropTypes.bool,
   isDropTarget: PropTypes.bool,
   draggingCardId: PropTypes.string,
   onCardClick: PropTypes.func.isRequired,
   onCardDragStart: PropTypes.func.isRequired,
+  onCollapsedToggle: PropTypes.func.isRequired,
 };
 
 UnscheduledSidebar.defaultProps = {
   ghostCard: undefined,
+  isCollapsed: false,
   isDropTarget: false,
   draggingCardId: undefined,
 };

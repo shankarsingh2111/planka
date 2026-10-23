@@ -17,7 +17,7 @@ import Paths from '../../../constants/Paths';
 
 import styles from './Item.module.scss';
 
-const Item = React.memo(({ id, index }) => {
+const Item = React.memo(({ id, index, isCompact }) => {
   const selectBoardById = useMemo(() => selectors.makeSelectBoardById(), []);
 
   const selectNotificationsTotalByBoardId = useMemo(
@@ -50,7 +50,14 @@ const Item = React.memo(({ id, index }) => {
       {({ innerRef, draggableProps, dragHandleProps }) => (
         // eslint-disable-next-line react/jsx-props-no-spreading
         <div {...draggableProps} {...dragHandleProps} ref={innerRef} className={styles.wrapper}>
-          <div className={classNames(styles.tab, isActive && styles.tabActive)}>
+          <div
+            className={classNames(
+              styles.tab,
+              isActive && styles.tabActive,
+              isCompact && styles.tabCompact,
+              isCompact && canEdit && styles.tabCompactEditable,
+            )}
+          >
             {board.isPersisted ? (
               <>
                 <Link
@@ -82,6 +89,11 @@ const Item = React.memo(({ id, index }) => {
 Item.propTypes = {
   id: PropTypes.string.isRequired,
   index: PropTypes.number.isRequired,
+  isCompact: PropTypes.bool,
+};
+
+Item.defaultProps = {
+  isCompact: false,
 };
 
 export default Item;

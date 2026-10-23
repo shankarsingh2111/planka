@@ -87,4 +87,50 @@
     display: flex;
     flex: 0 0 auto;
   }
+
+  .tabCompact {
+    border-radius: 3px;
+    min-width: 0;
+
+    .editButton {
+      line-height: 24px;
+      right: 1px;
+      top: 1px;
+      width: 24px;
+    }
+
+    .link {
+      font-size: 13px;
+      line-height: 18px;
+      max-width: 220px;
+      padding: 5px 12px;
+      white-space: nowrap;
+    }
+
+    &.tabActive {
+      background: rgba(255, 255, 255, 0.92);
+
+      &:hover {
+        background: #fff;
+      }
+
+      .editButton {
+        color: #172b4d;
+
+        &:hover {
+          background: rgba(9, 30, 66, 0.08);
+        }
+      }
+
+      .name {
+        color: #172b4d;
+        font-weight: 600;
+      }
+    }
+  }
+
+  // Room for the edit button, which only shows in edit mode
+  .tabCompactEditable .link {
+    padding-right: 28px;
+  }
 }

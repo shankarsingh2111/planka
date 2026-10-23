@@ -4,6 +4,8 @@
  */
 
 import React, { useCallback, useRef } from 'react';
+import PropTypes from 'prop-types';
+import classNames from 'classnames';
 import { useDispatch, useSelector } from 'react-redux';
 import { DragDropContext, Droppable } from 'react-beautiful-dnd';
 import { Button } from 'semantic-ui-react';
@@ -18,7 +20,7 @@ import AddBoardStep from '../AddBoardStep';
 import styles from './Boards.module.scss';
 import globalStyles from '../../../styles.module.scss';
 
-const Boards = React.memo(() => {
+const Boards = React.memo(({ isCompact }) => {
   const boardIds = useSelector(selectors.selectBoardIdsForCurrentProject);
 
   const canAdd = useSelector((state) => {
@@ -62,20 +64,32 @@ const Boards = React.memo(() => {
   const AddBoardPopup = usePopup(AddBoardStep);
 
   return (
-    <div className={styles.wrapper} onWheel={handleWheel}>
-      <div ref={tabsWrapperRef} className={styles.tabsWrapper}>
+    <div
+      className={classNames(styles.wrapper, isCompact && styles.wrapperCompact)}
+      onWheel={handleWheel}
+    >
+      <div
+        ref={tabsWrapperRef}
+        className={classNames(styles.tabsWrapper, isCompact && styles.tabsWrapperCompact)}
+      >
         <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <Droppable droppableId="boards" type={DroppableTypes.BOARD} direction="horizontal">
             {({ innerRef, droppableProps, placeholder }) => (
-              // eslint-disable-next-line react/jsx-props-no-spreading
-              <div {...droppableProps} ref={innerRef} className={styles.tabs}>
+              <div
+                {...droppableProps} // eslint-disable-line react/jsx-props-no-spreading
+                ref={innerRef}
+                className={classNames(styles.tabs, isCompact && styles.tabsCompact)}
+              >
                 {boardIds.map((boardId, index) => (
-                  <Item key={boardId} id={boardId} index={index} />
+                  <Item key={boardId} id={boardId} index={index} isCompact={isCompact} />
                 ))}
                 {placeholder}
                 {canAdd && (
                   <AddBoardPopup>
-                    <Button icon="plus" className={styles.addButton} />
+                    <Button
+                      icon="plus"
+                      className={classNames(styles.addButton, isCompact && styles.addButtonCompact)}
+                    />
                   </AddBoardPopup>
                 )}
               </div>
@@ -86,5 +100,15 @@ const Boards = React.memo(() => {
     </div>
   );
 });
+
+// Compact is the strip an expanded timeline puts in the header: the same tabs, sized like the view
+// switcher so they fit beside the project name
+Boards.propTypes = {
+  isCompact: PropTypes.bool,
+};
+
+Boards.defaultProps = {
+  isCompact: false,
+};
 
 export default Boards;

@@ -15,6 +15,7 @@ import selectors from '../../../../selectors';
 import entryActions from '../../../../entry-actions';
 import Paths from '../../../../constants/Paths';
 import { BoardMembershipRoles, CardRecurrenceScopes } from '../../../../constants/Enums';
+import { useTimelineExpanded } from '../../../../utils/timeline-expanded';
 import { GroupByOptions, NO_VALUE_KEY } from './constants';
 import { getAddCardDefaults } from './add-card-defaults';
 import useTimelinePreferences from './use-timeline-preferences';
@@ -96,6 +97,18 @@ const TimelineView = React.memo(({ cardIds }) => {
   } = useTimelinePreferences(board.id);
 
   const hiddenLaneKeys = getHiddenLaneKeys(groupBy);
+
+  // Expanding folds the sidebar to its rail without touching whether it is kept open, so it
+  // comes back as it was. Opening it from the rail while expanded only lasts until the next expand.
+  const [isExpanded, toggleExpanded] = useTimelineExpanded();
+  const [isExpandedSidebarOpened, setIsExpandedSidebarOpened] = useState(false);
+  const isSidebarShown = isExpanded ? isExpandedSidebarOpened : isSidebarOpened;
+
+  useEffect(() => {
+    if (isExpanded) {
+      setIsExpandedSidebarOpened(false);
+    }
+  }, [isExpanded]);
 
   // A press on a sidebar card only becomes a drag once it travels far enough, so the same
   // gesture still opens the card on a plain click
@@ -746,21 +759,13 @@ const TimelineView = React.memo(({ cardIds }) => {
 
   const lanesFilterTitle = LANES_FILTER_TITLES[groupBy] || LANES_FILTER_TITLES[GroupByOptions.LIST];
 
-  const sidebarToggleNode = (
-    <Button
-      size="mini"
-      basic
-      active={isSidebarOpened}
-      title={t('common.unscheduledCardsSidebar')}
-      className={styles.sidebarToggle}
-      onClick={() => setIsSidebarOpened(!isSidebarOpened)}
-    >
-      <Icon fitted name={isSidebarOpened ? 'angle double left' : 'angle double right'} />
-      {unscheduledCards.length > 0 && (
-        <span className={styles.sidebarToggleCount}>{unscheduledCards.length}</span>
-      )}
-    </Button>
-  );
+  const handleSidebarCollapsedToggle = useCallback(() => {
+    if (isExpanded) {
+      setIsExpandedSidebarOpened((prevIsOpened) => !prevIsOpened);
+    } else {
+      setIsSidebarOpened(!isSidebarOpened);
+    }
+  }, [isExpanded, isSidebarOpened, setIsSidebarOpened]);
 
   const addCardButtonNode = canAddCard && (
     <Button size="mini" basic className={styles.addCardButton} onClick={handleAddCardClick}>
@@ -773,16 +778,16 @@ const TimelineView = React.memo(({ cardIds }) => {
 
   return (
     <div className={styles.wrapper}>
-      {isSidebarOpened && (
-        <UnscheduledSidebar
-          cards={unscheduledCards}
-          ghostCard={unschedulingCard}
-          isDropTarget={!!unschedulingCard}
-          draggingCardId={externalDragItem && externalDragItem.id}
-          onCardClick={handleUnscheduledCardClick}
-          onCardDragStart={handleUnscheduledCardDragStart}
-        />
-      )}
+      <UnscheduledSidebar
+        cards={unscheduledCards}
+        ghostCard={unschedulingCard}
+        isCollapsed={!isSidebarShown}
+        isDropTarget={!!unschedulingCard}
+        draggingCardId={externalDragItem && externalDragItem.id}
+        onCardClick={handleUnscheduledCardClick}
+        onCardDragStart={handleUnscheduledCardDragStart}
+        onCollapsedToggle={handleSidebarCollapsedToggle}
+      />
       <div className={styles.chart}>
         <TimelineChart
           items={items}
@@ -793,9 +798,8 @@ const TimelineView = React.memo(({ cardIds }) => {
           zoomLevel={zoomLevel}
           collapsedLaneKeys={collapsedLaneKeys}
           externalDragItem={externalDragChartItem}
-          leadingToolbarChildren={sidebarToggleNode}
           toolbarActionChildren={addCardButtonNode}
-          unscheduledCount={isSidebarOpened ? 0 : unscheduledCards.length}
+          unscheduledCount={isSidebarShown ? 0 : unscheduledCards.length}
           emptyMessage={t('common.noCardsWithDates')}
           toolbarChildren={
             <>
@@ -826,6 +830,17 @@ const TimelineView = React.memo(({ cardIds }) => {
                 value={colorBy}
                 onChange={(_, { value }) => setColorBy(value)}
               />
+              <Button
+                size="mini"
+                basic
+                icon
+                active={isExpanded}
+                title={t(isExpanded ? 'action.collapseTimeline' : 'action.expandTimeline')}
+                aria-pressed={isExpanded}
+                onClick={toggleExpanded}
+              >
+                <Icon name={isExpanded ? 'compress' : 'expand'} />
+              </Button>
             </>
           }
           onItemClick={handleItemClick}
@@ -833,7 +848,7 @@ const TimelineView = React.memo(({ cardIds }) => {
           onItemLaneChange={
             canEdit && groupBy === GroupByOptions.LIST ? handleItemLaneChange : undefined
           }
-          onItemUnschedule={canEdit && isSidebarOpened ? handleItemUnschedule : undefined}
+          onItemUnschedule={canEdit && isSidebarShown ? handleItemUnschedule : undefined}
           onUnscheduleHoverChange={setUnschedulingCardId}
           onExternalDrop={canEdit ? handleExternalDrop : undefined}
           onExternalDragCancel={handleExternalDragCancel}

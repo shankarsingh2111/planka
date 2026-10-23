@@ -15,11 +15,28 @@
     }
   }
 
+  .addButtonCompact {
+    height: 26px;
+    margin: 0 0 0 2px;
+    padding: 0 !important;
+    width: 26px;
+  }
+
   .tabs {
     display: flex;
     height: 38px;
     flex: 0 0 auto;
     white-space: nowrap;
+  }
+
+  // Sized like the view switcher, so the strip sits in the header beside the project name
+  .tabsCompact {
+    align-items: center;
+    background: rgba(0, 0, 0, 0.24);
+    border-radius: 4px;
+    gap: 2px;
+    height: 32px;
+    padding: 2px;
   }
 
   .tabsWrapper {
@@ -58,5 +75,21 @@
     flex-direction: column;
     height: 38px;
     overflow: hidden;
+  }
+
+  // Taller than the strip so its scrollbar stays out of sight until hovered, as for the full tabs
+  .tabsWrapperCompact {
+    height: 50px;
+
+    &:hover {
+      height: 32px;
+    }
+  }
+
+  .wrapperCompact {
+    border-bottom: none;
+    flex: 0 1 auto;
+    height: 32px;
+    min-width: 0;
   }
 }

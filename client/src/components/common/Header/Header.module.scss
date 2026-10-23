@@ -4,6 +4,12 @@
  */
 
 :global(#app) {
+  .boards {
+    flex: 0 1 auto;
+    min-width: 0;
+    padding: 0 8px !important;
+  }
+
   .editButton {
     background: transparent;
     box-shadow: none;
@@ -46,6 +52,12 @@
 
   .itemIconEnabled {
     color: #bdff22;
+  }
+
+  // Lets the board tabs shrink and scroll rather than push the right side off screen
+  .leftMenu {
+    flex: 0 1 auto;
+    min-width: 0;
   }
 
   .logo {

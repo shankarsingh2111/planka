@@ -566,9 +566,39 @@ const TimelineChart = React.memo(
       }
     }, [todayLeft]);
 
+    // The last scroll position the user was at, kept apart from the element's own: when filtering
+    // narrows the range, the browser clamps scrollLeft to the shrunk canvas before we can read it
+    const scrollLeftRef = useRef(0);
+    const prevViewRef = useRef({ viewStart, zoomLevel });
+
+    const handleScroll = useCallback(() => {
+      scrollLeftRef.current = scrollRef.current.scrollLeft;
+    }, []);
+
     useLayoutEffect(() => {
       scrollToToday();
     }, [zoomLevel]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // The range follows the earliest card shown, so filtering the cards can move where the canvas
+    // starts. Keep the same dates under the viewport instead of the same pixel offset.
+    useLayoutEffect(() => {
+      const prevView = prevViewRef.current;
+      prevViewRef.current = { viewStart, zoomLevel };
+
+      if (
+        !scrollRef.current ||
+        prevView.zoomLevel !== zoomLevel ||
+        prevView.viewStart.getTime() === viewStart.getTime()
+      ) {
+        return;
+      }
+
+      const scrollLeft =
+        scrollLeftRef.current + diffInDays(viewStart, prevView.viewStart) * pixelsPerDay;
+
+      scrollRef.current.scrollLeft = scrollLeft;
+      scrollLeftRef.current = scrollRef.current.scrollLeft;
+    }, [viewStart, zoomLevel, pixelsPerDay]);
 
     // Told to the consumer rather than drawn here: the sidebar that shows the card in flight is
     // outside this component
@@ -752,7 +782,7 @@ const TimelineChart = React.memo(
               .join(' ')}
           </div>
         )}
-        <div ref={scrollRef} className={styles.scroll}>
+        <div ref={scrollRef} className={styles.scroll} onScroll={handleScroll}>
           <div className={styles.inner} style={{ width: LANE_HEADER_WIDTH + totalWidth }}>
             <div ref={headerRef} className={styles.header}>
               <div className={styles.corner} style={{ width: LANE_HEADER_WIDTH }} />
