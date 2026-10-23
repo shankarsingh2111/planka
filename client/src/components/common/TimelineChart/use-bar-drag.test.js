@@ -5,7 +5,7 @@ import {
   getDropAction,
   hasCrossedDragThreshold,
 } from './use-bar-drag';
-import { isPointOverVisibleCanvas } from './use-drop-target';
+import { clampToScrollArea, isPointOverVisibleCanvas } from './use-drop-target';
 import { ZoomLevels, getItemRange } from './utils';
 
 describe('getDraggedDates for a card with only a due date', () => {
@@ -105,10 +105,19 @@ describe('getAutoScrollDirection', () => {
     expect(getAutoScrollDirection(500, 590, rect, headerHeight)).toEqual({ x: 0, y: 1 });
   });
 
-  it('does not scroll over the lane headers or outside the scroll area', () => {
-    expect(getAutoScrollDirection(100, 300, rect, headerHeight)).toEqual({ x: 0, y: 0 });
-    expect(getAutoScrollDirection(-20, 300, rect, headerHeight)).toEqual({ x: 0, y: 0 });
-    expect(getAutoScrollDirection(500, 700, rect, headerHeight)).toEqual({ x: 0, y: 0 });
+  it('keeps scrolling with the pointer pushed onto the date header or past the top, right or bottom edge', () => {
+    expect(getAutoScrollDirection(1030, 300, rect, headerHeight)).toEqual({ x: 1, y: 0 });
+    expect(getAutoScrollDirection(500, 700, rect, headerHeight)).toEqual({ x: 0, y: 1 });
+    expect(getAutoScrollDirection(1030, 700, rect, headerHeight)).toEqual({ x: 1, y: 1 });
+    expect(getAutoScrollDirection(500, 30, rect, headerHeight)).toEqual({ x: 0, y: -1 });
+    expect(getAutoScrollDirection(500, -20, rect, headerHeight)).toEqual({ x: 0, y: -1 });
+    expect(getAutoScrollDirection(1030, -20, rect, headerHeight)).toEqual({ x: 1, y: -1 });
+  });
+
+  it('keeps scrolling left with the pointer over the lane headers or past the left edge', () => {
+    expect(getAutoScrollDirection(100, 300, rect, headerHeight)).toEqual({ x: -1, y: 0 });
+    expect(getAutoScrollDirection(-20, 300, rect, headerHeight)).toEqual({ x: -1, y: 0 });
+    expect(getAutoScrollDirection(-20, -20, rect, headerHeight)).toEqual({ x: -1, y: -1 });
   });
 });
 
@@ -124,6 +133,49 @@ describe('isPointOverVisibleCanvas', () => {
     expect(isPointOverVisibleCanvas(150, 400, rect, headerHeight)).toBe(false);
     expect(isPointOverVisibleCanvas(400, 400, rect, headerHeight)).toBe(false);
     expect(isPointOverVisibleCanvas(800, 130, rect, headerHeight)).toBe(false);
+  });
+});
+
+describe('clampToScrollArea', () => {
+  const rect = { left: 300, top: 100, right: 1300, bottom: 700 };
+  const headerHeight = 60;
+
+  it('leaves a point over the visible dates alone', () => {
+    expect(clampToScrollArea(800, 400, rect, headerHeight)).toEqual({ clientX: 800, clientY: 400 });
+  });
+
+  it('pulls a point past the right or bottom edge back over the visible dates', () => {
+    const clamped = clampToScrollArea(1350, 760, rect, headerHeight);
+
+    expect(clamped).toEqual({ clientX: 1299, clientY: 699 });
+    expect(isPointOverVisibleCanvas(clamped.clientX, clamped.clientY, rect, headerHeight)).toBe(
+      true,
+    );
+  });
+
+  it('pulls a point on the date header or above the canvas down onto the first row', () => {
+    expect(clampToScrollArea(800, 130, rect, headerHeight)).toEqual({ clientX: 800, clientY: 160 });
+    expect(clampToScrollArea(1350, 50, rect, headerHeight)).toEqual({
+      clientX: 1299,
+      clientY: 160,
+    });
+  });
+
+  it('leaves a point over the sidebar or lane headers off the canvas', () => {
+    const overSidebar = clampToScrollArea(150, 400, rect, headerHeight);
+    const overLaneHeaders = clampToScrollArea(400, 50, rect, headerHeight);
+
+    expect(
+      isPointOverVisibleCanvas(overSidebar.clientX, overSidebar.clientY, rect, headerHeight),
+    ).toBe(false);
+    expect(
+      isPointOverVisibleCanvas(
+        overLaneHeaders.clientX,
+        overLaneHeaders.clientY,
+        rect,
+        headerHeight,
+      ),
+    ).toBe(false);
   });
 });
 

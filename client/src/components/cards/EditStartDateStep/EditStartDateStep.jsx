@@ -16,6 +16,7 @@ import selectors from '../../../selectors';
 import entryActions from '../../../entry-actions';
 import { useForm, useNestedRef } from '../../../hooks';
 import parseTime from '../../../utils/parse-time';
+import { buildStartDateUpdate } from '../../../utils/schedule-dates';
 
 import styles from '../EditDueDateStep/EditDueDateStep.module.scss';
 
@@ -24,8 +25,8 @@ const EditStartDateStep = React.memo(({ cardId, defaultValue, onUpdate, onBack, 
 
   // A card that does not exist yet (the add card dialog) passes its value in and takes it back
   // through onUpdate instead of going through the store
-  const cardValue = useSelector((state) => cardId && selectCardById(state, cardId).startDate);
-  const initialValue = cardId ? cardValue : defaultValue;
+  const card = useSelector((state) => cardId && selectCardById(state, cardId));
+  const initialValue = cardId ? card.startDate : defaultValue;
 
   const dispatch = useDispatch();
   const [t] = useTranslation();
@@ -33,16 +34,12 @@ const EditStartDateStep = React.memo(({ cardId, defaultValue, onUpdate, onBack, 
   const update = useCallback(
     (value) => {
       if (cardId) {
-        dispatch(
-          entryActions.updateCard(cardId, {
-            startDate: value,
-          }),
-        );
+        dispatch(entryActions.updateCard(cardId, buildStartDateUpdate(card, value)));
       } else {
         onUpdate(value);
       }
     },
-    [cardId, onUpdate, dispatch],
+    [cardId, card, onUpdate, dispatch],
   );
 
   const [data, handleFieldChange, setData] = useForm(() => {

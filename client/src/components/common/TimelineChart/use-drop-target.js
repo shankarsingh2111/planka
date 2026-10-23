@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { AUTO_SCROLL_SPEED, getAutoScrollDirection } from './use-bar-drag';
 import { LANE_HEADER_WIDTH, getDropRange } from './utils';
 
 /**
@@ -20,9 +21,11 @@ import { LANE_HEADER_WIDTH, getDropRange } from './utils';
  * once scrolled, so without this a pointer resting over the sidebar or the lane headers would map
  * onto hidden dates and a card dropped back where it started would be scheduled there.
  *
- * The canvas deliberately does not scroll itself while a card is in flight: the drag starts over
- * the sidebar, well to the left of the scroll area, so any edge-proximity rule fires immediately
- * and drags the dates out from under the cursor. Scroll to the dates you want first, then drag.
+ * The canvas scrolls itself near its right, top and bottom edges while a card is in flight, but
+ * never towards the left: the drag starts over the sidebar, so on its way in the pointer crosses
+ * the left band, which would drag the dates out from under the cursor. A pointer pushed onto the
+ * date header or past the top, right or bottom edge counts as over the nearest visible column or
+ * row, so releasing it out there still drops the card where the preview shows it.
  */
 // Whether a point lies over the visible dates: inside the scroll area, right of the sticky lane
 // headers and below the sticky date header
@@ -31,6 +34,14 @@ export const isPointOverVisibleCanvas = (clientX, clientY, scrollRect, headerHei
   clientX <= scrollRect.right &&
   clientY >= scrollRect.top + headerHeight &&
   clientY <= scrollRect.bottom;
+
+// Pulls a point pushed onto the date header or past the top, right or bottom edge of the scroll
+// area back onto the visible dates, so the drop resolves against the column or row at that edge.
+// The left is left alone: a point over the sidebar or lane headers is not a drop.
+export const clampToScrollArea = (clientX, clientY, scrollRect, headerHeight) => ({
+  clientX: Math.min(clientX, scrollRect.right - 1),
+  clientY: Math.min(Math.max(clientY, scrollRect.top + headerHeight), scrollRect.bottom - 1),
+});
 
 const useDropTarget = ({
   isActive,
@@ -56,17 +67,27 @@ const useDropTarget = ({
       return;
     }
 
-    const isOverVisibleCanvas = isPointOverVisibleCanvas(
+    const scrollRect = scrollRef.current.getBoundingClientRect();
+    const headerHeight = headerRef.current ? headerRef.current.offsetHeight : 0;
+
+    const { clientX, clientY } = clampToScrollArea(
       pointer.clientX,
       pointer.clientY,
-      scrollRef.current.getBoundingClientRect(),
-      headerRef.current ? headerRef.current.offsetHeight : 0,
+      scrollRect,
+      headerHeight,
+    );
+
+    const isOverVisibleCanvas = isPointOverVisibleCanvas(
+      clientX,
+      clientY,
+      scrollRect,
+      headerHeight,
     );
 
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = pointer.clientX - rect.left;
+    const x = clientX - rect.left;
 
-    const slot = isOverVisibleCanvas ? getDropSlotAtClientY(pointer.clientY) : null;
+    const slot = isOverVisibleCanvas ? getDropSlotAtClientY(clientY) : null;
 
     if (!slot || x < 0 || x > totalWidth) {
       previewRef.current = null;
@@ -137,6 +158,61 @@ const useDropTarget = ({
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isActive, resolve, onDrop, onCancel]);
+
+  // Edge auto-scroll, as for a bar being moved, except that it never scrolls left. Each frame
+  // re-resolves the drop, since scrolling fires no pointer events.
+  useEffect(() => {
+    if (!isActive) {
+      return undefined;
+    }
+
+    let frameId;
+    let lastTime = null;
+
+    const tick = (time) => {
+      const pointer = pointerRef.current;
+      const scrollElement = scrollRef.current;
+
+      if (pointer && scrollElement) {
+        const elapsed = lastTime === null ? 0 : Math.min(time - lastTime, 50);
+
+        const scrollRect = scrollElement.getBoundingClientRect();
+
+        const direction = getAutoScrollDirection(
+          pointer.clientX,
+          pointer.clientY,
+          scrollRect,
+          headerRef.current ? headerRef.current.offsetHeight : 0,
+        );
+
+        // Still over the sidebar it came from, the card scrolls nothing
+        if (pointer.clientX < scrollRect.left) {
+          direction.y = 0;
+        }
+
+        direction.x = Math.max(direction.x, 0);
+
+        if ((direction.x || direction.y) && elapsed > 0) {
+          const step = (AUTO_SCROLL_SPEED * elapsed) / 1000;
+          const { scrollLeft, scrollTop } = scrollElement;
+
+          scrollElement.scrollLeft += direction.x * step;
+          scrollElement.scrollTop += direction.y * step;
+
+          if (scrollElement.scrollLeft !== scrollLeft || scrollElement.scrollTop !== scrollTop) {
+            resolve();
+          }
+        }
+      }
+
+      lastTime = time;
+      frameId = requestAnimationFrame(tick);
+    };
+
+    frameId = requestAnimationFrame(tick);
+
+    return () => cancelAnimationFrame(frameId);
+  }, [isActive, scrollRef, headerRef, resolve]);
 
   // Derived rather than returned straight from state: the effect that clears `preview` only runs
   // after the render in which `isActive` went false, and a caller reading a stale preview against

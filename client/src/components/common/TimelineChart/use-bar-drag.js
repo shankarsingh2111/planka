@@ -28,30 +28,24 @@ export const hasCrossedDragThreshold = (mode, deltaX, deltaY) =>
 // Auto-scroll while dragging near an edge of the scroll area. The speed is fixed and time based
 // rather than ramping with proximity, so it reads the same on every display and never races off.
 const AUTO_SCROLL_EDGE = 48;
-const AUTO_SCROLL_SPEED = 360; // px per second
+export const AUTO_SCROLL_SPEED = 360; // px per second
 
-// -1, 0 or 1 per axis for a pointer inside the scroll area. The bands sit just inside the sticky
-// lane headers and date header, so a pointer over those (on its way to the sidebar) never scrolls.
+// -1, 0 or 1 per axis. Every band is open-ended: a pointer pushed onto the lane headers or date
+// header, or past any edge of the scroll area, keeps scrolling that way. What lies beyond the left
+// edge (the sidebar) is the caller's to rule out.
 export const getAutoScrollDirection = (clientX, clientY, rect, headerHeight) => {
-  const isInside =
-    clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
-
-  if (!isInside) {
-    return { x: 0, y: 0 };
-  }
-
   const contentLeft = rect.left + LANE_HEADER_WIDTH;
   const contentTop = rect.top + headerHeight;
 
   let x = 0;
-  if (clientX >= contentLeft && clientX < contentLeft + AUTO_SCROLL_EDGE) {
+  if (clientX < contentLeft + AUTO_SCROLL_EDGE) {
     x = -1;
   } else if (clientX > rect.right - AUTO_SCROLL_EDGE) {
     x = 1;
   }
 
   let y = 0;
-  if (clientY >= contentTop && clientY < contentTop + AUTO_SCROLL_EDGE) {
+  if (clientY < contentTop + AUTO_SCROLL_EDGE) {
     y = -1;
   } else if (clientY > rect.bottom - AUTO_SCROLL_EDGE) {
     y = 1;
@@ -237,6 +231,7 @@ const useBarDrag = ({
       !!onItemUnschedule && isMove && isPointOverUnscheduleZone({ clientX, clientY });
 
     current.toLaneKey = toLaneKey;
+    current.isOverUnscheduleZone = isOverUnscheduleZone;
 
     setDrag((prevDrag) =>
       prevDrag &&
@@ -315,6 +310,12 @@ const useBarDrag = ({
 
         // Resizing edits dates only, so it never needs to scroll between lanes
         if (current.mode !== DragModes.MOVE) {
+          direction.y = 0;
+        }
+
+        // Held over the sidebar to be unscheduled, the dates behind it stay put
+        if (current.isOverUnscheduleZone) {
+          direction.x = 0;
           direction.y = 0;
         }
 

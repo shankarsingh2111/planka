@@ -271,6 +271,8 @@ export function* handleCardCreate(card) {
   );
 }
 
+const SCHEDULE_FIELD_NAMES = ['startDate', 'dueDate', 'isDueCompleted'];
+
 export function* updateCard(id, data) {
   const recurrenceScope = yield call(getCardRecurrenceScope, id);
 
@@ -319,6 +321,12 @@ export function* updateCard(id, data) {
     }
   }
 
+  // The schedule as it stands, to put back if the server refuses the change
+  const prevSchedule = pick(
+    yield select(selectors.selectCardById, id),
+    SCHEDULE_FIELD_NAMES.filter((fieldName) => data[fieldName] !== undefined),
+  );
+
   yield put(
     actions.updateCard(id, {
       ...data,
@@ -335,6 +343,12 @@ export function* updateCard(id, data) {
   try {
     ({ item: card } = yield call(request, api.updateCard, id, data));
   } catch (error) {
+    // Otherwise the card keeps showing dates the server never saved, until its next update
+    // brings the saved ones back
+    if (Object.keys(prevSchedule).length > 0) {
+      yield put(actions.updateCard(id, prevSchedule));
+    }
+
     yield put(actions.updateCard.failure(id, error));
     return;
   }
