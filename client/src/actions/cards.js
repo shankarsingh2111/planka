@@ -65,11 +65,12 @@ const createCard = (card, autoOpen) => ({
   },
 });
 
-createCard.success = (localId, card) => ({
+createCard.success = (localId, card, cardMemberships) => ({
   type: ActionTypes.CARD_CREATE__SUCCESS,
   payload: {
     localId,
     card,
+    cardMemberships,
   },
 });
 

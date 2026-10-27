@@ -169,14 +169,20 @@ export function* createCard(listId, data, index, autoOpen) {
   }
 
   let card;
+  let cardMemberships;
   try {
-    ({ item: card } = yield call(request, api.createCard, listId, nextData));
+    ({ item: card, included: { cardMemberships = [] } = {} } = yield call(
+      request,
+      api.createCard,
+      listId,
+      nextData,
+    ));
   } catch (error) {
     yield put(actions.createCard.failure(localId, error));
     return null;
   }
 
-  yield put(actions.createCard.success(localId, card));
+  yield put(actions.createCard.success(localId, card, cardMemberships));
 
   if (watchForCreateCardActionTask && watchForCreateCardActionTask.isRunning()) {
     yield call(goToCard, card.id);
@@ -199,8 +205,13 @@ export function* createCardWithDetails(listId, data, { userIds, labelIds, recurr
     return;
   }
 
+  // The creator is already a member, and adding them again would fail and take them off the card
+  const currentUserId = yield select(selectors.selectCurrentUserId);
+
   yield all([
-    ...userIds.map((userId) => call(addUserToCard, userId, card.id)),
+    ...userIds
+      .filter((userId) => userId !== currentUserId)
+      .map((userId) => call(addUserToCard, userId, card.id)),
     ...labelIds.map((labelId) => call(addLabelToCard, labelId, card.id)),
   ]);
 

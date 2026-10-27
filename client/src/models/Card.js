@@ -296,15 +296,31 @@ export default class extends BaseModel {
 
         break;
       case ActionTypes.CARD_CREATE:
+        // The server assigns the creator to the card, so they show on it straight away
+        Card.upsert(payload.card).users.add(payload.card.creatorUserId);
+
+        break;
       case ActionTypes.CARD_UPDATE__SUCCESS:
         Card.upsert(payload.card);
 
         break;
-      case ActionTypes.CARD_CREATE__SUCCESS:
+      case ActionTypes.CARD_CREATE__SUCCESS: {
         Card.withId(payload.localId).deleteWithClearable();
-        Card.upsert(payload.card);
+
+        const cardModel = Card.upsert(payload.card);
+
+        payload.cardMemberships.forEach(({ userId }) => {
+          cardModel.users.add(userId);
+        });
+
+        // Their membership subscribes them, and the server leaves this request's socket out of
+        // that broadcast
+        if (payload.cardMemberships.length > 0) {
+          cardModel.isSubscribed = true;
+        }
 
         break;
+      }
       case ActionTypes.CARD_CREATE__FAILURE:
         Card.withId(payload.localId).deleteWithClearable();
 

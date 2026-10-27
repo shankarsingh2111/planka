@@ -91,6 +91,14 @@
  *               properties:
  *                 item:
  *                   $ref: '#/components/schemas/Card'
+ *                 included:
+ *                   type: object
+ *                   description: The creator's membership of the new card
+ *                   properties:
+ *                     cardMemberships:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/CardMembership'
  *       400:
  *         $ref: '#/components/responses/ValidationError'
  *       401:
@@ -233,8 +241,26 @@ module.exports = {
       })
       .intercept('positionMustBeInValues', () => Errors.POSITION_MUST_BE_PRESENT);
 
+    // The creator is assigned to their own card. Creating the card is already logged, so adding
+    // them is not logged again
+    const cardMembership = await sails.helpers.cardMemberships.createOne.with({
+      project,
+      board,
+      list,
+      values: {
+        card,
+        user: currentUser,
+      },
+      actorUser: currentUser,
+      skipAction: true,
+      request: this.req,
+    });
+
     return {
       item: card,
+      included: {
+        cardMemberships: [cardMembership],
+      },
     };
   },
 };
